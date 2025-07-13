@@ -119,12 +119,15 @@ def unexpandRiseDataPai : Unexpander
 #reduce [RiseD| 1·2·float × 3·4·float]
 #check [RiseD| (1·2·float) × (3·4·float)]
 
-inductive Vect (α : Type _) : Nat → Type _ where
-  | nil  : Vect α 0
-  | cons : α → Vect α n → Vect α (n + 1)
+-- inductive Vect (α : Type _) : Nat → Type _ where
+--   | nil  : Vect α 0
+--   | cons : α → Vect α n → Vect α (n + 1)
 
-#check ∀ x : Nat , Vect _ x
-#check fun (x : Nat) => Vect _ x
+-- #check ∀ x : Nat , Vect _ x
+-- #check fun (x : Nat) => Vect _ x
+
+
+
 --   κ ::= nat | data                                (Natural Number Kind, Datatype Kind)
 inductive RiseKind
   | nat
@@ -161,21 +164,29 @@ macro_rules
   | `([RiseT| $l:rise_type → $r:rise_type]) => `(RiseType.fn [RiseT| $l] [RiseT| $r])
   | `([RiseT| ($t:rise_type)]) => `([RiseT| $t])
   -- | `([RiseT| {$x:ident : $k:rise_kind} → $t:rise_type]) => `(fun $x => [RiseT| $t])
-  | `([RiseT| {$x:ident : data} → $t:rise_type]) => `(RiseType.dfn fun {$x : RiseData} => [RiseT| $t])
-  | `([RiseT| {$x:ident : nat} → $t:rise_type]) => `(RiseType.nfn fun {$x : RiseNat} => [RiseT| $t])
+  | `([RiseT| {$x:ident : data} → $t:rise_type]) => `(∀ $x : RiseData , $x) --[RiseT| $t])
+  | `([RiseT| {$x:ident : nat} → $t:rise_type]) => `(∀ $x : RiseNat , [RiseT| $t])
       -- let x ← `([RiseN| $x])
   -- | `([RiseT| {$x:ident : $k:rise_kind} → $t:rise_type]) => `(fun ($x : [RiseK| $k]) => [RiseT| $t])
 
 -- TODO this feels very wrong.
-def rapp (r : RiseType) (e : RiseNat) : RiseType :=
-  match r with
-  | .nfn f => f e
-  | _ => sorry 
+-- def rapp (r : RiseType) (e : RiseNat) : RiseType :=
+--   match r with
+--   | .nfn f => f e
+--   | _ => sorry 
+
+inductive RiseArray (α : RiseData) (n : Nat) : Type _ where
+  | mk : RiseArray α n
+
+#check ∀ x : RiseData , RiseArray x 3
+
+
   
 -- set_option pp.explicit true
 #reduce [RiseT| 1·2·float → float × float → float]
-#reduce [RiseT| {x : data} → x ]
-#reduce rapp [RiseT| {n : nat} → {δ1 : data} → {δ2 : data} → (δ1 → δ2) → n . δ1 → n . δ2 ] (RiseNat.nat 3)
+#reduce [RiseT| {x : data} →  x ]
+-- #reduce rapp [RiseT| {n : nat} → {δ1 : data} → {δ2 : data} → (δ1 → δ2) → n . δ1 → n . δ2 ] (RiseNat.nat 3)
+#reduce [RiseT| {n : nat} → {δ1 : data} → {δ2 : data} → (δ1 → δ2) → n . δ1 → n . δ2 ]
 
 
 
