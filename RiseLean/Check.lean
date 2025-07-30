@@ -2,13 +2,70 @@ import RiseLean.Prelude
 import RiseLean.Expr
 import RiseLean.Type
 import RiseLean.Unification
+import RiseLean.RiseM
 
 -- set_option linter.unusedVariables false
--- 
+--
 -- def check (mctx : MVCtx) (kctx : KCtx) (tctx : TCtx) (t1 t2: RType) : Except String Bool :=
 --   -- match t1, t2 with
 --   -- | .pi bt1 b1, .pi bt2 b2 =>
 --   return t1 == t2
+
+open RiseM
+partial def addImplicits' (t : RType) : RiseM RType := do
+  match t with
+  | .upi bk .im un b =>
+    let newB := b--b.liftmvars mctx.size
+    addMVar un.toName bk none
+    addImplicits' newB
+  | x => return x
+
+open RiseM
+def inferAux' (s : Substitution) (e: RExpr) : RiseM (RType × Substitution) := do
+  match e with
+  | .lam bt body =>
+    match bt with
+    | .some t =>
+      withTVar `todo bt do
+        let (bodyt, s) ← inferAux' s body
+        return (.pi t bodyt, s)
+    | none =>
+      withMVar `todo .data none do
+        let t : RType := .data (.mvar 0 "todo")
+        withTVar `todo t do
+          let (bodyt, s) ← inferAux' s body
+          dbg_trace (bodyt, s)
+          let t := t.apply s -- TODO: not enough
+          return (.pi t bodyt, s)
+  | .ulam bk body =>
+    match bk with
+    | some bk =>
+      withMVar `todo bk none do
+        let (bodyt, s) ← inferAux' s body
+        return (.upi bk .ex "todo" bodyt, s)
+    | none => throw "todo: infer ulam arg without annotation"
+
+  | .bvar id _ => match (← getTCtx).reverse[id]!.2 with
+    | some t => return (t, s)
+    | none => throw "todo: infer bvar without annotation"
+
+  | .lit _ => return (.data .scalar, s)
+
+  | .app f e =>
+    let (ft, s) ← inferAux' s f
+    withRestoringMCtx do
+      let ft ← addImplicits' ft
+      let (et, s) ← inferAux' s e
+      let et ← addImplicits' et
+      match ft.liftmvars (et.getmvars.size) with
+      | .pi blt brt =>
+        match blt.unify et with
+        | some sub =>
+          -- dbg_trace (blt, et, brt, s, brt.apply s)
+          return (brt.apply sub, sub)
+        | none => throw s!"\n{repr e}\ncannot unify {blt} with {et}"
+      | .upi bk .im un b => throw s!"unexpected upi {ft}"
+      | _ => throw s!"not a function type: {ft}"
 
 partial def addImplicits (mctx : MVCtx) (t: RType) : (MVCtx × RType) :=
   match t with
