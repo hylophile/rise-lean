@@ -142,4 +142,3 @@ def RExpr.bvar2fvar (e : RExpr) (un : Lean.Name) : RExpr :=
   | .app fn arg => .app (go un fn n) (go un arg n)
   | .lam lun bt b => .lam lun bt (go un b (n+1))
   | .ulam lun bt b => .ulam lun bt (go un b (n+1))
-

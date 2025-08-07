@@ -55,7 +55,7 @@ inductive RExpr where
 
   | lam (binderName : Lean.Name) (binderType : Option RType) (body : RExpr)
   | ulam (binderName : Lean.Name) (binderKind : Option RKind) (body : RExpr)
-deriving Repr
+deriving Repr, BEq
 
 -- abbrev MVCtxElem := Lean.Name × RKind × Option RType
 -- abbrev MVCtx := Array MVCtxElem
