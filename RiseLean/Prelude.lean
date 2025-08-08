@@ -1,3 +1,4 @@
+import Lean.Data.Json
 
 --
 -- Kind
@@ -45,17 +46,34 @@ inductive RType where
 deriving Repr, BEq
 
 
-inductive RExpr where
+-- inductive RExpr where
+--   | bvar (deBruijnIndex : Nat)
+--   | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
+-- -- mvar
+--   | const (userName : Lean.Name)
+--   | lit (val : Nat)
+--   | app (fn arg : RExpr)
+
+--   | lam (binderName : Lean.Name) (binderType : Option RType) (body : RExpr)
+--   | ulam (binderName : Lean.Name) (binderKind : Option RKind) (body : RExpr)
+-- deriving Repr
+
+
+mutual
+structure TypedRExpr where
+  node: TypedRExprNode
+  type: RType
+
+inductive TypedRExprNode where
   | bvar (deBruijnIndex : Nat)
   | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
 -- mvar
   | const (userName : Lean.Name)
   | lit (val : Nat)
-  | app (fn arg : RExpr)
-
-  | lam (binderName : Lean.Name) (binderType : Option RType) (body : RExpr)
-  | ulam (binderName : Lean.Name) (binderKind : Option RKind) (body : RExpr)
-deriving Repr
+  | app (fn arg : TypedRExpr)
+  | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
+  | ulam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
+end
 
 -- abbrev MVCtxElem := Lean.Name × RKind × Option RType
 -- abbrev MVCtx := Array MVCtxElem
@@ -96,7 +114,7 @@ def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
 def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
   match t with
   | .mvar .. => t
-  | .array k d => .array (k.substNat x s) d
+  | .array k d => .array (k.substNat x s) (d.substNat x s)
   | .pair l r => .pair (l.substNat x s) (r.substNat x s)
   | .bvar id un => .bvar id un
   | .index k => .index (k.substNat x s)
@@ -254,25 +272,65 @@ instance : ToString Substitution where
 -- instance : ToString RExpr where
 --   toString := RExpr.toString
   
-def RExpr.render : RExpr → Std.Format
+partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | bvar id => f!"@{id}"
   | fvar s => s.toString
   | const s => s.toString
   | lit n => s!"{n}"
-  | app f e => match f,e with
-    | app .. , app .. => f.render ++ " " ++ Std.Format.paren e.render
-    | app .. , _      => f.render ++ " " ++ e.render
-    | _      , app .. => f.render ++ " " ++ Std.Format.paren e.render
-    | _,_ => f.render ++ " " ++ e.render
-  | lam s t b => match t with
-    | some t => s!"(λ {s} : {t} =>{Std.Format.line}{b.render})"
-    | none => Std.Format.paren s!"λ {s} =>{Std.Format.line}{b.render}" ++ Std.Format.line
-  | ulam s k b => match k with
-    | some k => s!"(Λ {s} : {k} =>{Std.Format.line}{b.render})"
-    | none => Std.Format.paren s!"Λ {s} =>{Std.Format.line}{b.render}" ++ Std.Format.line
+  | app f e => match f.node, e.node with
+    | app .. , app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
+    | app .. , _      => f.node.render ++ " " ++ e.node.render
+    | _      , app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
+    | _,_ => f.node.render ++ " " ++ e.node.render
+  | lam s t b => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
+  | ulam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
 
-instance : Std.ToFormat RExpr where
-  format := RExpr.render
+partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
+  | bvar id => f!"@{id}"
+  | fvar s => s.toString
+  | const s => s.toString
+  | lit n => s!"{n}"
+  | app f e => match f.node, e.node with
+    | app .. , app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
+    | app .. , _      => f.node.renderInline ++ " " ++ e.node.renderInline
+    | _      , app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
+    | _,_ => f.node.renderInline ++ " " ++ e.node.renderInline
+  | lam s t b => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInline}"
+  | ulam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInline}"
 
-instance : ToString RExpr where
+instance : Std.ToFormat TypedRExprNode where
+  format := TypedRExprNode.render
+
+instance : ToString TypedRExprNode where
   toString e := Std.Format.pretty e.render
+
+instance : ToString TypedRExpr where
+  toString e := "expr:\n" ++ toString e.node ++ "\n\n" ++ "type:\n" ++ toString e.type
+
+-- instance : Lean.ToJson TypedRExpr where
+--   toJson :=
+
+-- instance : Lean.ToJson RType where
+--   toJson t := Lean.Json.str <| toString t 
+
+-- instance : Lean.ToJson RKind where
+--   toJson t := Lean.Json.str <| toString t 
+
+-- instance : Lean.ToJson TypedRExprNode where
+--   toJson e := Std.Format.pretty e.render
+
+-- deriving instance Lean.ToJson for TypedRExpr
+open Lean in
+partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
+  match e.node with
+  | .app e1 e2 => let children := Json.arr <| #[e1, e2].map toJson
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", children)] 
+  | .lam un _ b => 
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])] 
+  | .ulam un _ b => 
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])] 
+  | _ => 
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type)] 
+
+instance : Lean.ToJson TypedRExpr where
+  toJson e := e.toJson

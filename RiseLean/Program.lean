@@ -1,17 +1,16 @@
 import RiseLean.Type
-import RiseLean.Expr
-import RiseLean.Check
+import RiseLean.TypedRExpr
 import Lean
 open Lean Elab Meta
 
 
-structure RResult where
-  expr : RExpr
-  type : RType
+-- structure RResult where
+--   expr : RExpr
+--   type : RType
 
 
-instance : ToString RResult where
-  toString x := s!"\nexpr:\n{x.expr}\ntype:\n{x.type}"
+-- instance : ToString RResult where
+--   toString x := s!"\nexpr:\n{x.expr}\ntype:\n{x.type}"
 
 -- instance [ToExpr α] : ToExpr (Except String α) where
 --   toExpr
@@ -19,12 +18,12 @@ instance : ToString RResult where
 --   | .ok a => mkApp3 (Expr.const ``Except.ok [levelZero, levelZero]) (toTypeExpr String) (toTypeExpr α) (toExpr a)
 --   toTypeExpr := mkApp2 (Expr.const ``Except [levelZero, levelZero]) (toTypeExpr String) (toTypeExpr α)
 
-instance : ToExpr RResult where
-  toExpr r :=
-    let exprExpr := toExpr r.expr
-    let typeExpr := toExpr r.type
-    mkAppN (mkConst ``RResult.mk) #[exprExpr, typeExpr]
-  toTypeExpr := mkConst ``RResult
+-- instance : ToExpr RResult where
+--   toExpr r :=
+--     let exprExpr := toExpr r.expr
+--     let typeExpr := toExpr r.type
+--     mkAppN (mkConst ``RResult.mk) #[exprExpr, typeExpr]
+--   toTypeExpr := mkConst ``RResult
 
 declare_syntax_cat  rise_decl
 syntax "def" ident ":" rise_type  : rise_decl
@@ -50,11 +49,12 @@ partial def elabRDeclAndRExpr (e: Syntax) : Option Syntax → RElabM Expr
 
     | _ => throwUnsupportedSyntax
   | none => do
-      let e ← elabToRExpr e
-      let t ← inferAux e
+      let e ← elabToTypedRExpr e
+      let e ← applyUnifyResultsRecursivelyUntilStable e
+      -- let t ← inferAux e
       -- let t ← applyUnifyResults t
       dbg_trace (← ur)
-      return toExpr <| RResult.mk e t
+      return toExpr e
 
 partial def elabRProgram : Syntax → RElabM Expr
   | `(rise_program| $d:rise_decl $e:rise_expr ) => do
@@ -155,9 +155,10 @@ macro_rules
 #pp [RiseC| add 0 5]
 #pp [RiseC| reduce add 0]
 #pp [RiseC| map transpose]
+#eval toJson [RiseC| map transpose]
 
 
-#pp [RiseC|
+#eval toJson [RiseC|
 --   // Matrix Matrix Multiplication in RISE
 --   val dot = fun(as, fun(bs,
 --     zip(as)(bs) |> map(fun(ab, mult(fst(ab))(snd(ab)))) |> reduce(add)(0) ) )
@@ -165,7 +166,7 @@ macro_rules
 --     a |> map(fun(arow, // iterating over M
 --       transpose(b) |> map(fun(bcol, // iterating over N
 --       dot(arow)(bcol) )))) ) ) // iterating over K
--- 
+--
 -- Matrix Matrix Multiplication in RISE
 fun a b =>
   a |> map(fun arow => -- iterating over M

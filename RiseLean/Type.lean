@@ -29,7 +29,6 @@ instance : ToExpr RKind where
   toTypeExpr := mkConst ``RKind
 
 
-
 declare_syntax_cat rise_nat
 syntax num                    : rise_nat
 syntax ident                  : rise_nat

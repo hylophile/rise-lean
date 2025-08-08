@@ -5,21 +5,27 @@ import RiseLean.Type
 import Lean
 open Lean Elab
 
-mutual
-structure TypedRExpr where
-  node: TypedRExprNode
-  type: RType
 
-inductive TypedRExprNode where
-  | bvar (deBruijnIndex : Nat)
-  | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
--- mvar
-  | const (userName : Lean.Name)
-  | lit (val : Nat)
-  | app (fn arg : TypedRExpr)
-  | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
-  | ulam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
-end
+declare_syntax_cat rise_expr
+syntax num                                                  : rise_expr
+syntax ident                                                : rise_expr
+syntax "fun" "(" ident (":" rise_type)? ")" "=>" rise_expr  : rise_expr
+syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr  : rise_expr
+syntax "fun" "(" ident (":" rise_kind)  ")" "=>" rise_expr  : rise_expr
+syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
+syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
+syntax:60 "(" rise_expr ")"                                 : rise_expr
+
+set_option pp.raw true
+set_option pp.raw.maxDepth 10
+macro_rules
+  | `(rise_expr| fun $x:ident $y:ident $xs:ident* => $e:rise_expr) =>
+    match xs with
+    | #[] =>
+      `(rise_expr| fun $x => fun $y => $e)
+    | _ =>
+      `(rise_expr| fun $x => fun $y => fun $xs* => $e)
+
 
 partial def addImplicits (t: RType) : RElabM RType := do
   match t with
@@ -144,5 +150,5 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
   let p ← liftMacroM <| expandMacros e
   liftToTermElabM <| elabTypedRExpr p
 
-#check [RiseTE| fun a : scalar → scalar => a 10000]
+#eval IO.println <| toString [RiseTE| fun a : scalar → scalar => a 10000].node
 #check [RiseTE| fun a : scalar → scalar → scalar => a 10000 2]

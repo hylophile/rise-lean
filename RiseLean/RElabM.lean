@@ -76,6 +76,14 @@ def applyUnifyResultsUntilStable (x : RType) (fuel : Nat := 100) : RElabM RType 
       else loop next (remaining - 1)
   loop x fuel
 
+partial def applyUnifyResultsRecursivelyUntilStable (e : TypedRExpr) : RElabM TypedRExpr := do
+  let newt := (← applyUnifyResultsUntilStable e.type) 
+  match e.node with
+  | .app e1 e2 => return ⟨.app (← applyUnifyResultsRecursivelyUntilStable e1) (← applyUnifyResultsRecursivelyUntilStable e2), newt⟩
+  | .lam un t b => return ⟨.lam un (← applyUnifyResultsUntilStable t) (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
+  | .ulam un k b => return ⟨.ulam un k (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
+  | _ => return ⟨e.node, newt⟩
+
 
 def withNewLocalTerm (arg : TCtxElem) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with ltctx := ctx.ltctx.push arg })

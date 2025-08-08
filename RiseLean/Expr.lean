@@ -4,26 +4,6 @@ import Lean
 open Lean Elab Meta
 
 
-declare_syntax_cat rise_expr
-syntax num                                                  : rise_expr
-syntax ident                                                : rise_expr
-syntax "fun" "(" ident (":" rise_type)? ")" "=>" rise_expr  : rise_expr
-syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr  : rise_expr
-syntax "fun" "(" ident (":" rise_kind)  ")" "=>" rise_expr  : rise_expr
-syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
-syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
-syntax:60 "(" rise_expr ")"                                 : rise_expr
-
-set_option pp.raw true
-set_option pp.raw.maxDepth 10
-macro_rules
-  | `(rise_expr| fun $x:ident $y:ident $xs:ident* => $e:rise_expr) =>
-    match xs with
-    | #[] =>
-      `(rise_expr| fun $x => fun $y => $e)
-    | _ =>
-      `(rise_expr| fun $x => fun $y => fun $xs* => $e)
-
 -- partial def elabToRExpr : Syntax → RElabM RExpr
 --   | `(rise_expr| $l:num) => do
 --     return RExpr.lit l.getNat
@@ -131,15 +111,15 @@ macro_rules
 -- #check [RiseE| fun(n : nat) => fun(x : n·scalar) => x]
 
 
-def RExpr.bvar2fvar (e : RExpr) (un : Lean.Name) : RExpr :=
-  go un e 0 where
-  go (un : Lean.Name) (e : RExpr) (n : Nat) : RExpr :=
-  match e with
-  | .bvar i => if i == n then .fvar un else e
-  | .fvar .. => e
-  | .const .. => e
-  | .lit .. => e
-  | .app fn arg => .app (go un fn n) (go un arg n)
-  | .lam lun bt b => .lam lun bt (go un b (n+1))
-  | .ulam lun bt b => .ulam lun bt (go un b (n+1))
+-- def RExpr.bvar2fvar (e : RExpr) (un : Lean.Name) : RExpr :=
+--   go un e 0 where
+--   go (un : Lean.Name) (e : RExpr) (n : Nat) : RExpr :=
+--   match e with
+--   | .bvar i => if i == n then .fvar un else e
+--   | .fvar .. => e
+--   | .const .. => e
+--   | .lit .. => e
+--   | .app fn arg => .app (go un fn n) (go un arg n)
+--   | .lam lun bt b => .lam lun bt (go un b (n+1))
+--   | .ulam lun bt b => .ulam lun bt (go un b (n+1))
 
