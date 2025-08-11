@@ -1,0 +1,182 @@
+{
+  "type": "?n₂·?n₂₅·scalar → ?n₂₅·?m₂₆·scalar → ?n₂·?m₂₆·scalar",
+  "expr": "(λ a : ?n₂·?n₂₅·scalar => (λ b : ?n₂₅·?m₂₆·scalar => map (λ arow : ?n₂₅·scalar => map (λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0))) (transpose @1)) @1))",
+  "children": [
+    {
+      "type": "?n₂₅·?m₂₆·scalar → ?n₂·?m₂₆·scalar",
+      "expr": "(λ b : ?n₂₅·?m₂₆·scalar => map (λ arow : ?n₂₅·scalar => map (λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0))) (transpose @1)) @1)",
+      "children": [
+        {
+          "type": "?n₂·?m₂₆·scalar",
+          "expr": "map (λ arow : ?n₂₅·scalar => map (λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0))) (transpose @1)) @1",
+          "children": [
+            {
+              "type": "?n₂·?n₂₅·scalar → ?n₂·?m₂₆·scalar",
+              "expr": "map (λ arow : ?n₂₅·scalar => map (λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0))) (transpose @1))",
+              "children": [
+                { "type": "?δ1₃ → ?δ2₄ → ?n₂·?δ1₃ → ?n₂·?δ2₄", "expr": "map" },
+                {
+                  "type": "?n₂₅·scalar → ?m₂₆·scalar",
+                  "expr": "(λ arow : ?n₂₅·scalar => map (λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0))) (transpose @1))",
+                  "children": [
+                    {
+                      "type": "?m₂₆·scalar",
+                      "expr": "map (λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0))) (transpose @1)",
+                      "children": [
+                        {
+                          "type": "?n₆·?n₂₂·scalar → ?n₆·scalar",
+                          "expr": "map (λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0)))",
+                          "children": [
+                            {
+                              "type": "?δ1₇ → ?δ2₈ → ?n₆·?δ1₇ → ?n₆·?δ2₈",
+                              "expr": "map"
+                            },
+                            {
+                              "type": "?n₂₂·scalar → scalar",
+                              "expr": "(λ bcol : ?n₂₂·scalar => reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0)))",
+                              "children": [
+                                {
+                                  "type": "scalar",
+                                  "expr": "reduce add 0 (map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0))",
+                                  "children": [
+                                    {
+                                      "type": "?n₁₀·scalar → scalar",
+                                      "expr": "reduce add 0",
+                                      "children": [
+                                        {
+                                          "type": "?δ₁₂ → ?n₁₀·?δ₁₂ → ?δ₁₂",
+                                          "expr": "reduce add",
+                                          "children": [
+                                            {
+                                              "type": "?δ₁₁ → ?δ₁₁ → ?δ₁₁ → ?δ₁₁ → ?n₁₀·?δ₁₁ → ?δ₁₁",
+                                              "expr": "reduce"
+                                            },
+                                            {
+                                              "type": "?δ₁₂ → ?δ₁₂ → ?δ₁₂",
+                                              "expr": "add"
+                                            }
+                                          ]
+                                        },
+                                        { "type": "scalar", "expr": "0" }
+                                      ]
+                                    },
+                                    {
+                                      "type": "?n₂₂·?δ2₂₁",
+                                      "expr": "map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0)) (zip @1 @0)",
+                                      "children": [
+                                        {
+                                          "type": "?n₁₃·(?δ2₁₉ × ?δ2₁₉) → ?n₁₃·?δ2₂₁",
+                                          "expr": "map (λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0))",
+                                          "children": [
+                                            {
+                                              "type": "?δ1₁₄ → ?δ2₁₅ → ?n₁₃·?δ1₁₄ → ?n₁₃·?δ2₁₅",
+                                              "expr": "map"
+                                            },
+                                            {
+                                              "type": "(?δ2₁₉ × ?δ2₁₉) → ?δ2₂₁",
+                                              "expr": "(λ ab : (?δ2₁₉ × ?δ2₁₉) => mult (fst @0) (snd @0))",
+                                              "children": [
+                                                {
+                                                  "type": "?δ2₂₁",
+                                                  "expr": "mult (fst @0) (snd @0)",
+                                                  "children": [
+                                                    {
+                                                      "type": "?δ1₁₈ → ?δ1₁₈",
+                                                      "expr": "mult (fst @0)",
+                                                      "children": [
+                                                        {
+                                                          "type": "?δ₁₇ → ?δ₁₇ → ?δ₁₇",
+                                                          "expr": "mult"
+                                                        },
+                                                        {
+                                                          "type": "?δ1₁₈",
+                                                          "expr": "fst @0",
+                                                          "children": [
+                                                            {
+                                                              "type": "(?δ1₁₈ × ?δ2₁₉) → ?δ1₁₈",
+                                                              "expr": "fst"
+                                                            },
+                                                            {
+                                                              "type": "?[anonymous]₁₆",
+                                                              "expr": "@0"
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    },
+                                                    {
+                                                      "type": "?δ2₂₁",
+                                                      "expr": "snd @0",
+                                                      "children": [
+                                                        {
+                                                          "type": "(?δ1₂₀ × ?δ2₂₁) → ?δ2₂₁",
+                                                          "expr": "snd"
+                                                        },
+                                                        {
+                                                          "type": "?[anonymous]₁₆",
+                                                          "expr": "@0"
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "?n₂₂·(?δ1₂₃ × ?δ2₂₄)",
+                                          "expr": "zip @1 @0",
+                                          "children": [
+                                            {
+                                              "type": "?n₂₂·?δ2₂₄ → ?n₂₂·(?δ1₂₃ × ?δ2₂₄)",
+                                              "expr": "zip @1",
+                                              "children": [
+                                                {
+                                                  "type": "?n₂₂·?δ1₂₃ → ?n₂₂·?δ2₂₄ → ?n₂₂·(?δ1₂₃ × ?δ2₂₄)",
+                                                  "expr": "zip"
+                                                },
+                                                {
+                                                  "type": "?[anonymous]₅",
+                                                  "expr": "@1"
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "type": "?[anonymous]₉",
+                                              "expr": "@0"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "?m₂₆·?n₂₅·?δ₂₇",
+                          "expr": "transpose @1",
+                          "children": [
+                            {
+                              "type": "?n₂₅·?m₂₆·?δ₂₇ → ?m₂₆·?n₂₅·?δ₂₇",
+                              "expr": "transpose"
+                            },
+                            { "type": "?[anonymous]₁", "expr": "@1" }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            { "type": "?[anonymous]₀", "expr": "@1" }
+          ]
+        }
+      ]
+    }
+  ]
+}

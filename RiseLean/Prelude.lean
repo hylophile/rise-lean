@@ -73,6 +73,7 @@ inductive TypedRExprNode where
   | app (fn arg : TypedRExpr)
   | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
   | ulam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
+deriving Repr, BEq
 end
 
 -- abbrev MVCtxElem := Lean.Name × RKind × Option RType
