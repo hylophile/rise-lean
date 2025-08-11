@@ -45,24 +45,11 @@ inductive RType where
   | pi (binderType : RType) (body : RType)
 deriving Repr, BEq
 
-
--- inductive RExpr where
---   | bvar (deBruijnIndex : Nat)
---   | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
--- -- mvar
---   | const (userName : Lean.Name)
---   | lit (val : Nat)
---   | app (fn arg : RExpr)
-
---   | lam (binderName : Lean.Name) (binderType : Option RType) (body : RExpr)
---   | ulam (binderName : Lean.Name) (binderKind : Option RKind) (body : RExpr)
--- deriving Repr
-
-
 mutual
 structure TypedRExpr where
   node: TypedRExprNode
   type: RType
+deriving Repr, BEq
 
 inductive TypedRExprNode where
   | bvar (deBruijnIndex : Nat)
@@ -257,7 +244,7 @@ instance : ToString SubstEnum where
 instance : ToString Substitution where
   toString s := String.intercalate "\n" (s.map toString)
 
--- def RExpr.toString : RExpr → String
+-- def TypedRExpr.toString : TypedRExpr → String
 --   | bvar id => s!"@{id}"
 --   | fvar s => s.toString
 --   | const s => s.toString
@@ -270,8 +257,8 @@ instance : ToString Substitution where
 --     | some k => s!"(Λ {s} : {k} => {b.toString})"
 --     | none => s!"(Λ {s} => {b.toString})"
 
--- instance : ToString RExpr where
---   toString := RExpr.toString
+-- instance : ToString TypedRExpr where
+--   toString := TypedRExpr.toString
   
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | bvar id => f!"@{id}"
@@ -305,22 +292,14 @@ instance : Std.ToFormat TypedRExprNode where
 instance : ToString TypedRExprNode where
   toString e := Std.Format.pretty e.render
 
+private
+def indent (s : String) : String :=
+  s.trim |>.splitOn "\n" |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
+
+
 instance : ToString TypedRExpr where
-  toString e := "expr:\n" ++ toString e.node ++ "\n\n" ++ "type:\n" ++ toString e.type
+  toString e := "expr:\n" ++ (indent <| toString e.node) ++ "\ntype:\n" ++ (indent <| toString e.type)
 
--- instance : Lean.ToJson TypedRExpr where
---   toJson :=
-
--- instance : Lean.ToJson RType where
---   toJson t := Lean.Json.str <| toString t 
-
--- instance : Lean.ToJson RKind where
---   toJson t := Lean.Json.str <| toString t 
-
--- instance : Lean.ToJson TypedRExprNode where
---   toJson e := Std.Format.pretty e.render
-
--- deriving instance Lean.ToJson for TypedRExpr
 open Lean in
 partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
   match e.node with

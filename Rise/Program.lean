@@ -5,7 +5,7 @@ open Lean Elab Meta
 
 
 -- structure RResult where
---   expr : RExpr
+--   expr : TypedRExpr
 --   type : RType
 
 
@@ -53,7 +53,7 @@ partial def elabRDeclAndRExpr (e: Syntax) : Option Syntax → RElabM Expr
       let e ← applyUnifyResultsRecursivelyUntilStable e
       -- let t ← inferAux e
       -- let t ← applyUnifyResults t
-      dbg_trace (← ur)
+      -- dbg_trace (← ur)
       return toExpr e
 
 partial def elabRProgram : Syntax → RElabM Expr

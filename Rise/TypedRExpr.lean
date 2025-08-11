@@ -176,9 +176,9 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 -- #check [RiseE| fun(n : nat) => fun(x : n·scalar) => x]
 
 
--- def RExpr.bvar2fvar (e : RExpr) (un : Lean.Name) : RExpr :=
+-- def TypedRExpr.bvar2fvar (e : TypedRExpr) (un : Lean.Name) : TypedRExpr :=
 --   go un e 0 where
---   go (un : Lean.Name) (e : RExpr) (n : Nat) : RExpr :=
+--   go (un : Lean.Name) (e : TypedRExpr) (n : Nat) : TypedRExpr :=
 --   match e with
 --   | .bvar i => if i == n then .fvar un else e
 --   | .fvar .. => e
