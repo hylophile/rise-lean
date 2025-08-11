@@ -1,4 +1,4 @@
-import RiseLean.Program
+import Rise.Program
 
 -- RISE
 --

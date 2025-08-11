@@ -1,6 +1,6 @@
-import RiseLean.Prelude
-import RiseLean.RElabM
-import RiseLean.Type
+import Rise.Prelude
+import Rise.RElabM
+import Rise.Type
 import Lean
 open Lean Elab
 
@@ -188,3 +188,11 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 --   | .lam lun bt b => .lam lun bt (go un b (n+1))
 --   | .ulam lun bt b => .ulam lun bt (go un b (n+1))
 
+
+
+-- -- -- TODO: translate example programs in shine/src/test/scala/rise/core
+-- -- -- /home/n/tub/masters/shine/src/test/scala/apps
+-- -- --
+-- -- --
+-- --
+-- --

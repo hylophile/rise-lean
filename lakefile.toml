@@ -3,7 +3,7 @@ version = "0.1.0"
 defaultTargets = ["rise-lean"]
 
 [[lean_lib]]
-name = "RiseLean"
+name = "Rise"
 
 [[lean_lib]]
 name = "Elevate"

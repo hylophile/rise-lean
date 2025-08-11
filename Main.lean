@@ -1,4 +1,4 @@
-import RiseLean.Main
+import Rise.Main
 
 
 def main : IO Unit := do

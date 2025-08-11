@@ -1,6 +1,6 @@
-import RiseLean.Prelude
-import RiseLean.Program
-import RiseLean.Traversable
+import Rise.Prelude
+import Rise.Program
+import Rise.Traversable
 import Elevate.Prelude
 
 def rule.transpose_transpose : Strategy RExpr

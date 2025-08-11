@@ -1,5 +1,5 @@
-import RiseLean.Prelude
-import RiseLean.Unification
+import Rise.Prelude
+import Rise.Unification
 import Lean
 
 structure RContext where

@@ -1,5 +1,5 @@
-import RiseLean.Type
-import RiseLean.TypedRExpr
+import Rise.Type
+import Rise.TypedRExpr
 import Lean
 open Lean Elab Meta
 

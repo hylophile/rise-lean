@@ -1,5 +1,5 @@
 import Elevate.Prelude
-import RiseLean.Prelude
+import Rise.Prelude
 
 namespace Traversable
 

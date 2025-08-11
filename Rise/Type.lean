@@ -1,6 +1,6 @@
 import Lean
-import RiseLean.Prelude
-import RiseLean.RElabM
+import Rise.Prelude
+import Rise.RElabM
 open Lean Elab Meta Command
 open PrettyPrinter Delaborator SubExpr
 
