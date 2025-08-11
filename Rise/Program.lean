@@ -70,16 +70,143 @@ elab "[Rise|" p:rise_program "]" : term => do
 set_option hygiene false in
 macro_rules
   | `(rise_decl| import core) => `(rise_decl|
-    def map : {n : nat} → {δ1 δ2 : data} → (δ1 → δ2) → n·δ1 → n·δ2
-    def reduce : {n : nat} → {δ : data} → (δ → δ → δ) → δ → n·δ → δ
-    def add : {δ : data} → δ → δ → δ
-    def mult : {δ : data} → δ → δ → δ
-    def fst : {δ1 δ2 : data} → δ1 × δ2 → δ1
-    def snd : {δ1 δ2 : data} → δ1 × δ2 → δ2
-    def zip : {n : nat} → {δ1 δ2 : data} → n·δ1 → n·δ2 → n·(δ1 × δ2)
-    def transpose : {n m : nat} → {δ : data} → n·m·δ → m·n·δ
+    -- def map : {n : nat} → {δ1 δ2 : data} → (δ1 → δ2) → n·δ1 → n·δ2
+    -- def reduce : {n : nat} → {δ : data} → (δ → δ → δ) → δ → n·δ → δ
+    -- def add : {δ : data} → δ → δ → δ
+    -- def mul : {δ : data} → δ → δ → δ
+    -- def fst : {δ1 δ2 : data} → δ1 × δ2 → δ1
+    -- def snd : {δ1 δ2 : data} → δ1 × δ2 → δ2
+    -- def zip : {n : nat} → {δ1 δ2 : data} → n·δ1 → n·δ2 → n·(δ1 × δ2)
+    -- def transpose : {n m : nat} → {δ : data} → n·m·δ → m·n·δ
 
-    def mapSeq : {n : nat} → {δ1 δ2 : data} → (δ1 → δ2) → n·δ1 → n·δ2
+    -- def mapSeq : {n : nat} → {δ1 δ2 : data} → (δ1 → δ2) → n·δ1 → n·δ2
+
+
+  -- unary ops
+  def id  : {t : data} → t → t
+  def neg : {t : data} → t → t
+
+  -- binary ops
+  def add : {t : data} → t → t → t
+  def sub : {t : data} → t → t → t
+  def mul : {t : data} → t → t → t
+  def div : {t : data} → t → t → t
+  def mod : {t : data} → t → t → t
+
+  -- -- ternary ops
+  -- def select : {t : data} → bool → t → t → t
+
+  -- -- comparison ops
+  -- def not   :               bool → bool
+  -- def gt    : {t : data} → t → t → bool
+  -- def lt    : {t : data} → t → t → bool
+  -- def equal : {t : data} → t → t → bool
+
+  -- cast ops
+  def cast : {s : data} → {t : data} → s → t
+  -- TODO: what's natType?
+  -- def indexAsNat : {n : nat} → idx[n] → natType
+  -- def natAsIndex : (n : nat) → natType → idx[n]
+
+  -- memory ops
+  -- (can't use "let" as identifier)
+  def  rlet : {s : data} → {t : data} → s → (s → t) → t
+  def toMem : {t : data} → t → t
+
+  -- foreign functions
+  -- def foreignFunctionCall(funDecl : rise.core.ForeignFunction.Decl, n : Int):
+  --     n*((inTs : data) →) (outT : data) → n*(*inTs →) outT
+  -- can ignore for now
+  -- n args, with different
+
+  -- array ops
+  -- def makeArray(n : Int): {dt : data} → n*(dt →) n·dt
+
+  def generate : {n : nat} → {t : data} → (idx[n] → t) → n·t
+  -- (can't use idx as identifier)
+  def idx : {n : nat} → {t : data} → idx[n] → n·t → t
+
+  -- TODO: add operators in RNats
+  -- TODO: make sure all implicit arguments come first, or write a better implementation for addImplicits.
+  -- def take :   (n : nat) → {m : nat} → {t : data} → (n+m)·t → n·t
+  -- def drop :   (n : nat) → {m : nat} → {t : data} → (n+m)·t → m·t
+  -- def concat : {n : nat} → {m : nat} → {t : data} → n·t → m·t → (n+m)·t
+
+  -- def split : (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·n.t
+  -- def  join : {n : nat} → {m : nat} → {t : data} → n·m.t → (n*m)·t
+
+  -- def slide : {n : nat} → (sz : nat) → (sp : nat) → {t : data} → (sp*n+sz)·t → (1+n)·sz·t
+  -- def circularBuffer : {n : nat} → (alloc : nat) → (sz : nat) → {s : data} → {t : data} →
+  --     (s → t) → (n-1+sz)·s → n·sz·t
+  -- def   rotateValues : {n : nat} → (sz : nat) → {t : data} →
+  --     (t → t) → (n-1+sz)·t → n·sz·t
+
+  def transpose : {n : nat} → {m : nat} → {t : data} → n·m·t → m·n·t
+
+  def gather : {n : nat} → {m : nat} → {t : data} → m·idx[n] → n·t → m·t
+  def scatter : {n : nat} → {m : nat} → {t : data} → n·idx[m] → n·t → m·t
+  -- TODO: type-level functions
+  -- def reorder : {t : data} → (n : nat) → (idxF : nat2nat) → (idxFinv : nat2nat) → n·t → n·t
+
+  -- def padCst :   {n : nat} → (l : nat) → (r : nat) → {t : data} → t → n·t → (l+n+r)·t
+  -- def padClamp : {n : nat} → (l : nat) → (r : nat) → {t : data} →     n·t → (l+n+r)·t
+  -- def padEmpty : {n : nat} →             (r : nat) → {t : data} →     n·t →   (n+r)·t
+
+  def   zip : {n : nat} → {s : data} → {t : data} → n·s → n·t → n·(s × t)
+  def unzip : {n : nat} → {s : data} → {t : data} → n·(s × t) → (n·s × n·t)
+
+  -- pair ops
+  def makePair : {s : data} → {t : data} → s → t → (s × t)
+  def fst :      {s : data} → {t : data} → (s × t) → s
+  def snd :      {s : data} → {t : data} → (s × t) → t
+
+  -- vector ops
+  -- TODO: vector types (need additional parameter)
+  -- def vectorFromScalar : {n : nat} → {t : data} → t → vec[t, n]
+  -- def asVector :         (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·vec[t, n]
+  -- def asVectorAligned :  (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·vec[t, n]
+  -- def asScalar :         {n : nat} → {m : nat} → {t : data} → m·vec[t, n] → (m*n)·t
+
+  -- map
+  def map           : {n : nat} → {s : data} → {t : data} → (s → t) → n·s → n·t
+  def mapSeq        : {n : nat} → {s : data} → {t : data} → (s → t) → n·s → n·t
+  def mapSeqUnroll  : {n : nat} → {s : data} → {t : data} → (s → t) → n·s → n·t
+  def mapStream     : {n : nat} → {s : data} → {t : data} → (s → t) → n·s → n·t
+  def iterateStream : {n : nat} → {s : data} → {t : data} → (s → t) → n·s → n·t
+
+  def mapFst : {s1 : data} → {t : data} → {s2 : data} → (s1 → s2) → (s1 × t) → (s2 × t)
+  def mapSnd : {s : data} → {t1 : data} → {t2 : data} → (t1 → t2) → (s × t1) → (s × t2)
+
+  -- reduce
+  def reduce :          {n : nat} → {t : data} →              (t → t → t) → t → n·t → t
+  def reduceSeq :       {n : nat} → {s : data} → {t : data} → (t → s → t) → t → n·s → t
+  def reduceSeqUnroll : {n : nat} → {s : data} → {t : data} → (t → s → t) → t → n·s → t
+
+  -- scan
+  def scanSeq : {n : nat} → {s : data} → {t : data} → (s → t → t) → t → n·s → n·t
+
+  -- vvv interesting
+  -- iterate
+  -- def iterate : {n : nat} → {m : nat} → (k : nat) → {t : data} →
+  --     ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
+
+
+
+  -- vvv ignore 
+  -- dependent pair ops
+  -- def makeDepPair : {fdt : nat2data} → (n : nat) → fdt(n) → (m : nat ** fdt(m))
+  -- def dmatch :      {fdt : nat2data} → {t : data} → (n : nat ** fdt(n)) → ((m : nat) → fdt(m) → t) → t
+
+  -- dependent array ops
+  -- def depMapSeq : {n : nat} → {ft1 : nat2data} → {ft2 : nat2data} →
+  --     ((k : nat) → ft1(k) → ft2(k)) → n..ft1 → n..ft2
+  -- def depZip : {n : nat} → {ft1 : nat2data} → {ft2 : nat2data} →
+  --     n..ft1 → n..ft2 → n..(i : nat |→ (ft1(i), ft2(i)) )
+  -- def depJoin : {n : nat} → {lenF : nat2nat} → {t : data} →
+  --     n..(i : nat |→ lenF(i)·t) → (sum_(i=0)^(n-1) lenF(i))·t
+  -- def partition : {n : nat} → {t : data} → (m : nat) → (lenF : nat2nat) → n·t → m..(i : nat |→ lenF(i)·t)
+
+    
   )
 
 elab "[RiseC|" p:rise_expr "]" : term => do
@@ -98,26 +225,26 @@ macro_rules
 -- def map : {n : nat} → {δ1 δ2 : data} → (δ1 → δ2) → n·δ1 → n·δ2
 -- def reduce : {n : nat} → {δ : data} → (δ → δ → δ) → δ → n·δ → δ
 -- def add : {δ : data} → δ → δ → δ
--- def mult : {δ : data} → δ → δ → δ
+-- def mul : {δ : data} → δ → δ → δ
 -- def fst : {δ1 δ2 : data} → δ1 × δ2 → δ1
 -- def snd : {δ1 δ2 : data} → δ1 × δ2 → δ1
 -- def zip : {n : nat} → {δ1 δ2 : data} → n·δ1 → n·δ2 → n·(δ1 × δ2)
 
 -- fun as => fun bs =>
---      zip as bs |> map (fun ab => mult (fst ab) (snd ab)) |> reduce add 0
+--      zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
 -- ]
 
 -- #check [Rise|
 --   import core
 
 --   fun as => fun bs =>
---        zip as bs |> map (fun ab => mult (fst ab) (snd ab)) |> reduce add 0
+--        zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
 -- ]
 
 #pp [RiseC|
   fun as => fun bs =>
       -- todo: we shouldn't need these parens i guess
-       (zip as bs |> map (fun ab => mult (fst ab) (snd ab))) |> reduce add 0
+       zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
 ]
 
 -- #pp [RiseC|
@@ -137,17 +264,14 @@ macro_rules
 ]
 
 -- #pp [RiseC|
---   map (fun ab : scalar × scalar => mult (fst ab) (snd ab))
+--   map (fun ab : scalar × scalar => mul (fst ab) (snd ab))
 -- ]
 #pp [RiseC|
-  map (fun ab => mult (fst ab) (snd ab))
+  map (fun ab => mul (fst ab) (snd ab))
 ]
 
--- todo: should we know from this that ab : ?d1 x ?d2 ? yes.
--- i think if we find that a subst already exists in unifyresults,
--- we should unify those too. if you know what i mean.
 #pp [RiseC|
-  (fun ab => mult (fst ab) (snd ab))
+  (fun ab => mul (fst ab) (snd ab))
 ]
 
 #pp [RiseC|
@@ -161,20 +285,20 @@ macro_rules
 
 
 #eval toJson [RiseC|
---   // Matrix Matrix Multiplication in RISE
+--   // Matrix Matrix muliplication in RISE
 --   val dot = fun(as, fun(bs,
---     zip(as)(bs) |> map(fun(ab, mult(fst(ab))(snd(ab)))) |> reduce(add)(0) ) )
+--     zip(as)(bs) |> map(fun(ab, mul(fst(ab))(snd(ab)))) |> reduce(add)(0) ) )
 --   val mm = fun(a : M.K.scalar, fun(b : K.N.scalar,
 --     a |> map(fun(arow, // iterating over M
 --       transpose(b) |> map(fun(bcol, // iterating over N
 --       dot(arow)(bcol) )))) ) ) // iterating over K
 --
--- Matrix Matrix Multiplication in RISE
+-- Matrix Matrix muliplication in RISE
 fun a b =>
   a |> map(fun arow => -- iterating over M
     transpose(b) |> map(fun bcol => -- iterating over N
       zip arow bcol |>
-        map (fun ab => mult (fst ab) (snd ab)) |>
+        map (fun ab => mul (fst ab) (snd ab)) |>
         reduce add 0)) -- iterating over K
 ]
 
@@ -184,5 +308,5 @@ fun a b =>
 ]
 
 #eval [RiseC| fun (x: 1024·scalar) => fun (alpha : scalar) =>
-  x |> map (mult alpha)
+  x |> map (mul alpha)
 ]

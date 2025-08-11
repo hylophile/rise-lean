@@ -13,6 +13,10 @@ def rule.transpose_transpose : Strategy TypedRExpr
 --   .app (.const `transpose) (.app (.const `transpose) x) =>
 --     .ok x
 
+def f : blub → Nat := λ _ => 3
+
+inductive X : a → Type
+
 #eval
 let input := [RiseC|
   fun (x : 32·32·scalar) => transpose (transpose x) ];
@@ -24,3 +28,6 @@ match (Strategy.topDown rule.transpose_transpose) input with
   | .ok computed =>
     computed == expected
   | .error _ => false
+
+
+

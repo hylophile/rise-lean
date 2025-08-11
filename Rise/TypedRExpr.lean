@@ -110,13 +110,15 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | _ => throwUnsupportedSyntax
 
 mutual
-partial def TypedRExpr.toExpr (e : TypedRExpr) : Expr  :=
+partial
+def TypedRExpr.toExpr (e : TypedRExpr) : Expr  :=
     let nodeExpr := e.node.toExpr
     let typeExpr := ToExpr.toExpr e.type
     mkAppN (mkConst ``TypedRExpr.mk) #[nodeExpr, typeExpr]
 
 
-partial def TypedRExprNode.toExpr : TypedRExprNode → Expr
+partial
+def TypedRExprNode.toExpr : TypedRExprNode → Expr
     | .lit n =>
         mkAppN (mkConst ``TypedRExprNode.lit) #[mkNatLit n]
     | .bvar index =>

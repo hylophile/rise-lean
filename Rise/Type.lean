@@ -87,13 +87,13 @@ partial def elabRNat : Syntax → RElabM Expr
 
 
 declare_syntax_cat rise_data
-syntax:50 rise_nat "·" rise_data:50       : rise_data
-syntax:50 "scalar"                         : rise_data
-syntax:10 rise_data "×" rise_data         : rise_data
-syntax ident                              : rise_data
-syntax "idx" "[" rise_nat "]"          : rise_data -- TODO: weird error when using a var named idx in normal code. possible to scope syntax such that normal code is not affected? i was hoping that syntax_cat is doing that, but it's not.
-syntax rise_nat "<" "scalar" ">"        : rise_data
-syntax "(" rise_data ")"                  : rise_data
+syntax:50 rise_nat "·" rise_data:50 : rise_data
+syntax:50 "scalar"                  : rise_data
+syntax:10 rise_data "×" rise_data   : rise_data
+syntax    ident                     : rise_data
+syntax    "idx[" rise_nat "]"       : rise_data
+syntax    rise_nat "<" "scalar" ">" : rise_data
+syntax    "(" rise_data ")"         : rise_data
 
 partial def elabToRData : Syntax → RElabM RData
   | `(rise_data| scalar) => return RData.scalar
@@ -122,7 +122,7 @@ partial def elabToRData : Syntax → RElabM RData
     let r ← elabToRData r
     return RData.pair l r
 
-  | `(rise_data| idx [$n:rise_nat]) => do
+  | `(rise_data| idx[$n:rise_nat]) => do
     let n <- elabToRNat n
     return RData.index n
 
@@ -196,16 +196,24 @@ partial def elabToRType : Syntax → RElabM RType
   | `(rise_type| $d:rise_data) => do
     let d ← elabToRData d
     return RType.data d
+
+  | `(rise_type| ($d:rise_data)) => do
+    let d ← elabToRData d
+    return RType.data d
+
   | `(rise_type| $l:rise_type → $r:rise_type) => do
     let t ← elabToRType l
     let body ← elabToRType r
     return RType.pi t body
+
   | `(rise_type| ($t:rise_type)) => do
     elabToRType t
+
   | `(rise_type| {$x:ident : $k:rise_kind} → $t:rise_type) => do
     let k ← elabToRKind k
     let body ← withNewType (x.getId, k) do elabToRType t
     return RType.upi k Plicity.im x.getId body
+
   | `(rise_type| ($x:ident : $k:rise_kind) → $t:rise_type) => do
     let k ← elabToRKind k
     let body ← withNewType (x.getId, some k) do elabToRType t
@@ -247,6 +255,8 @@ def unexpandRiseTypePi : Unexpander
   | _ => throw ()
 
 
+#check [RiseT| {n : nat} → {s : data} → {t : data} → n·(s × t) → (n·s × n·t)]
+-- #check [RiseT| {n t : data} → n·t → n·t × n·t]
 #check [RiseT| scalar]
 #check [RiseT| scalar → scalar ]
 #check [RiseT| {δ : data} → δ → δ → δ]
@@ -259,28 +269,28 @@ def unexpandRiseTypePi : Unexpander
 
 #check [RiseT| {n : nat} → {δ1 δ2 : data} → (δ1 → δ2) → n·δ1 → n·δ2]
 
-def RData.ismvar : RData → Bool
-  | .mvar .. => true
-  | _ => false
+-- def RData.ismvar : RData → Bool
+--   | .mvar .. => true
+--   | _ => false
 
-def RNat.liftmvars (n : Nat) : RNat → RNat
-  | .mvar id un => .mvar (id + n) un
-  | .bvar id un => .bvar id un
-  | .nat k      => .nat k
+-- def RNat.liftmvars (n : Nat) : RNat → RNat
+--   | .mvar id un => .mvar (id + n) un
+--   | .bvar id un => .bvar id un
+--   | .nat k      => .nat k
 
-def RData.liftmvars (n : Nat) : RData → RData
-  | .bvar n un  => .bvar n un
-  | .mvar id un => .mvar (id + n) un
-  | .array k d  => .array (k.liftmvars n) (d.liftmvars n)
-  | .pair l r   => .pair (l.liftmvars n) (r.liftmvars n)
-  | .index k    => .index (k.liftmvars n)
-  | .scalar     => .scalar
-  | .vector k   => .vector (k.liftmvars n)
+-- def RData.liftmvars (n : Nat) : RData → RData
+--   | .bvar n un  => .bvar n un
+--   | .mvar id un => .mvar (id + n) un
+--   | .array k d  => .array (k.liftmvars n) (d.liftmvars n)
+--   | .pair l r   => .pair (l.liftmvars n) (r.liftmvars n)
+--   | .index k    => .index (k.liftmvars n)
+--   | .scalar     => .scalar
+--   | .vector k   => .vector (k.liftmvars n)
 
-def RType.liftmvars (n : Nat) : RType → RType
-  | .upi bk pc un b   => .upi bk pc un (b.liftmvars n)
-  | .pi bt b    => .pi (bt.liftmvars n) (b.liftmvars n)
-  | .data dt    => .data (dt.liftmvars n)
+-- def RType.liftmvars (n : Nat) : RType → RType
+--   | .upi bk pc un b   => .upi bk pc un (b.liftmvars n)
+--   | .pi bt b    => .pi (bt.liftmvars n) (b.liftmvars n)
+--   | .data dt    => .data (dt.liftmvars n)
 
 
 
@@ -304,7 +314,7 @@ def RType.liftmvars (n : Nat) : RType → RType
 --   | .data dt    => .data (dt.mapMVars n)
 
 
-#reduce [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1].liftmvars 5
+-- #reduce [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1].liftmvars 5
 
 
 -- private def RNat.getmvarsAux : RNat → Array (Nat × String × RKind) → Array (Nat × String × RKind)
