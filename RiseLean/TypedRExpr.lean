@@ -1,6 +1,5 @@
 import RiseLean.Prelude
 import RiseLean.RElabM
-import RiseLean.Expr
 import RiseLean.Type
 import Lean
 open Lean Elab
@@ -152,3 +151,40 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 
 #eval IO.println <| toString [RiseTE| fun a : scalar → scalar => a 10000].node
 #check [RiseTE| fun a : scalar → scalar → scalar => a 10000 2]
+
+-- --set_option pp.explicit true
+-- #check [RiseE| fun as => as]
+-- #check [RiseE| fun as bs => as]
+-- #check [RiseE| fun as bs cs => as]
+-- #check [RiseE| fun as => fun bs => (as bs)]
+-- #check [RiseE| fun as => fun bs => as bs (fun c => c)]
+-- #check [RiseE| fun as => as (fun as => as)]
+
+-- #check [RiseE| fun x => x]
+
+-- #check [RiseE| fun(x : nat) => 3]
+
+-- -- trying to use x at term level. it's not legal,
+-- -- because x is only in the kinding context
+-- -- #check [RiseE| fun(x : nat) => x]
+
+-- #check [RiseE| fun(x : 5·scalar) => x]
+
+-- #check [RiseE| fun(x : nat) => 3]
+
+-- -- TODO: do we want to parse this as n being an implicit parameter?
+-- #check [RiseE| fun(n : nat) => fun(x : n·scalar) => x]
+
+
+-- def RExpr.bvar2fvar (e : RExpr) (un : Lean.Name) : RExpr :=
+--   go un e 0 where
+--   go (un : Lean.Name) (e : RExpr) (n : Nat) : RExpr :=
+--   match e with
+--   | .bvar i => if i == n then .fvar un else e
+--   | .fvar .. => e
+--   | .const .. => e
+--   | .lit .. => e
+--   | .app fn arg => .app (go un fn n) (go un arg n)
+--   | .lam lun bt b => .lam lun bt (go un b (n+1))
+--   | .ulam lun bt b => .ulam lun bt (go un b (n+1))
+
