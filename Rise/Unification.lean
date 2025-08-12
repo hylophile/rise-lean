@@ -25,6 +25,12 @@ partial def unifyOneRNat (s t : RNat) : Option Substitution :=
     else
       some [(x, .nat term)]
 
+  | .plus n1 m1, .plus n2 m2 =>
+    unifyRNat [(n1, n2), (m1, m2)]
+
+  | .mult n1 m1, .mult n2 m2 =>
+    unifyRNat [(n1, n2), (m1, m2)]
+
   | _, _ => none
 
 partial def unifyRNat (equations : List (RNat × RNat)) : Option Substitution :=

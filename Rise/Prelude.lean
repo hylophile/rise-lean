@@ -15,7 +15,9 @@ deriving BEq, Hashable, Repr
 inductive RNat
   | bvar (deBruijnIndex : Nat) (userName : String)
   | mvar (id : Nat) (userName : String)
-  | nat: Nat → RNat
+  | nat  (n : Nat)
+  | plus (n : RNat) (m : RNat)
+  | mult (n : RNat) (m : RNat)
 deriving Repr, BEq, DecidableEq
 
 -- DataType
@@ -93,6 +95,8 @@ def RNat.substNat (t : RNat) (x : RMVarId) (s : RNat) : RNat :=
     | .mvar y _ => if x == y then s else t
     | .bvar .. => t
     | .nat _ => t
+    | .plus n m => .plus (n.substNat x s) (m.substNat x s)
+    | .mult n m => .mult (n.substNat x s) (m.substNat x s)
 
 def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
   match s with
@@ -145,6 +149,8 @@ def RNat.has (v : RMVarId) : RNat → Bool
   | .mvar id _ => id == v
   | .bvar .. => false
   | .nat _ => false
+  | .plus n m => n.has v || m.has v
+  | .mult n m => n.has v || m.has v
 
 def RData.has (v : RMVarId) : RData → Bool
   | .mvar id _ => id == v
@@ -199,13 +205,15 @@ instance : ToString RKind where
     | RKind.data => "data"
     | RKind.type => "type"
 
-
 instance : ToString RNat where
-  toString
-    | RNat.bvar idx name => s!"{name}@{idx}"
-    | RNat.mvar id name => s!"?{name}{natToSubscript id}"
-    | RNat.nat n => s!"{n}"
-
+  toString := 
+    let rec go : RNat → String
+      | .bvar idx name => s!"{name}@{idx}"
+      | .mvar id name => s!"?{name}{natToSubscript id}"
+      | .nat n => s!"{n}"
+      | .plus n m => s!"({go n}+{go m})"
+      | .mult n m => s!"({go n}*{go m})"
+    go
 
 def RData.toString : RData → String
   | RData.bvar idx name => s!"{name}@{idx}"

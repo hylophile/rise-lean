@@ -30,13 +30,18 @@ instance : ToExpr RKind where
 
 
 declare_syntax_cat rise_nat
-syntax num                    : rise_nat
-syntax ident                  : rise_nat
+syntax    num                          : rise_nat
+syntax    ident                        : rise_nat
+syntax    rise_nat:10 "+" rise_nat:10  : rise_nat
+syntax:10 rise_nat    "*" rise_nat     : rise_nat
+syntax    "(" rise_nat ")"             : rise_nat
 
 syntax "[RiseN|" rise_nat "]" : term
 
 partial def elabToRNat : Syntax → RElabM RNat
-  | `(rise_nat| $n:num) => return RNat.nat n.getNat
+  | `(rise_nat| $n:num) =>
+    return RNat.nat n.getNat
+
   | `(rise_nat| $x:ident) => do
     let kctx ← getKCtx
     match kctx.reverse.findIdx? (λ (name, _) => name == x.getId) with
@@ -49,19 +54,41 @@ partial def elabToRNat : Syntax → RElabM RNat
     --   | some idx =>
     --     return RNat.mvar idx x.getId.toString
     --   | none => throwErrorAt x s!"rnat: unknown identifier {mkConst x.getId}"
+
+  | `(rise_nat| $n:rise_nat + $m:rise_nat) => do
+    let n ← elabToRNat n
+    let m ← elabToRNat m
+    return RNat.plus n m
+
+  | `(rise_nat| $n:rise_nat * $m:rise_nat) => do
+    let n ← elabToRNat n
+    let m ← elabToRNat m
+    return RNat.mult n m
+
+  | `(rise_nat| ($n:rise_nat)) => do
+    elabToRNat n
+
   | _ => throwUnsupportedSyntax
 
 instance : ToExpr RNat where
-  toExpr e := match e with
-  | RNat.bvar deBruijnIndex userName =>
-    let f := mkConst ``RNat.bvar
-    mkAppN f #[mkNatLit deBruijnIndex, mkStrLit userName]
-  | RNat.mvar id userName =>
-    let f := mkConst ``RNat.mvar
-    mkAppN f #[mkNatLit id, mkStrLit userName]
-  | RNat.nat n =>
-    let f := mkConst ``RNat.nat
-    mkAppN f #[mkNatLit n]
+  toExpr :=
+    let rec go : RNat → Expr
+    | RNat.bvar deBruijnIndex userName =>
+      let f := mkConst ``RNat.bvar
+      mkAppN f #[mkNatLit deBruijnIndex, mkStrLit userName]
+    | RNat.mvar id userName =>
+      let f := mkConst ``RNat.mvar
+      mkAppN f #[mkNatLit id, mkStrLit userName]
+    | RNat.nat n =>
+      let f := mkConst ``RNat.nat
+      mkAppN f #[mkNatLit n]
+    | .plus n m =>
+      let f := mkConst ``RNat.plus
+      mkAppN f #[go n, go m]
+    | .mult n m =>
+      let f := mkConst ``RNat.mult
+      mkAppN f #[go n, go m]
+    go
   toTypeExpr := mkConst ``RNat
 
 partial def elabRNat : Syntax → RElabM Expr
@@ -132,6 +159,7 @@ partial def elabToRData : Syntax → RElabM RData
 
   | `(rise_data| ($d:rise_data)) =>
     elabToRData d
+
 
   | _ => throwUnsupportedSyntax
 
@@ -256,6 +284,7 @@ def unexpandRiseTypePi : Unexpander
 
 
 #check [RiseT| {n : nat} → {s : data} → {t : data} → n·(s × t) → (n·s × n·t)]
+#check [RiseT| {n m p q : nat} → {t : data} → n+m*q*p·t]
 -- #check [RiseT| {n t : data} → n·t → n·t × n·t]
 #check [RiseT| scalar]
 #check [RiseT| scalar → scalar ]
@@ -396,6 +425,8 @@ def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
   | .bvar bn un => if bn == n then .mvar m un else rn
   | .mvar .. => rn
   | .nat .. => rn
+  | .plus p q => .plus (p.bvar2mvar n m) (q.bvar2mvar n m)
+  | .mult p q => .mult (p.bvar2mvar n m) (q.bvar2mvar n m)
 
 def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
   match dt with

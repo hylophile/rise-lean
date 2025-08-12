@@ -123,12 +123,11 @@ macro_rules
   -- def makeArray(n : Int): {dt : data} → n*(dt →) n·dt
 
   def generate : {n : nat} → {t : data} → (idx[n] → t) → n·t
-  -- (can't use idx as identifier)
   def idx : {n : nat} → {t : data} → idx[n] → n·t → t
 
   -- TODO: add operators in RNats
   -- TODO: make sure all implicit arguments come first, or write a better implementation for addImplicits.
-  -- def take :   (n : nat) → {m : nat} → {t : data} → (n+m)·t → n·t
+  def take :   (n : nat) → {m : nat} → {t : data} → (n+m)·t → n·t
   -- def drop :   (n : nat) → {m : nat} → {t : data} → (n+m)·t → m·t
   -- def concat : {n : nat} → {m : nat} → {t : data} → n·t → m·t → (n+m)·t
 
@@ -252,7 +251,11 @@ macro_rules
 -- ]
 
 #pp [RiseC|
-  fun(a : 3·scalar) => reduce add 0 a
+  fun x:2·3·scalar => transpose x 
+]
+
+#pp [RiseC|
+  fun(a : 3+5*9·scalar) => reduce add 0 a
 ]
 
 #pp [RiseC|
