@@ -80,10 +80,10 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   --   let b ← withNewTVar (x.getId, some k) do elabToTypedRExpr b
   --   return TypedRExpr.ulam x.getId (some k) b
 
-  | `(rise_expr| $fs:rise_expr $e:rise_expr ) => do
-      let f ← elabToTypedRExpr fs
+  | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
+      let f ← elabToTypedRExpr f_syn
       let f := {f with type := (← addImplicits f.type)}
-      let e ← elabToTypedRExpr e
+      let e ← elabToTypedRExpr e_syn
       let e := {e with type := (← addImplicits e.type)}
       match f.type with
       | .pi blt brt =>
@@ -93,10 +93,19 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           return ⟨.app f e, brt.apply sub⟩
           -- applyUnifyResults brt
         | none =>
-          throwError s!"\ncannot unify {blt} with {e.type}"
+          throwErrorAt f_syn s!"\ncannot unify {blt} with {e.type}"
       | .upi bk .im un b =>
         throwError s!"unexpected upi {f.type}"
-      | _ => throwErrorAt fs s!"expected a function type for ({Lean.Syntax.prettyPrint fs}), but found: {f.type}"
+      | .upi .data .ex un b =>
+        throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
+      | .upi .nat .ex un b =>
+        match e.node, e.type with
+        | .lit x, .data .scalar =>
+          let bt :=  b.rnatbvar2rnat (RNat.nat x)
+          return ⟨.app f e, bt⟩
+        | _, _ =>
+          throwErrorAt e_syn "expected lit scalar, found {e.type}"
+      | _ => throwErrorAt f_syn s!"expected a function type for ({Lean.Syntax.prettyPrint f_syn}), but found: {repr f.type}"
       -- return TypedRExpr.app e1 e2
 
   | `(rise_expr| $e:rise_expr |> $f:rise_expr) => do

@@ -46,7 +46,7 @@ partial def elabToRNat : Syntax → RElabM RNat
     let kctx ← getKCtx
     match kctx.reverse.findIdx? (λ (name, _) => name == x.getId) with
     | some idx =>
-      return RNat.bvar idx x.getId.toString
+      return RNat.bvar idx x.getId
     | none => throwErrorAt x s!"rnat: unknown identifier {mkConst x.getId}"
     -- | none =>
     --   let mctx ← getMVCtx
@@ -75,10 +75,10 @@ instance : ToExpr RNat where
     let rec go : RNat → Expr
     | RNat.bvar deBruijnIndex userName =>
       let f := mkConst ``RNat.bvar
-      mkAppN f #[mkNatLit deBruijnIndex, mkStrLit userName]
+      mkAppN f #[mkNatLit deBruijnIndex, toExpr userName]
     | RNat.mvar id userName =>
       let f := mkConst ``RNat.mvar
-      mkAppN f #[mkNatLit id, mkStrLit userName]
+      mkAppN f #[mkNatLit id, toExpr userName]
     | RNat.nat n =>
       let f := mkConst ``RNat.nat
       mkAppN f #[mkNatLit n]
@@ -244,7 +244,7 @@ partial def elabToRType : Syntax → RElabM RType
 
   | `(rise_type| ($x:ident : $k:rise_kind) → $t:rise_type) => do
     let k ← elabToRKind k
-    let body ← withNewType (x.getId, some k) do elabToRType t
+    let body ← withNewType (x.getId, k) do elabToRType t
     return RType.upi k Plicity.ex x.getId body
   | _ => throwUnsupportedSyntax
 
@@ -438,10 +438,34 @@ def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
   | .scalar => dt
   | .vector rn => .vector (rn.bvar2mvar n m)
 
-
 def RType.bvar2mvar (t : RType) (mid : RMVarId) : RType :=
   go t 0 mid where
   go : RType → RBVarId → RMVarId → RType
   | .data dt, n, m => .data (dt.bvar2mvar n m)
   | .upi bk pc un b, n, m => .upi bk pc un (go b (n+1) m)
   | .pi bt b, n, m => .pi (go bt n m) (go b n m)
+
+def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
+  match rn with
+  | .bvar bn .. => if bn == n then rnat else rn
+  | .mvar .. => rn
+  | .nat .. => rn
+  | .plus p q => .plus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
+  | .mult p q => .mult (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
+
+def RData.rnatbvar2rnat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
+  match dt with
+  | .bvar .. => dt
+  | .mvar .. => dt
+  | .array rn dt => .array (rn.rnatbvar2rnat n rnat) (dt.rnatbvar2rnat n rnat)
+  | .pair dt1 dt2 => .pair (dt1.rnatbvar2rnat n rnat) (dt2.rnatbvar2rnat n rnat)
+  | .index rn => .index (rn.rnatbvar2rnat n rnat)
+  | .scalar => dt
+  | .vector rn => .vector (rn.rnatbvar2rnat n rnat)
+
+def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
+  go t 0 rnat where
+  go : RType → RBVarId → RNat → RType
+  | .data dt, n, rnat => .data (dt.rnatbvar2rnat n rnat)
+  | .upi bk pc un b, n, rnat => .upi bk pc un (go b (n+1) rnat)
+  | .pi bt b, n, rnat => .pi (go bt n rnat) (go b n rnat)

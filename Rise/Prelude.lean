@@ -13,8 +13,8 @@ deriving BEq, Hashable, Repr
 -- Nat
 --   n ::= 0 | n + n | n · n | ... (Natural Number Literals, Binary Operations)
 inductive RNat
-  | bvar (deBruijnIndex : Nat) (userName : String)
-  | mvar (id : Nat) (userName : String)
+  | bvar (deBruijnIndex : Nat) (userName : Lean.Name)
+  | mvar (id : Nat) (userName : Lean.Name)
   | nat  (n : Nat)
   | plus (n : RNat) (m : RNat)
   | mult (n : RNat) (m : RNat)
@@ -68,7 +68,7 @@ end
 -- abbrev MVCtxElem := Lean.Name × RKind × Option RType
 -- abbrev MVCtx := Array MVCtxElem
 
-abbrev KCtxElem := Lean.Name × Option RKind
+abbrev KCtxElem := Lean.Name × RKind
 abbrev KCtx := Array KCtxElem
 
 abbrev TCtxElem := Lean.Name × RType
@@ -208,7 +208,7 @@ instance : ToString RKind where
 instance : ToString RNat where
   toString := 
     let rec go : RNat → String
-      | .bvar idx name => s!"{name}@{idx}"
+      | .bvar idx name => s!"@{name}{natToSubscript idx}"
       | .mvar id name => s!"?{name}{natToSubscript id}"
       | .nat n => s!"{n}"
       | .plus n m => s!"({go n}+{go m})"
@@ -216,7 +216,7 @@ instance : ToString RNat where
     go
 
 def RData.toString : RData → String
-  | RData.bvar idx name => s!"{name}@{idx}"
+  | RData.bvar idx name => s!"@{name}{natToSubscript idx}"
   | RData.mvar id name => s!"?{name}{natToSubscript id}"
   | RData.array n d => s!"{n}·{RData.toString d}"
   | RData.pair d1 d2 => s!"({RData.toString d1} × {RData.toString d2})"

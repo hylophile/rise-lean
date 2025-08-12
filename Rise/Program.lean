@@ -104,7 +104,7 @@ macro_rules
 
   -- cast ops
   def cast : {s : data} → {t : data} → s → t
-  -- TODO: what's natType?
+  -- TODO: what's natType? the type nat (as opposed to the kind nat)?
   -- def indexAsNat : {n : nat} → idx[n] → natType
   -- def natAsIndex : (n : nat) → natType → idx[n]
 
@@ -129,10 +129,10 @@ macro_rules
   -- TODO: make sure all implicit arguments come first, or write a better implementation for addImplicits.
   def take :   (n : nat) → {m : nat} → {t : data} → (n+m)·t → n·t
   -- def drop :   (n : nat) → {m : nat} → {t : data} → (n+m)·t → m·t
-  -- def concat : {n : nat} → {m : nat} → {t : data} → n·t → m·t → (n+m)·t
+  def concat : {n : nat} → {m : nat} → {t : data} → n·t → m·t → (n+m)·t
 
   -- def split : (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·n.t
-  -- def  join : {n : nat} → {m : nat} → {t : data} → n·m.t → (n*m)·t
+  def  join : {n : nat} → {m : nat} → {t : data} → n·m·t → (n*m)·t
 
   -- def slide : {n : nat} → (sz : nat) → (sp : nat) → {t : data} → (sp*n+sz)·t → (1+n)·sz·t
   -- def circularBuffer : {n : nat} → (alloc : nat) → (sz : nat) → {s : data} → {t : data} →
@@ -251,7 +251,12 @@ macro_rules
 -- ]
 
 #pp [RiseC|
-  fun x:2·3·scalar => transpose x 
+  fun x:2·3·scalar => concat (x |> transpose |> join) (x |> join) 
+]
+
+#pp toJson [RiseC|
+  -- fun x:2·3·scalar => concat (x |> transpose |> join) (x |> join) 
+  take 5
 ]
 
 #pp [RiseC|

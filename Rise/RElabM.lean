@@ -103,6 +103,12 @@ def findLocal? (n : Lean.Name) : RElabM <| Option RType := do
   | some (_, rtype) => rtype
   | none => none
 
+def findTypeVar? (n : Lean.Name) : RElabM <| Option RKind := do
+  let kctx := (← read).kctx
+  return match kctx.find? (λ (name, _) => name == n) with
+  | some (_, rkind) => rkind
+  | none => none
+
 def ur : RElabM Substitution := do
   return (← get).unifyResult
 
