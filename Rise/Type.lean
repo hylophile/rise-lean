@@ -32,8 +32,10 @@ instance : ToExpr RKind where
 declare_syntax_cat rise_nat
 syntax    num                          : rise_nat
 syntax    ident                        : rise_nat
-syntax    rise_nat:10 "+" rise_nat:10  : rise_nat
-syntax:10 rise_nat    "*" rise_nat     : rise_nat
+syntax:10 rise_nat:10 "+" rise_nat:11  : rise_nat
+syntax:10 rise_nat:10 "-" rise_nat:11  : rise_nat
+syntax:20 rise_nat:20 "*" rise_nat:21  : rise_nat
+syntax:30 rise_nat    "^" rise_nat     : rise_nat
 syntax    "(" rise_nat ")"             : rise_nat
 
 syntax "[RiseN|" rise_nat "]" : term
@@ -60,6 +62,16 @@ partial def elabToRNat : Syntax → RElabM RNat
     let m ← elabToRNat m
     return RNat.plus n m
 
+  | `(rise_nat| $n:rise_nat - $m:rise_nat) => do
+    let n ← elabToRNat n
+    let m ← elabToRNat m
+    return RNat.minus n m
+
+  | `(rise_nat| $n:rise_nat * $m:rise_nat) => do
+    let n ← elabToRNat n
+    let m ← elabToRNat m
+    return RNat.mult n m
+
   | `(rise_nat| $n:rise_nat * $m:rise_nat) => do
     let n ← elabToRNat n
     let m ← elabToRNat m
@@ -84,6 +96,9 @@ instance : ToExpr RNat where
       mkAppN f #[mkNatLit n]
     | .plus n m =>
       let f := mkConst ``RNat.plus
+      mkAppN f #[go n, go m]
+    | .minus n m =>
+      let f := mkConst ``RNat.minus
       mkAppN f #[go n, go m]
     | .mult n m =>
       let f := mkConst ``RNat.mult
@@ -204,7 +219,7 @@ syntax rise_data                                  : rise_type
 syntax rise_type "→" rise_type                    : rise_type
 syntax "(" rise_type ")"                          : rise_type
 syntax "{" ident+ ":" rise_kind "}" "→" rise_type : rise_type
-syntax "(" ident ":" rise_kind ")" "→" rise_type  : rise_type
+syntax "(" ident+ ":" rise_kind ")" "→" rise_type  : rise_type
 
 -- set_option pp.raw true
 -- set_option pp.raw.maxDepth 10
@@ -217,6 +232,14 @@ macro_rules
       `(rise_type| {$x : $k} → {$y : $k} → $t)
     | _ =>
       `(rise_type| {$x : $k} → {$y : $k} → {$xs* : $k} → $t)
+
+macro_rules
+  | `(rise_type| ($x:ident $y:ident $xs:ident* : $k:rise_kind) → $t:rise_type) =>
+    match xs with
+    | #[] =>
+      `(rise_type| ($x : $k) → ($y : $k) → $t)
+    | _ =>
+      `(rise_type| ($x : $k) → ($y : $k) → ($xs* : $k) → $t)
 
 
 
@@ -285,6 +308,15 @@ def unexpandRiseTypePi : Unexpander
 
 #check [RiseT| {n : nat} → {s : data} → {t : data} → n·(s × t) → (n·s × n·t)]
 #check [RiseT| {n m p q : nat} → {t : data} → n+m*q*p·t]
+
+#eval [RiseT| {n m p q : nat} → {t : data} → n-m-p·t].toString
+#eval [RiseT| {n m p q : nat} → {t : data} → n-m+p·t].toString
+#eval [RiseT| {n m p q : nat} → {t : data} → n-m*p·t].toString
+#eval [RiseT| {n m p q : nat} → {t : data} → n-m*p+q·t].toString
+
+
+#check [RiseT| (n t : data) → n·t → n·t × n·t]
+
 -- #check [RiseT| {n t : data} → n·t → n·t × n·t]
 #check [RiseT| scalar]
 #check [RiseT| scalar → scalar ]
@@ -426,6 +458,7 @@ def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
   | .mvar .. => rn
   | .nat .. => rn
   | .plus p q => .plus (p.bvar2mvar n m) (q.bvar2mvar n m)
+  | .minus p q => .minus (p.bvar2mvar n m) (q.bvar2mvar n m)
   | .mult p q => .mult (p.bvar2mvar n m) (q.bvar2mvar n m)
 
 def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
@@ -451,6 +484,7 @@ def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
   | .mvar .. => rn
   | .nat .. => rn
   | .plus p q => .plus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
+  | .minus p q => .minus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
   | .mult p q => .mult (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
 
 def RData.rnatbvar2rnat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=

@@ -28,6 +28,9 @@ partial def unifyOneRNat (s t : RNat) : Option Substitution :=
   | .plus n1 m1, .plus n2 m2 =>
     unifyRNat [(n1, n2), (m1, m2)]
 
+  | .minus n1 m1, .minus n2 m2 =>
+    unifyRNat [(n1, n2), (m1, m2)]
+
   | .mult n1 m1, .mult n2 m2 =>
     unifyRNat [(n1, n2), (m1, m2)]
 

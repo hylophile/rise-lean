@@ -17,6 +17,7 @@ inductive RNat
   | mvar (id : Nat) (userName : Lean.Name)
   | nat  (n : Nat)
   | plus (n : RNat) (m : RNat)
+  | minus (n : RNat) (m : RNat)
   | mult (n : RNat) (m : RNat)
 deriving Repr, BEq, DecidableEq
 
@@ -96,6 +97,7 @@ def RNat.substNat (t : RNat) (x : RMVarId) (s : RNat) : RNat :=
     | .bvar .. => t
     | .nat _ => t
     | .plus n m => .plus (n.substNat x s) (m.substNat x s)
+    | .minus n m => .minus (n.substNat x s) (m.substNat x s)
     | .mult n m => .mult (n.substNat x s) (m.substNat x s)
 
 def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
@@ -150,6 +152,7 @@ def RNat.has (v : RMVarId) : RNat → Bool
   | .bvar .. => false
   | .nat _ => false
   | .plus n m => n.has v || m.has v
+  | .minus n m => n.has v || m.has v
   | .mult n m => n.has v || m.has v
 
 def RData.has (v : RMVarId) : RData → Bool
@@ -212,6 +215,7 @@ instance : ToString RNat where
       | .mvar id name => s!"?{name}{natToSubscript id}"
       | .nat n => s!"{n}"
       | .plus n m => s!"({go n}+{go m})"
+      | .minus n m => s!"({go n}-{go m})"
       | .mult n m => s!"({go n}*{go m})"
     go
 
