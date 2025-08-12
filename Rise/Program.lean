@@ -170,8 +170,7 @@ macro_rules
 
   -- vvv interesting
   -- iterate
-  -- def iterate : {n : nat} → {m : nat} → (k : nat) → {t : data} →
-  --     ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
+  def iterate : {n m k : nat} → {t : data} → ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
 
 
 
@@ -245,8 +244,12 @@ macro_rules
 #pp [RiseC|
   circularBuffer
 ]
+
 #pp [RiseC|
   gather
+]
+#pp [RiseC|
+  iterate
 ]
 
 #pp [RiseC|

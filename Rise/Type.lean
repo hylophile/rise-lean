@@ -72,10 +72,10 @@ partial def elabToRNat : Syntax → RElabM RNat
     let m ← elabToRNat m
     return RNat.mult n m
 
-  | `(rise_nat| $n:rise_nat * $m:rise_nat) => do
+  | `(rise_nat| $n:rise_nat ^ $m:rise_nat) => do
     let n ← elabToRNat n
     let m ← elabToRNat m
-    return RNat.mult n m
+    return RNat.pow n m
 
   | `(rise_nat| ($n:rise_nat)) => do
     elabToRNat n
@@ -102,6 +102,9 @@ instance : ToExpr RNat where
       mkAppN f #[go n, go m]
     | .mult n m =>
       let f := mkConst ``RNat.mult
+      mkAppN f #[go n, go m]
+    | .pow n m =>
+      let f := mkConst ``RNat.pow
       mkAppN f #[go n, go m]
     go
   toTypeExpr := mkConst ``RNat
@@ -313,6 +316,7 @@ def unexpandRiseTypePi : Unexpander
 #eval [RiseT| {n m p q : nat} → {t : data} → n-m+p·t].toString
 #eval [RiseT| {n m p q : nat} → {t : data} → n-m*p·t].toString
 #eval [RiseT| {n m p q : nat} → {t : data} → n-m*p+q·t].toString
+#eval [RiseT| {n m p q : nat} → {t : data} → n-m*p^q·t].toString
 
 
 #check [RiseT| (n t : data) → n·t → n·t × n·t]
@@ -460,6 +464,7 @@ def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
   | .plus p q => .plus (p.bvar2mvar n m) (q.bvar2mvar n m)
   | .minus p q => .minus (p.bvar2mvar n m) (q.bvar2mvar n m)
   | .mult p q => .mult (p.bvar2mvar n m) (q.bvar2mvar n m)
+  | .pow p q => .pow (p.bvar2mvar n m) (q.bvar2mvar n m)
 
 def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
   match dt with
@@ -486,6 +491,7 @@ def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
   | .plus p q => .plus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
   | .minus p q => .minus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
   | .mult p q => .mult (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
+  | .pow p q => .pow (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
 
 def RData.rnatbvar2rnat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
   match dt with

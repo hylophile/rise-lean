@@ -19,6 +19,7 @@ inductive RNat
   | plus (n : RNat) (m : RNat)
   | minus (n : RNat) (m : RNat)
   | mult (n : RNat) (m : RNat)
+  | pow (n : RNat) (m : RNat)
 deriving Repr, BEq, DecidableEq
 
 -- DataType
@@ -99,6 +100,7 @@ def RNat.substNat (t : RNat) (x : RMVarId) (s : RNat) : RNat :=
     | .plus n m => .plus (n.substNat x s) (m.substNat x s)
     | .minus n m => .minus (n.substNat x s) (m.substNat x s)
     | .mult n m => .mult (n.substNat x s) (m.substNat x s)
+    | .pow n m => .pow (n.substNat x s) (m.substNat x s)
 
 def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
   match s with
@@ -154,6 +156,7 @@ def RNat.has (v : RMVarId) : RNat → Bool
   | .plus n m => n.has v || m.has v
   | .minus n m => n.has v || m.has v
   | .mult n m => n.has v || m.has v
+  | .pow n m => n.has v || m.has v
 
 def RData.has (v : RMVarId) : RData → Bool
   | .mvar id _ => id == v
@@ -217,6 +220,7 @@ instance : ToString RNat where
       | .plus n m => s!"({go n}+{go m})"
       | .minus n m => s!"({go n}-{go m})"
       | .mult n m => s!"({go n}*{go m})"
+      | .pow n m => s!"({go n}^{go m})"
     go
 
 def RData.toString : RData → String
@@ -242,7 +246,10 @@ def RType.toString : RType → String
       let plicityStr := if pc == Plicity.im then "{" else "("
       let plicityEnd := if pc == Plicity.im then "}" else ")"
       s!"{plicityStr}{un} : {kind}{plicityEnd} → {RType.toString body}"
-  | RType.pi binderType body => s!"{RType.toString binderType} → {RType.toString body}"
+  | RType.pi binderType body =>
+    match binderType with
+    | .pi .. | .upi .. => s!"({RType.toString binderType}) → {RType.toString body}"
+    | _ => s!"{RType.toString binderType} → {RType.toString body}"
 
 instance : ToString RType where
   toString := RType.toString
