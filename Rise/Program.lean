@@ -254,7 +254,7 @@ macro_rules
   fun x:2·3·scalar => concat (x |> transpose |> join) (x |> join) 
 ]
 
-#pp toJson [RiseC|
+#pp [RiseC|
   -- fun x:2·3·scalar => concat (x |> transpose |> join) (x |> join) 
   take 5
 ]

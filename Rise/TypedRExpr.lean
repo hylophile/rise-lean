@@ -33,6 +33,10 @@ partial def addImplicits (t: RType) : RElabM RType := do
     addMVar mid un bk none
     let newB := b.bvar2mvar mid
     addImplicits newB
+  | .upi bk .ex un b => do
+    return .upi bk .ex un (← addImplicits b)
+  | .pi bt b => do
+    return .pi bt (← addImplicits b)
   | x => return x
 
 partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
