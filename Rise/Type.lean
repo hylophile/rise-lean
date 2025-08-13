@@ -115,30 +115,14 @@ partial def elabRNat : Syntax → RElabM Expr
     return toExpr n
 
 
-
--- def RData.beq (a : RData) (b : RData) : Bool :=
---     match a, b with
---     | .bvar ia _, .bvar ib _ => ia == ib
---     | .mvar ia _, .mvar ib _ => true -- <- very likely incorrect :D -- ia == ib
---     | .array na da,.array nb db => na == nb && da.beq db
---     | .pair da1 da2,.pair db1 db2 => da1.beq db1 && da2.beq db2
---     | .index ia,.index ib => ia == ib
---     | .scalar, .scalar => true
---     | .vector na, .vector nb => na == nb
---     | _, _ => false
-
--- instance : BEq RData where
---   beq := RData.beq
-
-
 declare_syntax_cat rise_data
-syntax:50 rise_nat "·" rise_data:50 : rise_data
-syntax:50 "scalar"                  : rise_data
-syntax:10 rise_data "×" rise_data   : rise_data
-syntax    ident                     : rise_data
-syntax    "idx[" rise_nat "]"       : rise_data
-syntax    rise_nat "<" "scalar" ">" : rise_data
-syntax    "(" rise_data ")"         : rise_data
+syntax:50 rise_nat "·" rise_data:50  : rise_data
+syntax:50 "scalar"                   : rise_data
+syntax:10 rise_data "×" rise_data    : rise_data
+syntax    ident                      : rise_data
+syntax    "idx[" rise_nat "]"        : rise_data
+syntax    rise_nat "<" rise_data ">" : rise_data
+syntax    "(" rise_data ")"          : rise_data
 
 partial def elabToRData : Syntax → RElabM RData
   | `(rise_data| scalar) => return RData.scalar
@@ -171,9 +155,10 @@ partial def elabToRData : Syntax → RElabM RData
     let n <- elabToRNat n
     return RData.index n
 
-  | `(rise_data| $n:rise_nat < scalar >) => do
+  | `(rise_data| $n:rise_nat < $d:rise_data >) => do
     let n <- elabToRNat n
-    return RData.vector n
+    let d <- elabToRData d
+    return RData.vector n d
 
   | `(rise_data| ($d:rise_data)) =>
     elabToRData d
@@ -195,8 +180,8 @@ instance : ToExpr RData where
       mkAppN (mkConst ``RData.pair) #[go l, go r]
     | RData.index n =>
       mkAppN (mkConst ``RData.index) #[toExpr n]
-    | RData.vector n =>
-      mkAppN (mkConst ``RData.vector) #[toExpr n]
+    | RData.vector n d =>
+      mkAppN (mkConst ``RData.vector) #[toExpr n, go d]
     go
   toTypeExpr := mkConst ``RData
 
@@ -303,10 +288,10 @@ elab "[RiseT|" t:rise_type "]" : term => do
 
 
 -- set_option pp.rawOnError true
-@[app_unexpander RType.pi]
-def unexpandRiseTypePi : Unexpander
-  | `($(_) $l $r) => `(($l → $r))
-  | _ => throw ()
+-- @[app_unexpander RType.pi]
+-- def unexpandRiseTypePi : Unexpander
+--   | `($(_) $l $r) => `(($l → $r))
+--   | _ => throw ()
 
 
 #check [RiseT| {n : nat} → {s : data} → {t : data} → n·(s × t) → (n·s × n·t)]
@@ -474,7 +459,7 @@ def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
   | .pair dt1 dt2 => .pair (dt1.bvar2mvar n m) (dt2.bvar2mvar n m)
   | .index rn => .index (rn.bvar2mvar n m)
   | .scalar => dt
-  | .vector rn => .vector (rn.bvar2mvar n m)
+  | .vector rn d => .vector (rn.bvar2mvar n m) (d.bvar2mvar n m)
 
 def RType.bvar2mvar (t : RType) (mid : RMVarId) : RType :=
   go t 0 mid where
@@ -501,7 +486,7 @@ def RData.rnatbvar2rnat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
   | .pair dt1 dt2 => .pair (dt1.rnatbvar2rnat n rnat) (dt2.rnatbvar2rnat n rnat)
   | .index rn => .index (rn.rnatbvar2rnat n rnat)
   | .scalar => dt
-  | .vector rn => .vector (rn.rnatbvar2rnat n rnat)
+  | .vector rn d => .vector (rn.rnatbvar2rnat n rnat) (d.rnatbvar2rnat n rnat)
 
 def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
   go t 0 rnat where
@@ -509,3 +494,15 @@ def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
   | .data dt, n, rnat => .data (dt.rnatbvar2rnat n rnat)
   | .upi bk pc un b, n, rnat => .upi bk pc un (go b (n+1) rnat)
   | .pi bt b, n, rnat => .pi (go bt n rnat) (go b n rnat)
+
+
+-- #eval [RiseT| (n : nat) →(m:nat)→ n·scalar].rnatbvar2rnat <| .nat 9
+-- #eval (RType.upi RKind.nat Plicity.ex `n (RType.upi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
+-- #eval ((RType.upi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
+
+-- #eval (RType.upi RKind.nat Plicity.ex `n
+--         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).pi
+--           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5
+-- #eval (--RType.upi RKind.nat Plicity.ex `n
+--         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).pi
+--           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5

@@ -31,7 +31,7 @@ inductive RData
   | pair   : RData → RData → RData
   | index  : RNat → RData
   | scalar : RData
-  | vector : RNat → RData
+  | vector : RNat → RData → RData
 deriving Repr, BEq
 
 -- Im-/ex-plicity of parameters
@@ -115,7 +115,7 @@ def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
   | .bvar id un => .bvar id un
   | .index k => .index (k.substNat x s)
   | .scalar => .scalar
-  | .vector k => .vector (k.substNat x s)
+  | .vector k d => .vector (k.substNat x s) (d.substNat x s)
 
 def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
   match t with
@@ -125,7 +125,7 @@ def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
   | .bvar id un => .bvar id un
   | .index k => .index k
   | .scalar => .scalar
-  | .vector k => .vector k
+  | .vector k d => .vector k (d.substData x s)
 
 def RData.subst (t : RData) (x : RMVarId) (s : SubstEnum) : RData :=
   match s with
@@ -226,11 +226,11 @@ instance : ToString RNat where
 def RData.toString : RData → String
   | RData.bvar idx name => s!"@{name}{natToSubscript idx}"
   | RData.mvar id name => s!"?{name}{natToSubscript id}"
-  | RData.array n d => s!"{n}·{RData.toString d}"
-  | RData.pair d1 d2 => s!"({RData.toString d1} × {RData.toString d2})"
+  | RData.array n d => s!"{n}·{d.toString}"
+  | RData.pair d1 d2 => s!"({d1.toString} × {d2.toString})"
   | RData.index n => s!"idx[{n}]"
   | RData.scalar => "scalar"
-  | RData.vector n => s!"{n}<scalar>"
+  | RData.vector n d => s!"{n}<{d.toString}>"
 
 instance : ToString RData where
   toString := RData.toString

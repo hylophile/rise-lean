@@ -78,8 +78,10 @@ partial def unifyOneRData (s t : RData) : Option Substitution :=
 
   | .scalar, .scalar => some []
 
-  | .vector k1, .vector k2 =>
-    unifyOneRNat k1 k2
+  | .vector k1 d1, .vector k2 d2 =>
+    match unifyRNat [(k1, k2)], unifyRData [(d1, d2)] with
+    | some s1, some s2 => s1 ++ s2
+    | _, _ => none
 
   | _, _ => none
 
