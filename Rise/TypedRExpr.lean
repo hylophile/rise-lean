@@ -83,10 +83,10 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
     return ⟨.lam x.getId t b, .pi t b.type⟩
 
-  -- | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr ) => do
-  --   let k ← elabToRKind k
-  --   let b ← withNewTVar (x.getId, some k) do elabToTypedRExpr b
-  --   return TypedRExpr.ulam x.getId (some k) b
+  | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr ) => do
+    let k ← elabToRKind k
+    let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
+    return ⟨.ulam x.getId k b, .upi k .ex x.getId b.type⟩
 
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
       let f ← elabToTypedRExpr f_syn
@@ -101,7 +101,9 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           return ⟨.app f e, brt.apply sub⟩
           -- applyUnifyResults brt
         | none =>
-          throwErrorAt f_syn s!"\ncannot unify {blt} with {e.type}"
+          logErrorAt f_syn s!"\ncannot unify {blt} with {e.type}"
+          logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
+          throwError "unification failed"
       | .upi bk .im un b =>
         throwError s!"unexpected upi {f.type}"
       | .upi .data .ex un b =>
@@ -124,7 +126,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let s ← `(rise_expr| $e)
     elabToTypedRExpr s
 
-  | _ => throwUnsupportedSyntax
+  | e => throwErrorAt e s!"unexpected rise expr syntax:\n{e}" --throwUnsupportedSyntax
 
 mutual
 partial
