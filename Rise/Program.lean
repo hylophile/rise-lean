@@ -131,9 +131,9 @@ macro_rules
   -- TODO: type-level functions
   -- def reorder : {t : data} → (n : nat) → (idxF : nat2nat) → (idxFinv : nat2nat) → n·t → n·t
 
-  -- def padCst :   {n : nat} → (l : nat) → (r : nat) → {t : data} → t → n·t → (l+n+r)·t
-  -- def padClamp : {n : nat} → (l : nat) → (r : nat) → {t : data} →     n·t → (l+n+r)·t
-  -- def padEmpty : {n : nat} →             (r : nat) → {t : data} →     n·t →   (n+r)·t
+  def padCst :   {n : nat} → (l r : nat) → {t : data} → t → n·t → (l+n+r)·t
+  def padClamp : {n : nat} → (l r : nat) → {t : data} →     n·t → (l+n+r)·t
+  def padEmpty : {n : nat} → (  r : nat) → {t : data} →     n·t →   (n+r)·t
 
   def   zip : {n : nat} → {s t : data} → n·s → n·t → n·(s × t)
   def unzip : {n : nat} → {s t : data} → n·(s × t) → (n·s × n·t)
@@ -145,10 +145,10 @@ macro_rules
 
   -- vector ops
   -- TODO: vector types (need additional parameter)
-  -- def vectorFromScalar : {n : nat} → {t : data} → t → vec[t, n]
-  -- def asVector :         (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·vec[t, n]
-  -- def asVectorAligned :  (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·vec[t, n]
-  -- def asScalar :         {n : nat} → {m : nat} → {t : data} → m·vec[t, n] → (m*n)·t
+  def vectorFromScalar : {n : nat} → {t : data} → t → n<t>
+  def asVector :         (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·n<t>
+  def asVectorAligned :  (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·n<t>
+  def asScalar :         {n : nat} → {m : nat} → {t : data} → m·n<t> → (m*n)·t
 
   -- map
   def map           : {n : nat} → {s t : data} → (s → t) → n·s → n·t
@@ -156,6 +156,8 @@ macro_rules
   def mapSeqUnroll  : {n : nat} → {s t : data} → (s → t) → n·s → n·t
   def mapStream     : {n : nat} → {s t : data} → (s → t) → n·s → n·t
   def iterateStream : {n : nat} → {s t : data} → (s → t) → n·s → n·t
+  -- added because it was found in a scalar file
+  def mapPar        : {n : nat} → {s t : data} → (s → t) → n·s → n·t
 
   def mapFst : {s1 t  s2 : data} → (s1 → s2) → (s1 × t) → (s2 × t)
   def mapSnd : {s  t1 t2 : data} → (t1 → t2) → (s × t1) → (s × t2)
@@ -240,6 +242,9 @@ macro_rules
 #pp [RiseC|
   take 5
 ]
+#eval [RiseC|
+  take
+]
 
 #pp [RiseC|
   circularBuffer
@@ -251,6 +256,13 @@ macro_rules
 
 
 
+
+#pp [RiseC|
+  test 5
+]
+#eval [RiseC|
+  test 5
+]
 
 #pp [RiseC|
   gather
@@ -309,6 +321,30 @@ fun a b =>
         map (fun ab => mul (fst ab) (snd ab)) |>
         reduce add 0)) -- iterating over K
 ]
+
+#eval [RiseC|
+  fun (n : nat) => fun input : n·scalar => (split 8) input
+]
+
+-- from shine/src/test/scala/apps/scal.scala
+#eval [RiseC|
+fun(n: nat) => fun(input : n·scalar) => fun(alpha : scalar) =>
+  input |>
+  -- inlining this for now
+  -- split (mul 4 (mul 128 128)) |>
+  split 65536 |>
+  mapPar(
+    asVectorAligned(4) >>
+    split(128) >>
+    mapSeq(mapSeq(fun x =>
+      vectorFromScalar(alpha) |> mul x
+    )) >> join >> asScalar
+  ) |>
+  join
+
+]
+
+
 
 #pp [RiseC|
   fun (x : 32·32·scalar) =>
