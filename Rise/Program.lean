@@ -246,6 +246,13 @@ macro_rules
 ]
 
 #pp [RiseC|
+  fst >> snd >> add 0
+]
+
+
+
+
+#pp [RiseC|
   gather
 ]
 #pp [RiseC|

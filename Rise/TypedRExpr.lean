@@ -13,6 +13,8 @@ syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr  : rise_expr
 syntax "fun" "(" ident (":" rise_kind)  ")" "=>" rise_expr  : rise_expr
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
+syntax:40 rise_expr:40 ">>" rise_expr:41                    : rise_expr
+syntax:40 rise_expr:40 "<<" rise_expr:41                    : rise_expr
 syntax:60 "(" rise_expr ")"                                 : rise_expr
 
 set_option pp.raw true
@@ -25,6 +27,12 @@ macro_rules
     | _ =>
       `(rise_expr| fun $x => fun $y => fun $xs* => $e)
 
+macro_rules
+  | `(rise_expr| $f:rise_expr >> $g:rise_expr) =>
+    let x := mkIdent `x
+    `(rise_expr| fun $x => $g ($f $x:ident))
+  | `(rise_expr| $f:rise_expr << $g:rise_expr) =>
+    `(rise_expr| $g >> $f)
 
 partial def addImplicits (t: RType) : RElabM RType := do
   match t with
@@ -166,6 +174,7 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 
 #eval IO.println <| toString [RiseTE| fun a : scalar → scalar => a 10000].node
 #check [RiseTE| fun a : scalar → scalar → scalar => a 10000 2]
+
 
 -- --set_option pp.explicit true
 -- #check [RiseE| fun as => as]
