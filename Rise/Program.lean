@@ -1,7 +1,11 @@
 import Rise.Type
 import Rise.TypedRExpr
 import Lean
+
 open Lean Elab Meta
+
+-- set_option pp.raw true
+-- set_option pp.raw.maxDepth 10
 
 
 -- structure RResult where
@@ -26,42 +30,46 @@ open Lean Elab Meta
 --   toTypeExpr := mkConst ``RResult
 
 declare_syntax_cat  rise_decl
-syntax "def" ident ":" rise_type  : rise_decl
-syntax rise_decl rise_decl        : rise_decl
-syntax "import" "core"            : rise_decl
+syntax "def" ident ":" rise_type    : rise_decl
+-- syntax rise_decl rise_decl          : rise_decl
+syntax "import" "core" : rise_decl
 
 -- TODO : a rise program could have more than one expr
 declare_syntax_cat  rise_program
-syntax (rise_decl)? rise_expr : rise_program
+syntax (rise_decl)* rise_expr : rise_program
 
-partial def elabRDeclAndRExpr (e: Syntax) : Option Syntax → RElabM Expr
-  | some d_stx =>
-    match d_stx with
-    | `(rise_decl| def $x:ident : $t:rise_type $decl:rise_decl ) => do
-      let t ← elabToRType t
-      -- Lean.logInfo m!"found {x.getId} : {t}"
-      withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr e (some decl)
-
-    | `(rise_decl| def $x:ident : $t:rise_type ) => do
-      let t ← elabToRType t
-      -- Lean.logInfo m!"found {x.getId} : {t}"
-      withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr e none
-
-    | _ => throwUnsupportedSyntax
-  | none => do
+partial def elabRDeclAndRExpr (e: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
+  match decls with
+  | [] => do
       let e ← elabToTypedRExpr e
       let e ← applyUnifyResultsRecursivelyUntilStable e
       -- let t ← inferAux e
       -- let t ← applyUnifyResults t
       -- dbg_trace (← ur)
       return toExpr e
+  | d :: rest =>
+    match d with
+    -- | `(rise_decl| $d1:rise_decl $d2:rise_decl ) => do
+    --   throwErrorAt d m!"hii{d}" --throwUnsupportedSyntax
+    -- | `(rise_decl| def $x:ident : $t:rise_type $decl:rise_decl ) => do
+    --   let t ← elabToRType t
+    --   -- Lean.logInfo m!"found {x.getId} : {t}"
+    --   withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr e (some decl)
+
+    | `(rise_decl| def $x:ident : $t:rise_type ) => do
+      let t ← elabToRType t
+      -- Lean.logInfo m!"found {x.getId} : {t}"
+      withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr e rest
+
+    | s => throwErrorAt s m!"{s}" --throwUnsupportedSyntax
+    -- -- | _ => throwUnsupportedSyntax
 
 partial def elabRProgram : Syntax → RElabM Expr
-  | `(rise_program| $d:rise_decl $e:rise_expr ) => do
-    elabRDeclAndRExpr e (some d)
-  | `(rise_program| $e:rise_expr ) => do
-    elabRDeclAndRExpr e none
-  | _ => throwUnsupportedSyntax
+  | `(rise_program| $d:rise_decl* $e:rise_expr ) => do
+    elabRDeclAndRExpr e d.toList
+  -- | `(rise_program| $e:rise_expr ) => do
+  --   elabRDeclAndRExpr e none
+  | s => throwErrorAt s m!"{s}" --throwUnsupportedSyntax
 
 elab "[Rise|" p:rise_program "]" : term => do
   let p ← liftMacroM <| expandMacros p
@@ -69,11 +77,10 @@ elab "[Rise|" p:rise_program "]" : term => do
 
 set_option hygiene false in
 macro_rules
-  | `(rise_decl| import core) => `(rise_decl|
+  | `(rise_program| import core $[$d]* $e:rise_expr) => `(rise_program|
   -- unary ops
   def id  : {t : data} → t → t
   def neg : {t : data} → t → t
-
   -- binary ops
   def add : {t : data} → t → t → t
   def sub : {t : data} → t → t → t
@@ -113,6 +120,7 @@ macro_rules
   def generate : {n : nat} → {t : data} → (idx[n] → t) → n·t
   def      idx : {n : nat} → {t : data} → idx[n] → n·t → t
 
+  def   test : (n : nat) → {  m : nat} → {t : data} → n·t → n·t
   def   take : (n : nat) → {  m : nat} → {t : data} → (n+m)·t → n·t
   def   drop : (n : nat) → {  m : nat} → {t : data} → (n+m)·t → m·t
   def concat :             {n m : nat} → {t : data} → n·t → m·t → (n+m)·t
@@ -190,11 +198,16 @@ macro_rules
   --     n..(i : nat |→ lenF(i)·t) → (sum_(i=0)^(n-1) lenF(i))·t
   -- def partition : {n : nat} → {t : data} → (m : nat) → (lenF : nat2nat) → n·t → m..(i : nat |→ lenF(i)·t)
 
-    
-  )
 
-elab "[RiseC|" p:rise_expr "]" : term => do
-  let p ← `(rise_program| import core $p:rise_expr)
+  $[$d]*
+
+  $e:rise_expr
+)
+    
+  -- )
+
+elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
+  let p ← `(rise_program| import core $[$ds:rise_decl]* $e:rise_expr)
   let p ← liftMacroM <| expandMacros p
   liftToTermElabM <| elabRProgram p
 
@@ -230,10 +243,13 @@ macro_rules
       -- todo: we shouldn't need these parens i guess
        zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
 ]
-
+-- 
 -- #pp [RiseC|
 --   fun(k : nat) => fun(a : k·scalar) => reduce add 0 a
 -- ]
+
+
+def x : Nat → String := λ x => "a"
 
 #pp [RiseC|
   fun x:2·3·scalar => concat (x |> transpose |> join) (x |> join) 
@@ -258,8 +274,13 @@ macro_rules
 
 
 #pp [RiseC|
-  test 5
+  -- import core
+
+  def rxx : scalar → scalar
+  def ryx : scalar → scalar
+  ryx
 ]
+
 #eval [RiseC|
   test 5
 ]
