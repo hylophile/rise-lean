@@ -5,34 +5,43 @@ import Lean
 open Lean Elab
 
 
-declare_syntax_cat rise_expr
+declare_syntax_cat                                            rise_expr
 syntax num                                                  : rise_expr
 syntax ident                                                : rise_expr
-syntax "fun" "(" ident (":" rise_type)? ")" "=>" rise_expr  : rise_expr
-syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr  : rise_expr
-syntax "fun" "(" ident (":" rise_kind)  ")" "=>" rise_expr  : rise_expr
+syntax "fun" "(" ident+ (":" rise_type)? ")" "=>" rise_expr : rise_expr
+syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
+syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
+syntax "fun"     ident+ (":" rise_kind)      "=>" rise_expr : rise_expr
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 ">>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<<" rise_expr:41                    : rise_expr
 syntax:60 "(" rise_expr ")"                                 : rise_expr
 
-set_option pp.raw true
-set_option pp.raw.maxDepth 10
+-- set_option pp.raw true
+-- set_option pp.raw.maxDepth 10
+
 macro_rules
+  | `(rise_expr| fun $x:ident => $b:rise_expr) =>
+    `(rise_expr| fun ($x:ident) => $b:rise_expr)
+  | `(rise_expr| fun $x:ident : $t:rise_type => $b:rise_expr) =>
+    `(rise_expr| fun ($x:ident : $t:rise_type) => $b:rise_expr )
   | `(rise_expr| fun $x:ident $y:ident $xs:ident* => $e:rise_expr) =>
     match xs with
     | #[] =>
       `(rise_expr| fun $x => fun $y => $e)
     | _ =>
       `(rise_expr| fun $x => fun $y => fun $xs* => $e)
-
-macro_rules
   | `(rise_expr| $f:rise_expr >> $g:rise_expr) =>
     let x := mkIdent `x
     `(rise_expr| fun $x => $g ($f $x:ident))
   | `(rise_expr| $f:rise_expr << $g:rise_expr) =>
     `(rise_expr| $g >> $f)
+  | `(rise_expr| $e:rise_expr |> $f:rise_expr) => do
+    `(rise_expr| $f $e)
+  | `(rise_expr| ($e:rise_expr)) => do
+    `(rise_expr| $e)
+
 
 partial def addImplicits (t: RType) : RElabM RType := do
   match t with
@@ -61,23 +70,14 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           return ⟨.const i.getId, t⟩
         | none => throwErrorAt i s!"unknown identifier {i.getId}"
 
-  | `(rise_expr| fun $x:ident => $b:rise_expr )
   | `(rise_expr| fun ($x:ident) => $b:rise_expr ) => do
     let id ← getFreshMVarId
     addMVar id Lean.Name.anonymous RKind.data
     let t :=  RType.data (.mvar id Lean.Name.anonymous)
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
-
-    -- let body := body.bvar2fvar un -- why does this call cause "fail to show termination?"
     let t ← applyUnifyResultsUntilStable t
-    -- let bodyt ← applyUnifyResults bodyt
     return ⟨.lam x.getId t b, .pi t b.type⟩
 
-    -- let b ← withNewLocalTerm (x.getId, none) do elabToTypedRExpr b
-    --
-    -- return TypedRExpr.lam x.getId none b
-
-  | `(rise_expr| fun $x:ident : $t:rise_type => $b:rise_expr )
   | `(rise_expr| fun ( $x:ident : $t:rise_type ) => $b:rise_expr ) => do
     let t ← elabToRType t
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
@@ -99,7 +99,6 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         | some sub =>
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
-          -- applyUnifyResults brt
         | none =>
           logErrorAt f_syn s!"\ncannot unify {blt} with {e.type}"
           logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
@@ -115,16 +114,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           return ⟨.app f e, bt⟩
         | _, _ =>
           throwErrorAt e_syn "expected lit scalar, found {e.type}"
-      | _ => throwErrorAt f_syn s!"expected a function type for ({Lean.Syntax.prettyPrint f_syn}), but found: {repr f.type}"
+      | _ => throwErrorAt f_syn s!"expected a function type for ({f_syn.raw.prettyPrint}), but found: {repr f.type}"
       -- return TypedRExpr.app e1 e2
-
-  | `(rise_expr| $e:rise_expr |> $f:rise_expr) => do
-    let s ← `(rise_expr| $f $e)
-    elabToTypedRExpr s
-
-  | `(rise_expr| ( $e:rise_expr )) => do
-    let s ← `(rise_expr| $e)
-    elabToTypedRExpr s
 
   | e => throwErrorAt e s!"unexpected rise expr syntax:\n{e}" --throwUnsupportedSyntax
 
@@ -134,7 +125,6 @@ def TypedRExpr.toExpr (e : TypedRExpr) : Expr  :=
     let nodeExpr := e.node.toExpr
     let typeExpr := ToExpr.toExpr e.type
     mkAppN (mkConst ``TypedRExpr.mk) #[nodeExpr, typeExpr]
-
 
 partial
 def TypedRExprNode.toExpr : TypedRExprNode → Expr

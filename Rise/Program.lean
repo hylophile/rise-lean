@@ -210,7 +210,7 @@ macro_rules
   fst >> snd >> add 0
 ]
 
-
+-- def y : a→b→c→a := fun (x:a) (y:b) z => x
 
 
 #pp [RiseC|
@@ -221,8 +221,9 @@ macro_rules
   ryx
 ]
 
-#eval [RiseC|
-  test 5
+#pp [RiseC|
+  def x : 5·scalar
+  test 5 x
 ]
 
 #pp [RiseC|
