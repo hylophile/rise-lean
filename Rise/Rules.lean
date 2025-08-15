@@ -19,10 +19,10 @@ inductive X : a → Type
 
 #eval
 let input := [RiseC|
-  fun (x : 32·32·scalar) => transpose (transpose x) ];
+  fun (x : 32·32·f32) => transpose (transpose x) ];
 
 let expected := [RiseC|
-  fun (x : 32·32·scalar) => x ];
+  fun (x : 32·32·f32) => x ];
 
 match (Strategy.topDown rule.transpose_transpose) input with
   | .ok computed =>

@@ -166,7 +166,7 @@ macro_rules
 
 
 
-  -- vvv ignore 
+  -- vvv ignore
   -- dependent pair ops
   -- def makeDepPair : {fdt : nat2data} → (n : nat) → fdt(n) → (m : nat ** fdt(m))
   -- def dmatch :      {fdt : nat2data} → {t : data} → (n : nat ** fdt(n)) → ((m : nat) → fdt(m) → t) → t
@@ -185,7 +185,7 @@ macro_rules
 
   $e:rise_expr
 )
-    
+
 elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
   let p ← `(rise_program| import core
             $[$ds:rise_decl]* $e:rise_expr)
@@ -202,14 +202,14 @@ macro_rules
   fun as => fun bs =>
        zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
 ]
--- 
+--
 -- #pp [RiseC|
 --   fun(k : nat) => fun(a : k·f32) => reduce add 0 a
 -- ]
 
 
 #pp [RiseC|
-  fun x:2·3·f32 => concat (x |> transpose |> join) (x |> join) 
+  fun x:2·3·f32 => concat (x |> transpose |> join) (x |> join)
 ]
 
 #pp [RiseC|
@@ -228,7 +228,7 @@ macro_rules
   fst >> snd >> add 0
 ]
 
-def x : a → Nat := λ y => 3
+-- def x : a → Nat := λ y => 3
 
 #pp [Rise|
   import core
@@ -237,7 +237,7 @@ def x : a → Nat := λ y => 3
   def ryx : f32 → f32
   def rzx := map fst;
 
-  rzx 
+  rzx
 ]
 
 #pp [RiseC|
@@ -302,28 +302,44 @@ fun a b =>
         map (fun ab => mul (fst ab) (snd ab)) |>
         reduce add 0)) -- iterating over K
 ]
+/--
+error:
+cannot unify application of 'take 5' to 'x':
+(5+?m₀)·?t₁ != 7·RScalar.f32
+---
+error: unification failed
+-/
+#guard_msgs in
+#pp [RiseC|
+  def x : 7·f32
+  take 5 x
+]
 
--- #eval [RiseC|
---   fun (n : nat) => fun input : n·f32 => (split 8) input
--- ]
+-- from shine/src/test/scala/apps/scal.scala
+/--
+error:
+cannot unify application of 'split 65536' to 'input':
+(?m₃₀*65536)·?t₃₁ != n@0·RScalar.f32
+---
+error: unification failed
+-/
+#guard_msgs in
+#eval [RiseC|
+fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
+  input |>
+  -- inlining this for now
+  -- split (mul 4 (mul 128 128)) |>
+  split 65536 |>
+  mapPar(
+    asVectorAligned(4) >>
+    split(128) >>
+    mapSeq(mapSeq(fun x =>
+      vectorFromScalar(alpha) |> mul x
+    )) >> join >> asScalar
+  ) |>
+  join
 
--- -- from shine/src/test/scala/apps/scal.scala
--- #eval [RiseC|
--- fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
---   input |>
---   -- inlining this for now
---   -- split (mul 4 (mul 128 128)) |>
---   split 65536 |>
---   mapPar(
---     asVectorAligned(4) >>
---     split(128) >>
---     mapSeq(mapSeq(fun x =>
---       vectorFromScalar(alpha) |> mul x
---     )) >> join >> asScalar
---   ) |>
---   join
-
--- ]
+]
 
 
 

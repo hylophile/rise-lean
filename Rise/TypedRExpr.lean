@@ -100,8 +100,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
         | none =>
-          logErrorAt f_syn s!"\ncannot unify {blt} with {e.type}"
-          logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
+          logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
+          -- logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
           throwError "unification failed"
       | .upi bk .im un b =>
         throwError s!"unexpected upi {f.type}"
