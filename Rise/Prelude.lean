@@ -22,6 +22,24 @@ inductive RNat
   | pow (n : RNat) (m : RNat)
 deriving Repr, BEq, DecidableEq
 
+
+inductive RScalar
+  | bool
+  | int
+  | i8
+  | i16
+  | i32
+  | i64
+  | u8
+  | u16
+  | u32
+  | u64
+  | f16
+  | f32
+  | f64
+
+deriving Repr, BEq
+
 -- DataType
 --   δ ::= n.δ | δ × δ | "idx [" n "]" | scalar | n<scalar>  (Array Type, Pair Type, Index Type, Scalar Type, Vector Type)
 inductive RData
@@ -30,8 +48,9 @@ inductive RData
   | array  : RNat → RData → RData
   | pair   : RData → RData → RData
   | index  : RNat → RData
-  | scalar : RData
-  | vector : RNat → RData → RData
+  | scalar : RScalar → RData
+  | natType : RData
+  | vector : RNat → RData → RData -- NOTE: second param should be scalar, but then we'd also need mvars for scalar, which is annoying, so i'll leave it as is for now.
 deriving Repr, BEq
 
 -- Im-/ex-plicity of parameters
@@ -109,23 +128,19 @@ def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
 
 def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
   match t with
-  | .mvar .. => t
   | .array k d => .array (k.substNat x s) (d.substNat x s)
   | .pair l r => .pair (l.substNat x s) (r.substNat x s)
-  | .bvar id un => .bvar id un
   | .index k => .index (k.substNat x s)
-  | .scalar => .scalar
   | .vector k d => .vector (k.substNat x s) (d.substNat x s)
+  | .mvar .. | .bvar .. | .scalar .. | .natType => t
 
 def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
   match t with
   | .mvar y _ => if x == y then s else t
   | .array k d => .array k (d.substData x s)
   | .pair l r => .pair (l.substData x s) (r.substData x s)
-  | .bvar id un => .bvar id un
-  | .index k => .index k
-  | .scalar => .scalar
   | .vector k d => .vector k (d.substData x s)
+  | .index .. | .bvar .. | .scalar .. | .natType => t
 
 def RData.subst (t : RData) (x : RMVarId) (s : SubstEnum) : RData :=
   match s with
@@ -160,12 +175,10 @@ def RNat.has (v : RMVarId) : RNat → Bool
 
 def RData.has (v : RMVarId) : RData → Bool
   | .mvar id _ => id == v
-  | .bvar .. => false
   | .array _ d => d.has v
   | .pair l r => l.has v || r.has v
-  | .index .. => false
-  | .scalar => false
-  | .vector .. => false
+  | .vector _ d => d.has v
+  | .bvar .. | .index .. | .scalar .. | .natType => false
 
 def RNat.apply (t : RNat) (subst : Substitution) : RNat :=
   subst.foldr (fun (id, replacement) acc => acc.subst id replacement) t
@@ -214,7 +227,7 @@ instance : ToString RKind where
 instance : ToString RNat where
   toString := 
     let rec go : RNat → String
-      | .bvar idx name => s!"@{name}{natToSubscript idx}"
+      | .bvar idx name => s!"{name}@{idx}"
       | .mvar id name => s!"?{name}{natToSubscript id}"
       | .nat n => s!"{n}"
       | .plus n m => s!"({go n}+{go m})"
@@ -224,13 +237,14 @@ instance : ToString RNat where
     go
 
 def RData.toString : RData → String
-  | RData.bvar idx name => s!"@{name}{natToSubscript idx}"
-  | RData.mvar id name => s!"?{name}{natToSubscript id}"
-  | RData.array n d => s!"{n}·{d.toString}"
-  | RData.pair d1 d2 => s!"({d1.toString} × {d2.toString})"
-  | RData.index n => s!"idx[{n}]"
-  | RData.scalar => "scalar"
-  | RData.vector n d => s!"{n}<{d.toString}>"
+  | .bvar idx name => s!"{name}@{idx}"
+  | .mvar id name => s!"?{name}{natToSubscript id}"
+  | .array n d => s!"{n}·{d.toString}"
+  | .pair d1 d2 => s!"({d1.toString} × {d2.toString})"
+  | .index n => s!"idx[{n}]"
+  | .scalar x => repr x |>.pretty
+  | .natType => "natType"
+  | .vector n d => s!"{n}<{d.toString}>"
 
 instance : ToString RData where
   toString := RData.toString

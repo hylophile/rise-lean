@@ -76,7 +76,9 @@ partial def unifyOneRData (s t : RData) : Option Substitution :=
   | .index k1, .index k2 =>
     unifyOneRNat k1 k2
 
-  | .scalar, .scalar => some []
+  | .scalar x, .scalar y => if x == y then some [] else none
+
+  | .natType, .natType => some []
 
   | .vector k1 d1, .vector k2 d2 =>
     match unifyRNat [(k1, k2)], unifyRData [(d1, d2)] with

@@ -54,7 +54,7 @@ partial def addImplicits (t: RType) : RElabM RType := do
 
 partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| $l:num) => do
-    let t : RType := .data .scalar
+    let t : RType := .data <| .scalar .int
     -- let _ ← Term.addTermInfo l (toExpr t.toString) -- meh
     return ⟨.lit l.getNat, t⟩
 
@@ -109,7 +109,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
       | .upi .nat .ex un b =>
         match e.node, e.type with
-        | .lit x, .data .scalar =>
+        | .lit x, .data (.scalar .int) =>
           let bt :=  b.rnatbvar2rnat (RNat.nat x)
           return ⟨.app f e, bt⟩
         | _, _ =>
@@ -160,8 +160,8 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
   let p ← liftMacroM <| expandMacros e
   liftToTermElabM <| elabTypedRExpr p
 
-#eval IO.println <| toString [RiseTE| fun a : scalar → scalar => a 10000].node
-#check [RiseTE| fun a : scalar → scalar → scalar => a 10000 2]
+#eval IO.println <| toString [RiseTE| fun a : int → int => a 10000].node
+#check [RiseTE| fun a : int → int → int => a 10000 2]
 
 
 -- --set_option pp.explicit true

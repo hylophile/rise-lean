@@ -129,7 +129,7 @@ macro_rules
   def mapSeqUnroll  : {n : nat} → {s t : data} → (s → t) → n·s → n·t
   def mapStream     : {n : nat} → {s t : data} → (s → t) → n·s → n·t
   def iterateStream : {n : nat} → {s t : data} → (s → t) → n·s → n·t
-  -- added because it was found in a scalar file
+  -- added because it was found in a scala file
   def mapPar        : {n : nat} → {s t : data} → (s → t) → n·s → n·t
 
   def mapFst : {s1 t  s2 : data} → (s1 → s2) → (s1 × t) → (s2 × t)
@@ -186,12 +186,12 @@ macro_rules
 ]
 -- 
 -- #pp [RiseC|
---   fun(k : nat) => fun(a : k·scalar) => reduce add 0 a
+--   fun(k : nat) => fun(a : k·f32) => reduce add 0 a
 -- ]
 
 
 #pp [RiseC|
-  fun x:2·3·scalar => concat (x |> transpose |> join) (x |> join) 
+  fun x:2·3·f32 => concat (x |> transpose |> join) (x |> join) 
 ]
 
 #pp [RiseC|
@@ -212,26 +212,25 @@ macro_rules
 #pp [RiseC|
   -- import core
 
-  def rxx : scalar → scalar
-  def ryx : scalar → scalar
+  def rxx : f32 → f32
+  def ryx : f32 → f32
   ryx
 ]
 
 #pp [RiseC|
-  def x : (5+2)·scalar
+  def x : (5+2)·f32
   take 5 x
 ]
 
 #pp [RiseC|
   gather
 ]
-
 #pp [RiseC|
   iterate
 ]
 
 #pp [RiseC|
-  fun(a : 3+5*9·scalar) => reduce add 0 a
+  fun(a : 3+5*9·int) => reduce add 0 a
 ]
 
 #pp [RiseC|
@@ -243,7 +242,7 @@ macro_rules
 ]
 
 -- #pp [RiseC|
---   map (fun ab : scalar × scalar => mul (fst ab) (snd ab))
+--   map (fun ab : f32 × f32 => mul (fst ab) (snd ab))
 -- ]
 #pp [RiseC|
   map (fun ab => mul (fst ab) (snd ab))
@@ -267,7 +266,7 @@ macro_rules
 --   // Matrix Matrix muliplication in RISE
 --   val dot = fun(as, fun(bs,
 --     zip(as)(bs) |> map(fun(ab, mul(fst(ab))(snd(ab)))) |> reduce(add)(0) ) )
---   val mm = fun(a : M.K.scalar, fun(b : K.N.scalar,
+--   val mm = fun(a : M.K.f32, fun(b : K.N.f32,
 --     a |> map(fun(arow, // iterating over M
 --       transpose(b) |> map(fun(bcol, // iterating over N
 --       dot(arow)(bcol) )))) ) ) // iterating over K
@@ -281,35 +280,35 @@ fun a b =>
         reduce add 0)) -- iterating over K
 ]
 
-#eval [RiseC|
-  fun (n : nat) => fun input : n·scalar => (split 8) input
-]
+-- #eval [RiseC|
+--   fun (n : nat) => fun input : n·f32 => (split 8) input
+-- ]
 
--- from shine/src/test/scala/apps/scal.scala
-#eval [RiseC|
-fun(n: nat) => fun(input : n·scalar) => fun(alpha : scalar) =>
-  input |>
-  -- inlining this for now
-  -- split (mul 4 (mul 128 128)) |>
-  split 65536 |>
-  mapPar(
-    asVectorAligned(4) >>
-    split(128) >>
-    mapSeq(mapSeq(fun x =>
-      vectorFromScalar(alpha) |> mul x
-    )) >> join >> asScalar
-  ) |>
-  join
+-- -- from shine/src/test/scala/apps/scal.scala
+-- #eval [RiseC|
+-- fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
+--   input |>
+--   -- inlining this for now
+--   -- split (mul 4 (mul 128 128)) |>
+--   split 65536 |>
+--   mapPar(
+--     asVectorAligned(4) >>
+--     split(128) >>
+--     mapSeq(mapSeq(fun x =>
+--       vectorFromScalar(alpha) |> mul x
+--     )) >> join >> asScalar
+--   ) |>
+--   join
 
-]
+-- ]
 
 
 
 #pp [RiseC|
-  fun (x : 32·32·scalar) =>
+  fun (x : 32·32·f32) =>
     transpose (transpose x)
 ]
 
-#eval [RiseC| fun (x: 1024·scalar) => fun (alpha : scalar) =>
+#eval [RiseC| fun (x: 1024·f32) => fun (alpha : f32) =>
   x |> map (mul alpha)
 ]

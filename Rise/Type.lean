@@ -117,15 +117,43 @@ partial def elabRNat : Syntax → RElabM Expr
 
 declare_syntax_cat rise_data
 syntax:50 rise_nat "·" rise_data:50  : rise_data
-syntax:50 "scalar"                   : rise_data
 syntax:10 rise_data "×" rise_data    : rise_data
 syntax    ident                      : rise_data
 syntax    "idx[" rise_nat "]"        : rise_data
 syntax    rise_nat "<" rise_data ">" : rise_data
 syntax    "(" rise_data ")"          : rise_data
+syntax    "natType"                  : rise_data
+syntax    "bool"                     : rise_data
+syntax    "int"                      : rise_data
+syntax    "i8"                       : rise_data
+syntax    "i16"                      : rise_data
+syntax    "i32"                      : rise_data
+syntax    "i64"                      : rise_data
+syntax    "u8"                       : rise_data
+syntax    "u16"                      : rise_data
+syntax    "u32"                      : rise_data
+syntax    "u64"                      : rise_data
+syntax    "f16"                      : rise_data
+syntax    "f32"                      : rise_data
+syntax    "f64"                      : rise_data
+
 
 partial def elabToRData : Syntax → RElabM RData
-  | `(rise_data| scalar) => return RData.scalar
+  | `(rise_data| bool) => return RData.scalar .bool
+  | `(rise_data|  int) => return RData.scalar .int 
+  | `(rise_data|   i8) => return RData.scalar .i8  
+  | `(rise_data|  i16) => return RData.scalar .i16 
+  | `(rise_data|  i32) => return RData.scalar .i32 
+  | `(rise_data|  i64) => return RData.scalar .i64 
+  | `(rise_data|   u8) => return RData.scalar .u8  
+  | `(rise_data|  u16) => return RData.scalar .u16 
+  | `(rise_data|  u32) => return RData.scalar .u32 
+  | `(rise_data|  u64) => return RData.scalar .u64 
+  | `(rise_data|  f16) => return RData.scalar .f16 
+  | `(rise_data|  f32) => return RData.scalar .f32 
+  | `(rise_data|  f64) => return RData.scalar .f64 
+
+  | `(rise_data|  natType) => return RData.natType
 
   | `(rise_data| $x:ident) => do
     let kctx ← getKCtx
@@ -169,7 +197,24 @@ partial def elabToRData : Syntax → RElabM RData
 instance : ToExpr RData where
   toExpr :=
     let rec go : RData → Expr
-    | RData.scalar => mkConst ``RData.scalar
+    | RData.natType => mkConst ``RData.natType
+    | RData.scalar x =>
+        let c := mkConst ``RData.scalar
+        let v := match x with
+        | .bool => mkConst ``RScalar.bool
+        | .int  => mkConst ``RScalar.int
+        | .i8   => mkConst ``RScalar.i8
+        | .i16  => mkConst ``RScalar.i16
+        | .i32  => mkConst ``RScalar.i32
+        | .i64  => mkConst ``RScalar.i64
+        | .u8   => mkConst ``RScalar.u8
+        | .u16  => mkConst ``RScalar.u16
+        | .u32  => mkConst ``RScalar.u32
+        | .u64  => mkConst ``RScalar.u64
+        | .f16  => mkConst ``RScalar.f16
+        | .f32  => mkConst ``RScalar.f32
+        | .f64  => mkConst ``RScalar.f64
+        mkAppN c #[v]
     | RData.bvar deBruijnIndex userName =>
       mkAppN (mkConst ``RData.bvar) #[mkNatLit deBruijnIndex, toExpr userName]
     | RData.mvar id userName =>
@@ -195,11 +240,6 @@ instance : ToExpr Plicity where
   | Plicity.ex => mkConst ``Plicity.ex
   | Plicity.im => mkConst ``Plicity.im
   toTypeExpr := mkConst ``Plicity
-
-
--- only for Check::infer! to be able to panic
-instance : Inhabited RType where
-  default := RType.data .scalar
 
 
 declare_syntax_cat rise_type
@@ -307,8 +347,8 @@ elab "[RiseT|" t:rise_type "]" : term => do
 #check [RiseT| (n t : data) → n·t → n·t × n·t]
 
 -- #check [RiseT| {n t : data} → n·t → n·t × n·t]
-#check [RiseT| scalar]
-#check [RiseT| scalar → scalar ]
+#check [RiseT| f32]
+#check [RiseT| f64 → f64 ]
 #check [RiseT| {δ : data} → δ → δ → δ]
 #check [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1]
 #guard [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1] ==
@@ -454,12 +494,11 @@ def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
 def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
   match dt with
   | .bvar bn un => if bn == n then .mvar m un else dt
-  | .mvar .. => dt
   | .array rn dt => .array (rn.bvar2mvar n m) (dt.bvar2mvar n m)
   | .pair dt1 dt2 => .pair (dt1.bvar2mvar n m) (dt2.bvar2mvar n m)
   | .index rn => .index (rn.bvar2mvar n m)
-  | .scalar => dt
   | .vector rn d => .vector (rn.bvar2mvar n m) (d.bvar2mvar n m)
+  | .mvar .. | .scalar .. | .natType => dt
 
 def RType.bvar2mvar (t : RType) (mid : RMVarId) : RType :=
   go t 0 mid where
@@ -480,13 +519,11 @@ def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
 
 def RData.rnatbvar2rnat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
   match dt with
-  | .bvar .. => dt
-  | .mvar .. => dt
   | .array rn dt => .array (rn.rnatbvar2rnat n rnat) (dt.rnatbvar2rnat n rnat)
   | .pair dt1 dt2 => .pair (dt1.rnatbvar2rnat n rnat) (dt2.rnatbvar2rnat n rnat)
   | .index rn => .index (rn.rnatbvar2rnat n rnat)
-  | .scalar => dt
   | .vector rn d => .vector (rn.rnatbvar2rnat n rnat) (d.rnatbvar2rnat n rnat)
+  | .scalar .. | .bvar .. | .mvar .. | .natType => dt
 
 def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
   go t 0 rnat where
