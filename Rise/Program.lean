@@ -7,35 +7,12 @@ open Lean Elab Meta
 -- set_option pp.raw true
 -- set_option pp.raw.maxDepth 10
 
-
--- structure RResult where
---   expr : TypedRExpr
---   type : RType
-
-
--- instance : ToString RResult where
---   toString x := s!"\nexpr:\n{x.expr}\ntype:\n{x.type}"
-
--- instance [ToExpr α] : ToExpr (Except String α) where
---   toExpr
---   | .error s => mkApp3 (Expr.const ``Except.error [levelZero, levelZero]) (toTypeExpr String) (toTypeExpr α) (toExpr s)
---   | .ok a => mkApp3 (Expr.const ``Except.ok [levelZero, levelZero]) (toTypeExpr String) (toTypeExpr α) (toExpr a)
---   toTypeExpr := mkApp2 (Expr.const ``Except [levelZero, levelZero]) (toTypeExpr String) (toTypeExpr α)
-
--- instance : ToExpr RResult where
---   toExpr r :=
---     let exprExpr := toExpr r.expr
---     let typeExpr := toExpr r.type
---     mkAppN (mkConst ``RResult.mk) #[exprExpr, typeExpr]
---   toTypeExpr := mkConst ``RResult
-
-declare_syntax_cat  rise_decl
-syntax "def" ident ":" rise_type    : rise_decl
--- syntax rise_decl rise_decl          : rise_decl
-syntax "import" "core" : rise_decl
+declare_syntax_cat                 rise_decl
+syntax "def" ident ":" rise_type : rise_decl
+syntax "import" "core"           : rise_decl
 
 -- TODO : a rise program could have more than one expr
-declare_syntax_cat  rise_program
+declare_syntax_cat              rise_program
 syntax (rise_decl)* rise_expr : rise_program
 
 partial def elabRDeclAndRExpr (e: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
@@ -43,33 +20,22 @@ partial def elabRDeclAndRExpr (e: Syntax) (decls : List (TSyntax `rise_decl)) : 
   | [] => do
       let e ← elabToTypedRExpr e
       let e ← applyUnifyResultsRecursivelyUntilStable e
-      -- let t ← inferAux e
-      -- let t ← applyUnifyResults t
-      -- dbg_trace (← ur)
       return toExpr e
-  | d :: rest =>
-    match d with
-    -- | `(rise_decl| $d1:rise_decl $d2:rise_decl ) => do
-    --   throwErrorAt d m!"hii{d}" --throwUnsupportedSyntax
-    -- | `(rise_decl| def $x:ident : $t:rise_type $decl:rise_decl ) => do
-    --   let t ← elabToRType t
-    --   -- Lean.logInfo m!"found {x.getId} : {t}"
-    --   withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr e (some decl)
 
+  | decl :: rest =>
+    match decl with
     | `(rise_decl| def $x:ident : $t:rise_type ) => do
       let t ← elabToRType t
-      -- Lean.logInfo m!"found {x.getId} : {t}"
       withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr e rest
 
-    | s => throwErrorAt s m!"{s}" --throwUnsupportedSyntax
-    -- -- | _ => throwUnsupportedSyntax
+    | s => throwErrorAt s m!"{s}"
+    -- | _ => throwUnsupportedSyntax
 
 partial def elabRProgram : Syntax → RElabM Expr
   | `(rise_program| $d:rise_decl* $e:rise_expr ) => do
     elabRDeclAndRExpr e d.toList
-  -- | `(rise_program| $e:rise_expr ) => do
-  --   elabRDeclAndRExpr e none
-  | s => throwErrorAt s m!"{s}" --throwUnsupportedSyntax
+  | s => throwErrorAt s m!"{s}"
+    -- | _ => throwUnsupportedSyntax
 
 elab "[Rise|" p:rise_program "]" : term => do
   let p ← liftMacroM <| expandMacros p
@@ -204,8 +170,6 @@ macro_rules
   $e:rise_expr
 )
     
-  -- )
-
 elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
   let p ← `(rise_program| import core $[$ds:rise_decl]* $e:rise_expr)
   let p ← liftMacroM <| expandMacros p
@@ -217,30 +181,8 @@ syntax "#pp " term : command
 macro_rules
 | `(#pp $e) => `(#eval IO.print <| toString $e)
 
-
--- #check [Rise|
--- def map : {n : nat} → {δ1 δ2 : data} → (δ1 → δ2) → n·δ1 → n·δ2
--- def reduce : {n : nat} → {δ : data} → (δ → δ → δ) → δ → n·δ → δ
--- def add : {δ : data} → δ → δ → δ
--- def mul : {δ : data} → δ → δ → δ
--- def fst : {δ1 δ2 : data} → δ1 × δ2 → δ1
--- def snd : {δ1 δ2 : data} → δ1 × δ2 → δ1
--- def zip : {n : nat} → {δ1 δ2 : data} → n·δ1 → n·δ2 → n·(δ1 × δ2)
-
--- fun as => fun bs =>
---      zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
--- ]
-
--- #check [Rise|
---   import core
-
---   fun as => fun bs =>
---        zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
--- ]
-
 #pp [RiseC|
   fun as => fun bs =>
-      -- todo: we shouldn't need these parens i guess
        zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
 ]
 -- 
@@ -248,8 +190,6 @@ macro_rules
 --   fun(k : nat) => fun(a : k·scalar) => reduce add 0 a
 -- ]
 
-
-def x : Nat → String := λ x => "a"
 
 #pp [RiseC|
   fun x:2·3·scalar => concat (x |> transpose |> join) (x |> join) 
