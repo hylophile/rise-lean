@@ -86,7 +86,6 @@ macro_rules
   def generate : {n : nat} → {t : data} → (idx[n] → t) → n·t
   def      idx : {n : nat} → {t : data} → idx[n] → n·t → t
 
-  def   test : (n : nat) → {  m : nat} → {t : data} → n·t → n·t
   def   take : (n : nat) → {  m : nat} → {t : data} → (n+m)·t → n·t
   def   drop : (n : nat) → {  m : nat} → {t : data} → (n+m)·t → m·t
   def concat :             {n m : nat} → {t : data} → n·t → m·t → (n+m)·t
@@ -210,9 +209,6 @@ macro_rules
   fst >> snd >> add 0
 ]
 
--- def y : a→b→c→a := fun (x:a) (y:b) z => x
-
-
 #pp [RiseC|
   -- import core
 
@@ -222,13 +218,14 @@ macro_rules
 ]
 
 #pp [RiseC|
-  def x : 5·scalar
-  test 5 x
+  def x : (5+2)·scalar
+  take 5 x
 ]
 
 #pp [RiseC|
   gather
 ]
+
 #pp [RiseC|
   iterate
 ]
