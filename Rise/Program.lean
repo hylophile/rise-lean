@@ -4,35 +4,52 @@ import Lean
 
 open Lean Elab Meta
 
--- set_option pp.raw true
--- set_option pp.raw.maxDepth 10
+set_option pp.raw true
+set_option pp.raw.maxDepth 10
 
 declare_syntax_cat                 rise_decl
-syntax "def" ident ":" rise_type : rise_decl
-syntax "import" "core"           : rise_decl
+syntax "def" ident ":" rise_type                        : rise_decl
+-- without separating with ;, the rise_expr is overlapping with the
+-- first and only rise_expr of rise_program. there is probably a way to
+-- make rise_expr's whitespace-sensitive, but this will do for now
+syntax "def" ident (":" rise_type)? ":=" rise_expr ";"  : rise_decl
+syntax "import" "core"                                  : rise_decl
 
 -- TODO : a rise program could have more than one expr
 declare_syntax_cat              rise_program
 syntax (rise_decl)* rise_expr : rise_program
 
-partial def elabRDeclAndRExpr (e: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
+partial def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
   | [] => do
-      let e ← elabToTypedRExpr e
-      let e ← applyUnifyResultsRecursivelyUntilStable e
-      return toExpr e
+      let expr ← elabToTypedRExpr expr
+      let expr ← applyUnifyResultsRecursivelyUntilStable expr
+      return toExpr expr
 
   | decl :: rest =>
     match decl with
-    | `(rise_decl| def $x:ident : $t:rise_type ) => do
+    | `(rise_decl| def $x:ident : $t:rise_type) => do
       let t ← elabToRType t
-      withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr e rest
+      -- let _ ← Term.addTermInfo x (toExpr t.toString) -- meh
+      withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
+
+    | `(rise_decl| def $x:ident := $e:rise_expr;) => do
+      let e ← elabToTypedRExpr e
+      -- let e := {e with type := (← addImplicits e.type)}
+      withNewGlobalTerm (x.getId, e.type) do elabRDeclAndRExpr expr rest
+
+    | `(rise_decl| def $x:ident : $t_syn:rise_type := $e:rise_expr;) => do
+      let t ← elabToRType t_syn
+      let e ← elabToTypedRExpr e
+      let e := {e with type := (← addImplicits e.type)}
+      if t.unify e.type == .none then throwErrorAt x s!"cannot unify type annotation '{t_syn.raw.prettyPrint}' with inferred type '{e.type}'"
+      withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
 
     | s => throwErrorAt s m!"{s}"
     -- | _ => throwUnsupportedSyntax
 
 partial def elabRProgram : Syntax → RElabM Expr
-  | `(rise_program| $d:rise_decl* $e:rise_expr ) => do
+  | `(rise_program| $d:rise_decl* $e:rise_expr) => do
     elabRDeclAndRExpr e d.toList
   | s => throwErrorAt s m!"{s}"
     -- | _ => throwUnsupportedSyntax
@@ -43,7 +60,8 @@ elab "[Rise|" p:rise_program "]" : term => do
 
 set_option hygiene false in
 macro_rules
-  | `(rise_program| import core $[$d]* $e:rise_expr) => `(rise_program|
+  | `(rise_program| import core
+      $[$d]* $e:rise_expr) => `(rise_program|
   -- unary ops
   def id  : {t : data} → t → t
   def neg : {t : data} → t → t
@@ -55,19 +73,19 @@ macro_rules
   def mod : {t : data} → t → t → t
 
   -- -- ternary ops
-  -- def select : {t : data} → bool → t → t → t
+  def select : {t : data} → bool → t → t → t
 
   -- -- comparison ops
-  -- def not   :               bool → bool
-  -- def gt    : {t : data} → t → t → bool
-  -- def lt    : {t : data} → t → t → bool
-  -- def equal : {t : data} → t → t → bool
+  def not   :               bool → bool
+  def gt    : {t : data} → t → t → bool
+  def lt    : {t : data} → t → t → bool
+  def equal : {t : data} → t → t → bool
 
   -- cast ops
   def cast : {s t : data} → s → t
   -- TODO: what's natType? the type nat (as opposed to the kind nat)?
-  -- def indexAsNat : {n : nat} → idx[n] → natType
-  -- def natAsIndex : (n : nat) → natType → idx[n]
+  def indexAsNat : {n : nat} → idx[n] → natType
+  def natAsIndex : (n : nat) → natType → idx[n]
 
   -- memory ops
   -- (can't use "let" as identifier)
@@ -117,7 +135,6 @@ macro_rules
   def      snd : {s t : data} → (s × t) → t
 
   -- vector ops
-  -- TODO: vector types (need additional parameter)
   def vectorFromScalar : {n : nat} → {t : data} → t → n<t>
   def asVector :         (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·n<t>
   def asVectorAligned :  (n : nat) → {m : nat} → {t : data} → (m*n)·t → m·n<t>
@@ -170,7 +187,8 @@ macro_rules
 )
     
 elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
-  let p ← `(rise_program| import core $[$ds:rise_decl]* $e:rise_expr)
+  let p ← `(rise_program| import core
+            $[$ds:rise_decl]* $e:rise_expr)
   let p ← liftMacroM <| expandMacros p
   liftToTermElabM <| elabRProgram p
 
@@ -205,16 +223,21 @@ macro_rules
   circularBuffer
 ]
 
-#pp [RiseC|
+#pp [Rise|
+  import core
   fst >> snd >> add 0
 ]
 
-#pp [RiseC|
-  -- import core
+def x : a → Nat := λ y => 3
 
-  def rxx : f32 → f32
+#pp [Rise|
+  import core
+
+  def rxx : f32 → f32 := id;
   def ryx : f32 → f32
-  ryx
+  def rzx := map fst;
+
+  rzx 
 ]
 
 #pp [RiseC|

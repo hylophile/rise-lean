@@ -106,6 +106,7 @@ abbrev RBVarId := Nat
 inductive SubstEnum
   | data (rdata : RData)
   | nat (rnat : RNat)
+deriving BEq
 
 abbrev Substitution := List (RMVarId × SubstEnum)
 
