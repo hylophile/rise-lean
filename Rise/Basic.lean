@@ -78,7 +78,6 @@ inductive RLit
   | bool (val : Bool)
   | float (val : String) -- TODO: better representation
   | int (val : Int)
-  | nat (val : Nat)
 deriving Repr, BEq
 
 mutual
@@ -259,7 +258,6 @@ instance : ToString RLit where
   toString
     | .bool b => s!"{b}"
     | .int i => s!"{i}"
-    | .nat n => s!"{n}"
     | .float f => s!"{f}"
 
 
@@ -320,22 +318,6 @@ instance : ToString SubstEnum where
 
 instance : ToString Substitution where
   toString s := String.intercalate "\n" (s.map toString)
-
--- def TypedRExpr.toString : TypedRExpr → String
---   | bvar id => s!"@{id}"
---   | fvar s => s.toString
---   | const s => s.toString
---   | lit n => s!"{n}"
---   | app f e => s!"({f.toString} {e.toString})"
---   | lam s t b => match t with
---     | some t => s!"(λ {s} : {t} => {b.toString})"
---     | none => s!"(λ {s} => {b.toString})"
---   | ulam s k b => match k with
---     | some k => s!"(Λ {s} : {k} => {b.toString})"
---     | none => s!"(Λ {s} => {b.toString})"
-
--- instance : ToString TypedRExpr where
---   toString := TypedRExpr.toString
 
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .bvar id      => f!"@{id}"

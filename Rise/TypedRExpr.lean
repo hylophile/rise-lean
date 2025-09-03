@@ -26,6 +26,7 @@ syntax "f64"   : rise_expr_scilit_suffix
 declare_syntax_cat                                            rise_expr
 syntax num (rise_expr_numlit_suffix)?                       : rise_expr
 syntax "(" rise_nat ":" "nat" ")" : rise_expr
+syntax "(" rise_data ":" "data" ")" : rise_expr
 syntax scientific (rise_expr_scilit_suffix)?                : rise_expr
 syntax ident                                                : rise_expr
 syntax "?" ident                                                : rise_expr
@@ -123,6 +124,9 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let n ← elabToRNat n
     return ⟨.nat n, .data .natType⟩
 
+  -- | `(rise_expr| ($d:rise_data : data)) => do
+    
+
   | `(rise_expr| ? $_i:ident) => do
     return ⟨.mvar `testing, .data <| .mvar 0 `testing⟩
   | `(rise_expr| $i:ident) => do
@@ -155,6 +159,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
     return ⟨.deplam x.getId k b, .pi k .explicit x.getId b.type⟩
 
+  -- we could have also used only one app instead of app and depapp, but then we need to extend rexpr such that a single rnat, rdata, rtype... is also an rexpr, because app takes two rexpr. but then a single rdata is a valid rexpr (e.g. `f32`), which doesn't make sense. so instead, we will parse something like `($f ($t:rtype : $k:rkind))
+  -- (TODO: insert depapp implementation here)
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
       let f ← elabToTypedRExpr f_syn
       let f := {f with type := (← addImplicits f.type)}
@@ -190,7 +196,6 @@ instance : ToExpr RLit where
   toExpr
     | .bool b => mkAppN (mkConst ``RLit.bool) #[toExpr b]
     | .int i => mkAppN (mkConst ``RLit.int) #[toExpr i]
-    | .nat n => mkAppN (mkConst ``RLit.nat) #[toExpr n]
     | .float f => mkAppN (mkConst ``RLit.float) #[toExpr f]
   toTypeExpr := mkConst ``RLit
 

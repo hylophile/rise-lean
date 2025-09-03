@@ -277,9 +277,12 @@ def x : RNat := .nat 4
   fun as => fun bs => zip as bs
 ]
 
+#eval toJson [RiseC|
+  (fun (n : nat) => fun (x : n·f32) => x) (2 : nat)
+]
 
 #pp [RiseC|
-  (fun (n m : nat) => fun (x : n·f32) => x) (3+4 : nat) (95 : nat)
+  (fun (n m : nat) => fun (x : n·m+n·f32) => x) (3+4 : nat) (95 : nat)
 ]
 
 -- #pp [RiseC|
