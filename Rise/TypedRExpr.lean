@@ -63,17 +63,17 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     -- let _ ← Term.addTermInfo l (toExpr t.toString) -- meh
     return ⟨.lit l.getNat, t⟩
 
-  | `(rise_expr| ? $i:ident) => do
+  | `(rise_expr| ? $_i:ident) => do
     return ⟨.mvar `testing, .data <| .mvar 0 `testing⟩
   | `(rise_expr| $i:ident) => do
     let ltctx ← getLTCtx
     let gtctx ← getGTCtx
     -- todo: use findLocal? and findConst? here
-    match ltctx.reverse.zipIdx.find? (λ ((name, t), id) => name == i.getId) with
+    match ltctx.reverse.zipIdx.find? (λ ((name, _t), _id) => name == i.getId) with
       | some ((_name, t), index) =>
         return ⟨.bvar index, t⟩
-      | none => match gtctx.reverse.zipIdx.find? (λ ((name, t), id) => name == i.getId) with
-        | some ((name, t), index) =>
+      | none => match gtctx.reverse.zipIdx.find? (λ ((name, _t), _id) => name == i.getId) with
+        | some ((_name, t), _index) =>
           return ⟨.const i.getId, t⟩
         | none => throwErrorAt i s!"unknown identifier {i.getId}"
 
@@ -110,11 +110,11 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
           -- logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
           throwError "unification failed"
-      | .pi bk .im un b =>
+      | .pi _ .im _ _ =>
         throwError s!"unexpected implicit pi {f.type}"
-      | .pi .data .ex un b =>
+      | .pi .data .ex _ _ =>
         throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
-      | .pi .nat .ex un b =>
+      | .pi .nat .ex _ b =>
         match e.node, e.type with
         | .lit x, .data (.scalar .int) =>
           let bt :=  b.rnatbvar2rnat (RNat.nat x)

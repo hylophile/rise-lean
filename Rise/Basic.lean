@@ -370,9 +370,9 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
   match e.node with
   | .app e1 e2 => let children := Json.arr <| #[e1, e2].map toJson
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", children)]
-  | .lam un _ b =>
+  | .lam _ _ b =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])]
-  | .deplam un _ b =>
+  | .deplam _ _ b =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])]
   | _ =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type)]
