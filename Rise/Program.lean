@@ -215,6 +215,7 @@ macro_rules
 #pp [RiseC|
   take 5
 ]
+
 #eval [RiseC|
   take
 ]
@@ -228,7 +229,7 @@ macro_rules
   fst >> snd >> add 0
 ]
 
--- def x : a → Nat := λ y => 3
+def x : RNat := .nat 4
 
 #pp [Rise|
   import core
@@ -238,6 +239,7 @@ macro_rules
   def rzx := map fst;
 
   rzx
+  --[x]
 ]
 
 #pp [RiseC|
@@ -285,7 +287,7 @@ macro_rules
 #eval toJson [RiseC| map transpose]
 
 
-#eval toJson [RiseC|
+#pp [RiseC|
 --   // Matrix Matrix muliplication in RISE
 --   val dot = fun(as, fun(bs,
 --     zip(as)(bs) |> map(fun(ab, mul(fst(ab))(snd(ab)))) |> reduce(add)(0) ) )

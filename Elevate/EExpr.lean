@@ -1,5 +1,5 @@
 import Lean
-import Elevate.Prelude
+import Elevate.Basic
 
 mutual
 structure EExpr (P: Type) where

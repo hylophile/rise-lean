@@ -1,4 +1,4 @@
-import Rise.Prelude
+import Rise.Basic
 import Assert
 import Lean
 

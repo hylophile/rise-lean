@@ -1,5 +1,5 @@
-import Elevate.Prelude
-import Rise.Prelude
+import Elevate.Basic
+import Rise.Basic
 
 namespace Traversable
 
@@ -7,7 +7,7 @@ namespace Traversable
 
 def TypedRExpr.all (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
   fun expr => match expr.node with
-    | .lit _ | .bvar _ | .fvar _ | .const _ => .ok expr
+    | .lit _ | .bvar _ | .fvar _ | .const _ | .mvar _ => .ok expr
     | .app f e => do
       let f' <- s f
       let e' <- s e
@@ -21,7 +21,7 @@ def TypedRExpr.all (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
 
 def TypedRExpr.some (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
   fun expr => match expr.node with
-    | .lit _ | .bvar _ | .fvar _ | .const _ => .error ""
+    | .lit _ | .bvar _ | .fvar _ | .const _ | .mvar _ => .error ""
     | .app f e =>
       match (s f, s e) with
         | (.ok f', .ok e') => .ok ⟨.app f' e', expr.type⟩
@@ -33,7 +33,7 @@ def TypedRExpr.some (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
 
 def TypedRExpr.one (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
   fun expr => match expr.node with
-  | .lit _ | .bvar _ | .fvar _ | .const _ => .error ""
+  | .lit _ | .bvar _ | .fvar _ | .const _ | .mvar _ => .error ""
   | .app f e => match s f with
     | .ok f' => .ok ⟨.app f' e, expr.type⟩
     | _ => (s e).map (⟨.app f ·, expr.type⟩)

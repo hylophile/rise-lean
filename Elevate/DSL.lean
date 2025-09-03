@@ -1,4 +1,4 @@
-import Elevate.Prelude
+import Elevate.Basic
 
 open Lean Elab Meta
 

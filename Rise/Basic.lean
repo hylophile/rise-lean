@@ -66,7 +66,14 @@ inductive RType where
   -- do we need this distinction? yes, but we could do these cases with universe level. would need a RType.sort variant though
   | upi (binderKind : RKind) (pc : Plicity) (userName : Lean.Name) (body : RType)
   | pi (binderType : RType) (body : RType)
+  -- upi ->, pi -> fn
 deriving Repr, BEq
+
+
+def typeOfKind: RKind -> Type
+  | .nat => RNat
+  | .data => RData
+  | .type => RType
 
 mutual
 structure TypedRExpr where
@@ -74,15 +81,24 @@ structure TypedRExpr where
   type: RType
 deriving Repr, BEq
 
+inductive scalarlit
+  | bool (x: Bool)
+
 inductive TypedRExprNode where
   | bvar (deBruijnIndex : Nat)
   | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
+  | mvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
 -- mvar
   | const (userName : Lean.Name)
-  | lit (val : Nat)
+  | lit (val : Nat) -- scalarlit
   | app (fn arg : TypedRExpr)
+  -- depapp / dapp, fn: typedrexpr, kind: RKind, arg: typeOfKind kind
+
+  -- (fun (dt : data) => ((fun (n : nat) => fun (x : n.dt) => x) (42 : RNat))) (f32 : RData)
+
   | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
   | ulam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
+  -- deplam / dlam
 deriving Repr, BEq
 end
 
@@ -226,7 +242,7 @@ instance : ToString RKind where
     | RKind.type => "type"
 
 instance : ToString RNat where
-  toString := 
+  toString :=
     let rec go : RNat → String
       | .bvar idx name => s!"{name}@{idx}"
       | .mvar id name => s!"?{name}{natToSubscript id}"
@@ -293,9 +309,10 @@ instance : ToString Substitution where
 
 -- instance : ToString TypedRExpr where
 --   toString := TypedRExpr.toString
-  
+
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | bvar id => f!"@{id}"
+  | mvar id => f!"?{id}"
   | fvar s => s.toString
   | const s => s.toString
   | lit n => s!"{n}"
@@ -309,6 +326,7 @@ partial def TypedRExprNode.render : TypedRExprNode → Std.Format
 
 partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
   | bvar id => f!"@{id}"
+  | mvar id => f!"?{id}"
   | fvar s => s.toString
   | const s => s.toString
   | lit n => s!"{n}"
@@ -338,13 +356,13 @@ open Lean in
 partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
   match e.node with
   | .app e1 e2 => let children := Json.arr <| #[e1, e2].map toJson
-    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", children)] 
-  | .lam un _ b => 
-    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])] 
-  | .ulam un _ b => 
-    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])] 
-  | _ => 
-    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type)] 
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", children)]
+  | .lam un _ b =>
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])]
+  | .ulam un _ b =>
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])]
+  | _ =>
+    Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type)]
 
 instance : Lean.ToJson TypedRExpr where
   toJson e := e.toJson

@@ -1,6 +1,7 @@
-import Rise.Prelude
+import Rise.Basic
 import Rise.Unification
 import Lean
+open Lean Elab.Command
 
 structure RContext where
   gtctx : TCtx := #[]
@@ -27,6 +28,10 @@ def liftToTermElabMWith (ctx : RContext) (initialState : RState) (x : RElabM α)
 def liftToTermElabM (x : RElabM α) : Lean.Elab.TermElabM α := do
   let (result, _) ← x.run defaultContext |>.run defaultState
   return result
+  
+-- def liftToCommandElabM (x : RElabM α) : CommandElabM α := do
+--   let (result, _) ← x.run defaultContext |>.run defaultState
+--   return result
 
 def getFreshMVarId : RElabM RMVarId := do
   let rstate : RState ← get

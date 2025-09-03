@@ -1,4 +1,4 @@
-import Rise.Prelude
+import Rise.Basic
 import Rise.RElabM
 import Rise.Type
 import Lean
@@ -8,6 +8,7 @@ open Lean Elab
 declare_syntax_cat                                            rise_expr
 syntax num                                                  : rise_expr
 syntax ident                                                : rise_expr
+syntax "?" ident                                                : rise_expr
 syntax "fun" "(" ident+ (":" rise_type)? ")" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
@@ -24,17 +25,21 @@ syntax:60 "(" rise_expr ")"                                 : rise_expr
 macro_rules
   | `(rise_expr| fun $x:ident => $b:rise_expr) =>
     `(rise_expr| fun ($x:ident) => $b:rise_expr)
+
   | `(rise_expr| fun $x:ident : $t:rise_type => $b:rise_expr) =>
     `(rise_expr| fun ($x:ident : $t:rise_type) => $b:rise_expr )
+
   | `(rise_expr| fun $x:ident $y:ident $xs:ident* => $e:rise_expr) =>
     match xs with
     | #[] =>
       `(rise_expr| fun $x => fun $y => $e)
     | _ =>
       `(rise_expr| fun $x => fun $y => fun $xs* => $e)
+
   | `(rise_expr| $f:rise_expr >> $g:rise_expr) =>
     let x := mkIdent `x
     `(rise_expr| fun $x => $g ($f $x:ident))
+
   | `(rise_expr| $f:rise_expr << $g:rise_expr) =>
     `(rise_expr| $g >> $f)
   | `(rise_expr| $e:rise_expr |> $f:rise_expr) => do
@@ -58,12 +63,14 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     -- let _ ← Term.addTermInfo l (toExpr t.toString) -- meh
     return ⟨.lit l.getNat, t⟩
 
+  | `(rise_expr| ? $i:ident) => do
+    return ⟨.mvar `testing, .data <| .mvar 0 `testing⟩
   | `(rise_expr| $i:ident) => do
     let ltctx ← getLTCtx
     let gtctx ← getGTCtx
     -- todo: use findLocal? and findConst? here
     match ltctx.reverse.zipIdx.find? (λ ((name, t), id) => name == i.getId) with
-      | some ((name, t), index) =>
+      | some ((_name, t), index) =>
         return ⟨.bvar index, t⟩
       | none => match gtctx.reverse.zipIdx.find? (λ ((name, t), id) => name == i.getId) with
         | some ((name, t), index) =>
@@ -134,6 +141,8 @@ def TypedRExprNode.toExpr : TypedRExprNode → Expr
         mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index]
     | .fvar name =>
         mkAppN (mkConst ``TypedRExprNode.fvar) #[toExpr name]
+    | .mvar name =>
+        mkAppN (mkConst ``TypedRExprNode.mvar) #[toExpr name]
     | .const name =>
         mkAppN (mkConst ``TypedRExprNode.const) #[toExpr name]
     | .lam name t body =>
