@@ -4,9 +4,29 @@ import Rise.Type
 import Lean
 open Lean Elab
 
+declare_syntax_cat rise_expr_numlit_suffix
+-- syntax "nat" : rise_expr_numlit_suffix
+syntax "int" : rise_expr_numlit_suffix
+syntax "i8"  : rise_expr_numlit_suffix
+syntax "i16" : rise_expr_numlit_suffix
+syntax "i32" : rise_expr_numlit_suffix
+syntax "i64" : rise_expr_numlit_suffix
+syntax "u8"  : rise_expr_numlit_suffix
+syntax "u16" : rise_expr_numlit_suffix
+syntax "u32" : rise_expr_numlit_suffix
+syntax "u64" : rise_expr_numlit_suffix
+
+
+declare_syntax_cat rise_expr_scilit_suffix
+syntax "float" : rise_expr_scilit_suffix
+syntax "f16"   : rise_expr_scilit_suffix
+syntax "f32"   : rise_expr_scilit_suffix
+syntax "f64"   : rise_expr_scilit_suffix
 
 declare_syntax_cat                                            rise_expr
-syntax num                                                  : rise_expr
+syntax num (rise_expr_numlit_suffix)?                       : rise_expr
+syntax "(" rise_nat ":" "nat" ")" : rise_expr
+syntax scientific (rise_expr_scilit_suffix)?                : rise_expr
 syntax ident                                                : rise_expr
 syntax "?" ident                                                : rise_expr
 syntax "fun" "(" ident+ (":" rise_type)? ")" "=>" rise_expr : rise_expr
@@ -29,12 +49,29 @@ macro_rules
   | `(rise_expr| fun $x:ident : $t:rise_type => $b:rise_expr) =>
     `(rise_expr| fun ($x:ident : $t:rise_type) => $b:rise_expr )
 
+  | `(rise_expr| fun $x:ident : $t:rise_kind => $b:rise_expr) =>
+    `(rise_expr| fun ($x:ident : $t:rise_kind) => $b:rise_expr )
+
   | `(rise_expr| fun $x:ident $y:ident $xs:ident* => $e:rise_expr) =>
     match xs with
     | #[] =>
       `(rise_expr| fun $x => fun $y => $e)
     | _ =>
       `(rise_expr| fun $x => fun $y => fun $xs* => $e)
+
+  | `(rise_expr| fun ($x:ident $y:ident $xs:ident* : $k:rise_kind) => $b:rise_expr) =>
+    match xs with
+    | #[] =>
+      `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => $b:rise_expr)
+    | _ =>
+      `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => fun ($xs* : $k:rise_kind) => $b:rise_expr)
+
+  -- | `(rise_expr| fun {$x:ident $y:ident $xs:ident* : $k:rise_kind} => $b:rise_expr) =>
+  --   match xs with
+  --   | #[] =>
+  --     `(rise_expr| fun {$x : $k:rise_kind} => fun {$y : $k:rise_kind} => $b:rise_expr)
+  --   | _ =>
+  --     `(rise_expr| fun {$x : $k:rise_kind} => fun {$y : $k:rise_kind} => fun {$xs* : $k:rise_kind} => $b:rise_expr)
 
   | `(rise_expr| $f:rise_expr >> $g:rise_expr) =>
     let x := mkIdent `x
@@ -58,10 +95,33 @@ partial def addImplicits (t: RType) : RElabM RType := do
   | x => return x
 
 partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
-  | `(rise_expr| $l:num) => do
-    let t : RType := .data <| .scalar .int
-    -- let _ ← Term.addTermInfo l (toExpr t.toString) -- meh
-    return ⟨.lit l.getNat, t⟩
+  | `(rise_expr| $l:num $[$s:rise_expr_numlit_suffix]?) => do
+    match s with
+    | .some suffix => match suffix with
+      -- | `(rise_expr_numlit_suffix| nat) => return ⟨.lit (.nat l.getNat), .data .natType⟩
+      | `(rise_expr_numlit_suffix| int) => return ⟨.lit (.int l.getNat), .data <| .scalar .int⟩
+      | `(rise_expr_numlit_suffix| i8)  => return ⟨.lit (.int l.getNat), .data <| .scalar .i8⟩
+      | `(rise_expr_numlit_suffix| i16) => return ⟨.lit (.int l.getNat), .data <| .scalar .i16⟩
+      | `(rise_expr_numlit_suffix| i32) => return ⟨.lit (.int l.getNat), .data <| .scalar .i32⟩
+      | `(rise_expr_numlit_suffix| i64) => return ⟨.lit (.int l.getNat), .data <| .scalar .i64⟩
+      | `(rise_expr_numlit_suffix| u8)  => return ⟨.lit (.int l.getNat), .data <| .scalar .u8⟩
+      | `(rise_expr_numlit_suffix| u16) => return ⟨.lit (.int l.getNat), .data <| .scalar .u16⟩
+      | `(rise_expr_numlit_suffix| u32) => return ⟨.lit (.int l.getNat), .data <| .scalar .u32⟩
+      | _                               => throwErrorAt suffix s!"unknown suffix {suffix}"
+    | .none => return ⟨.lit (.int l.getNat), .data <| .scalar .int⟩
+      -- let _ ← Term.addTermInfo l (toExpr t.toString) -- meh
+  | `(rise_expr| $l:scientific $[$s:rise_expr_scilit_suffix]?) => do
+    match s with
+    | .some suffix => match suffix with
+      | `(rise_expr_scilit_suffix| float) => return ⟨.lit (.float (toString l)), .data <| .scalar .float⟩
+      | `(rise_expr_scilit_suffix| f16)   => return ⟨.lit (.float (toString l)), .data <| .scalar .f16⟩
+      | `(rise_expr_scilit_suffix| f32)   => return ⟨.lit (.float (toString l)), .data <| .scalar .f32⟩
+      | `(rise_expr_scilit_suffix| f64)   => return ⟨.lit (.float (toString l)), .data <| .scalar .f64⟩
+      | _                                 => throwErrorAt suffix s!"unknown suffix {suffix}"
+    | .none => return ⟨.lit (.float (toString l)), .data <| .scalar .float⟩
+  | `(rise_expr| ($n:rise_nat : nat)) => do
+    let n ← elabToRNat n
+    return ⟨.nat n, .data .natType⟩
 
   | `(rise_expr| ? $_i:ident) => do
     return ⟨.mvar `testing, .data <| .mvar 0 `testing⟩
@@ -116,15 +176,24 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
       | .pi .nat .explicit _ b =>
         match e.node, e.type with
-        | .lit x, .data (.scalar .int) =>
-          let bt :=  b.rnatbvar2rnat (RNat.nat x)
+        | .nat n, .data .natType =>
+          let bt :=  b.rnatbvar2rnat n
           return ⟨.app f e, bt⟩
         | _, _ =>
-          throwErrorAt e_syn "expected lit scalar, found {e.type}"
+          throwErrorAt e_syn "TODO, found {e.type}"
       | _ => throwErrorAt f_syn s!"expected a function type for ({f_syn.raw.prettyPrint}), but found: {repr f.type}"
       -- return TypedRExpr.app e1 e2
 
   | e => throwErrorAt e s!"unexpected rise expr syntax:\n{e}" --throwUnsupportedSyntax
+
+instance : ToExpr RLit where
+  toExpr
+    | .bool b => mkAppN (mkConst ``RLit.bool) #[toExpr b]
+    | .int i => mkAppN (mkConst ``RLit.int) #[toExpr i]
+    | .nat n => mkAppN (mkConst ``RLit.nat) #[toExpr n]
+    | .float f => mkAppN (mkConst ``RLit.float) #[toExpr f]
+  toTypeExpr := mkConst ``RLit
+
 
 mutual
 partial
@@ -136,7 +205,9 @@ def TypedRExpr.toExpr (e : TypedRExpr) : Expr  :=
 partial
 def TypedRExprNode.toExpr : TypedRExprNode → Expr
     | .lit n =>
-        mkAppN (mkConst ``TypedRExprNode.lit) #[mkNatLit n]
+        mkAppN (mkConst ``TypedRExprNode.lit) #[toExpr n]
+    | .nat n =>
+        mkAppN (mkConst ``TypedRExprNode.nat) #[toExpr n]
     | .bvar index =>
         mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index]
     | .fvar name =>
@@ -171,6 +242,10 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 
 #eval IO.println <| toString [RiseTE| fun a : int → int => a 10000].node
 #check [RiseTE| fun a : int → int → int => a 10000 2]
+#check [RiseTE| 3]
+#check [RiseTE| 3]
+#check [RiseTE| 3u32]
+#check [RiseTE| 3.0f32]
 
 
 -- --set_option pp.explicit true

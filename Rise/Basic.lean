@@ -34,6 +34,7 @@ inductive RScalar
   | u16
   | u32
   | u64
+  | float
   | f16
   | f32
   | f64
@@ -73,14 +74,18 @@ def typeOfKind: RKind -> Type
   | .data => RData
   | .type => RType
 
+inductive RLit
+  | bool (val : Bool)
+  | float (val : String) -- TODO: better representation
+  | int (val : Int)
+  | nat (val : Nat)
+deriving Repr, BEq
+
 mutual
 structure TypedRExpr where
   node: TypedRExprNode
   type: RType
 deriving Repr, BEq
-
-inductive scalarlit
-  | bool (x: Bool)
 
 inductive TypedRExprNode where
   | bvar (deBruijnIndex : Nat)
@@ -88,11 +93,11 @@ inductive TypedRExprNode where
   | mvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
 -- mvar
   | const (userName : Lean.Name)
-  | lit (val : Nat) -- scalarlit
+  | lit (val : RLit)
+  | nat (val : RNat)
   | app (fn arg : TypedRExpr)
   -- depapp / dapp, fn: typedrexpr, kind: RKind, arg: typeOfKind kind
 
-  -- (fun (dt : data) => ((fun (n : nat) => fun (x : n.dt) => x) (42 : RNat))) (f32 : RData)
 
   | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
   | deplam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
@@ -250,6 +255,14 @@ instance : ToString RNat where
       | .pow n m => s!"({go n}^{go m})"
     go
 
+instance : ToString RLit where
+  toString
+    | .bool b => s!"{b}"
+    | .int i => s!"{i}"
+    | .nat n => s!"{n}"
+    | .float f => s!"{f}"
+
+
 instance : ToString RScalar where
   toString
     | .bool => "bool"
@@ -262,6 +275,7 @@ instance : ToString RScalar where
     | .u16  => "u16"
     | .u32  => "u32"
     | .u64  => "u64"
+    | .float => "float"
     | .f16  => "f16"
     | .f32  => "f32"
     | .f64  => "f64"
@@ -329,6 +343,7 @@ partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
+  | .nat n => s!"{n}"
   | .app f e      => match f.node, e.node with
     | .app .. , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
     | .app .. , _       => f.node.render ++ " " ++ e.node.render
@@ -343,6 +358,7 @@ partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
   | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
+  | .nat n => s!"{n}"
   | .app f e      => match f.node, e.node with
     | .app .. , .app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
     | .app .. , _       => f.node.renderInline ++ " " ++ e.node.renderInline

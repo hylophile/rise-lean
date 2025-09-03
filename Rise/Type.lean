@@ -211,6 +211,7 @@ instance : ToExpr RData where
         | .u16  => mkConst ``RScalar.u16
         | .u32  => mkConst ``RScalar.u32
         | .u64  => mkConst ``RScalar.u64
+        | .float  => mkConst ``RScalar.float
         | .f16  => mkConst ``RScalar.f16
         | .f32  => mkConst ``RScalar.f32
         | .f64  => mkConst ``RScalar.f64

@@ -212,10 +212,6 @@ macro_rules
   fun x:2·3·f32 => concat (x |> transpose |> join) (x |> join)
 ]
 
-#pp [RiseC|
-  take 5
-]
-
 #eval [RiseC|
   take
 ]
@@ -244,7 +240,7 @@ def x : RNat := .nat 4
 
 #pp [RiseC|
   def x : (5+2)·f32
-  take 5 x
+  take (5 : nat) x
 ]
 
 #pp [RiseC|
@@ -281,6 +277,20 @@ def x : RNat := .nat 4
   fun as => fun bs => zip as bs
 ]
 
+
+#pp [RiseC|
+  (fun (n m : nat) => fun (x : n·f32) => x) (3+4 : nat) (95 : nat)
+]
+
+-- #pp [RiseC|
+--   (fun (dt : data) => fun (x : 32·dt) => x) (f32 : data)
+-- ]
+
+
+-- #pp [RiseC|
+--   (fun (dt : data) => ((fun (n : nat) => fun (x : n.dt) => x) (42 : RNat))) (f32 : RData)
+-- ]
+
 #pp [RiseC| add 0 5]
 #pp [RiseC| reduce add 0]
 #pp [RiseC| map transpose]
@@ -306,7 +316,7 @@ fun a b =>
 ]
 /--
 error:
-cannot unify application of 'take 5' to 'x':
+cannot unify application of 'take (5 : nat)' to 'x':
 (5+?m₀)·?t₁ != 7·f32
 ---
 error: unification failed
@@ -314,14 +324,14 @@ error: unification failed
 #guard_msgs in
 #pp [RiseC|
   def x : 7·f32
-  take 5 x
+  take (5 : nat) x
 ]
 
 -- from shine/src/test/scala/apps/scal.scala
 /--
 error:
-cannot unify application of 'split 65536' to 'input':
-(?m₃₀*65536)·?t₃₁ != n@0·f32
+cannot unify application of 'split (4 * 128 * 128 : nat)' to 'input':
+(?m₃₀*((4*128)*128))·?t₃₁ != n@0·f32
 ---
 error: unification failed
 -/
@@ -331,16 +341,15 @@ fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
   input |>
   -- inlining this for now
   -- split (mul 4 (mul 128 128)) |>
-  split 65536 |>
+  split (4 * 128 * 128 : nat) |>
   mapPar(
-    asVectorAligned(4) >>
-    split(128) >>
+    asVectorAligned(4 : nat) >>
+    split(128 : nat) >>
     mapSeq(mapSeq(fun x =>
       vectorFromScalar(alpha) |> mul x
     )) >> join >> asScalar
   ) |>
   join
-
 ]
 
 
