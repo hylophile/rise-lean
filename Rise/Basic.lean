@@ -250,15 +250,31 @@ instance : ToString RNat where
       | .pow n m => s!"({go n}^{go m})"
     go
 
+instance : ToString RScalar where
+  toString
+    | .bool => "bool"
+    | .int  => "int"
+    | .i8   => "i8"
+    | .i16  => "i16"
+    | .i32  => "i32"
+    | .i64  => "i64"
+    | .u8   => "u8"
+    | .u16  => "u16"
+    | .u32  => "u32"
+    | .u64  => "u64"
+    | .f16  => "f16"
+    | .f32  => "f32"
+    | .f64  => "f64"
+
 def RData.toString : RData → String
   | .bvar idx name => s!"{name}@{idx}"
-  | .mvar id name => s!"?{name}{natToSubscript id}"
-  | .array n d => s!"{n}·{d.toString}"
-  | .pair d1 d2 => s!"({d1.toString} × {d2.toString})"
-  | .index n => s!"idx[{n}]"
-  | .scalar x => repr x |>.pretty
-  | .natType => "natType"
-  | .vector n d => s!"{n}<{d.toString}>"
+  | .mvar id name  => s!"?{name}{natToSubscript id}"
+  | .array n d     => s!"{n}·{d.toString}"
+  | .pair d1 d2    => s!"({d1.toString} × {d2.toString})"
+  | .index n       => s!"idx[{n}]"
+  | .scalar x      => s!"{x}"
+  | .natType       => "natType"
+  | .vector n d    => s!"{n}<{d.toString}>"
 
 instance : ToString RData where
   toString := RData.toString

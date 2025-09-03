@@ -307,7 +307,7 @@ fun a b =>
 /--
 error:
 cannot unify application of 'take 5' to 'x':
-(5+?m₀)·?t₁ != 7·RScalar.f32
+(5+?m₀)·?t₁ != 7·f32
 ---
 error: unification failed
 -/
@@ -321,7 +321,7 @@ error: unification failed
 /--
 error:
 cannot unify application of 'split 65536' to 'input':
-(?m₃₀*65536)·?t₃₁ != n@0·RScalar.f32
+(?m₃₀*65536)·?t₃₁ != n@0·f32
 ---
 error: unification failed
 -/

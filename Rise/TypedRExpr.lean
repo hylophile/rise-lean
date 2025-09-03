@@ -111,7 +111,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           -- logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
           throwError "unification failed"
       | .pi bk .im un b =>
-        throwError s!"unexpected upi {f.type}"
+        throwError s!"unexpected implicit pi {f.type}"
       | .pi .data .ex un b =>
         throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
       | .pi .nat .ex un b =>
