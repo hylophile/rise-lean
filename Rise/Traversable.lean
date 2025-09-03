@@ -15,9 +15,9 @@ def TypedRExpr.all (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
     | .lam bn bt e => do
       let e' <- s e
       return ⟨.lam bn bt e', expr.type⟩
-    | .ulam bn bt e => do
+    | .deplam bn bt e => do
       let e' <- s e
-      return ⟨.ulam bn bt e', expr.type⟩
+      return ⟨.deplam bn bt e', expr.type⟩
 
 def TypedRExpr.some (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
   fun expr => match expr.node with
@@ -29,7 +29,7 @@ def TypedRExpr.some (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
         | (_,      .ok e') => .ok ⟨.app f  e', expr.type⟩
         | _ => .error ""
     | .lam bn bt e => (s e).map (⟨.lam bn bt ·, expr.type⟩)
-    | .ulam bn bt e => (s e).map (⟨.ulam bn bt ·, expr.type⟩)
+    | .deplam bn bt e => (s e).map (⟨.deplam bn bt ·, expr.type⟩)
 
 def TypedRExpr.one (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
   fun expr => match expr.node with
@@ -38,7 +38,7 @@ def TypedRExpr.one (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
     | .ok f' => .ok ⟨.app f' e, expr.type⟩
     | _ => (s e).map (⟨.app f ·, expr.type⟩)
   | .lam bn bt e => (s e).map (⟨.lam bn bt ·, expr.type⟩)
-  | .ulam bn bt e => (s e).map (⟨.ulam bn bt ·, expr.type⟩)
+  | .deplam bn bt e => (s e).map (⟨.deplam bn bt ·, expr.type⟩)
 
 instance : Traversable TypedRExpr where
   all := TypedRExpr.all

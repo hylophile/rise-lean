@@ -93,7 +93,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr ) => do
     let k ← elabToRKind k
     let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
-    return ⟨.ulam x.getId k b, .pi k .ex x.getId b.type⟩
+    return ⟨.deplam x.getId k b, .pi k .ex x.getId b.type⟩
 
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
       let f ← elabToTypedRExpr f_syn
@@ -147,8 +147,8 @@ def TypedRExprNode.toExpr : TypedRExprNode → Expr
         mkAppN (mkConst ``TypedRExprNode.const) #[toExpr name]
     | .lam name t body =>
         mkAppN (mkConst ``TypedRExprNode.lam) #[toExpr name, toExpr t, body.toExpr]
-    | .ulam name kind body =>
-        mkAppN (mkConst ``TypedRExprNode.ulam) #[toExpr name, toExpr kind, body.toExpr]
+    | .deplam name kind body =>
+        mkAppN (mkConst ``TypedRExprNode.deplam) #[toExpr name, toExpr kind, body.toExpr]
     | .app e1 e2 =>
         mkAppN (mkConst ``TypedRExprNode.app) #[e1.toExpr, e2.toExpr]
 end
@@ -207,7 +207,7 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 --   | .lit .. => e
 --   | .app fn arg => .app (go un fn n) (go un arg n)
 --   | .lam lun bt b => .lam lun bt (go un b (n+1))
---   | .ulam lun bt b => .ulam lun bt (go un b (n+1))
+--   | .deplam lun bt b => .deplam lun bt (go un b (n+1))
 
 
 

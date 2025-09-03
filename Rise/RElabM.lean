@@ -86,7 +86,7 @@ partial def applyUnifyResultsRecursivelyUntilStable (e : TypedRExpr) : RElabM Ty
   match e.node with
   | .app e1 e2 => return ⟨.app (← applyUnifyResultsRecursivelyUntilStable e1) (← applyUnifyResultsRecursivelyUntilStable e2), newt⟩
   | .lam un t b => return ⟨.lam un (← applyUnifyResultsUntilStable t) (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
-  | .ulam un k b => return ⟨.ulam un k (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
+  | .deplam un k b => return ⟨.deplam un k (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
   | _ => return ⟨e.node, newt⟩
 
 

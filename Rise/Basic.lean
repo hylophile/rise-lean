@@ -95,8 +95,7 @@ inductive TypedRExprNode where
   -- (fun (dt : data) => ((fun (n : nat) => fun (x : n.dt) => x) (42 : RNat))) (f32 : RData)
 
   | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
-  | ulam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
-  -- deplam / dlam
+  | deplam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
 deriving Repr, BEq
 end
 
@@ -309,32 +308,32 @@ instance : ToString Substitution where
 --   toString := TypedRExpr.toString
 
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
-  | bvar id => f!"@{id}"
-  | mvar id => f!"?{id}"
-  | fvar s => s.toString
-  | const s => s.toString
-  | lit n => s!"{n}"
-  | app f e => match f.node, e.node with
-    | app .. , app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
-    | app .. , _      => f.node.render ++ " " ++ e.node.render
-    | _      , app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
-    | _,_ => f.node.render ++ " " ++ e.node.render
-  | lam s t b => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
-  | ulam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
+  | .bvar id      => f!"@{id}"
+  | .mvar id      => f!"?{id}"
+  | .fvar s       => s.toString
+  | .const s      => s.toString
+  | .lit n        => s!"{n}"
+  | .app f e      => match f.node, e.node with
+    | .app .. , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
+    | .app .. , _       => f.node.render ++ " " ++ e.node.render
+    | _       , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
+    | _       , _       => f.node.render ++ " " ++ e.node.render
+  | .lam s t b    => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
+  | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
 
 partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
-  | bvar id => f!"@{id}"
-  | mvar id => f!"?{id}"
-  | fvar s => s.toString
-  | const s => s.toString
-  | lit n => s!"{n}"
-  | app f e => match f.node, e.node with
-    | app .. , app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
-    | app .. , _      => f.node.renderInline ++ " " ++ e.node.renderInline
-    | _      , app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
-    | _,_ => f.node.renderInline ++ " " ++ e.node.renderInline
-  | lam s t b => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInline}"
-  | ulam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInline}"
+  | .bvar id      => f!"@{id}"
+  | .mvar id      => f!"?{id}"
+  | .fvar s       => s.toString
+  | .const s      => s.toString
+  | .lit n        => s!"{n}"
+  | .app f e      => match f.node, e.node with
+    | .app .. , .app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
+    | .app .. , _       => f.node.renderInline ++ " " ++ e.node.renderInline
+    | _       , .app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
+    | _       ,       _ => f.node.renderInline ++ " " ++ e.node.renderInline
+  | .lam s t b    => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInline}"
+  | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInline}"
 
 instance : Std.ToFormat TypedRExprNode where
   format := TypedRExprNode.render
@@ -357,7 +356,7 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", children)]
   | .lam un _ b =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])]
-  | .ulam un _ b =>
+  | .deplam un _ b =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", Json.arr #[toJson b])]
   | _ =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type)]
