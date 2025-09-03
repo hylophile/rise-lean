@@ -1,10 +1,8 @@
 - request: option to type-annotate rexprs which we then check against in the end
-- could try eqsat, probably need different substitution data structure. how to substitute there anyways?
-- more scalar types (int, f32 ...)
-- bool type
-- foreign func
-- type-level functions
-  - dependent pair/array ops
-- a way to define functions with an implementation.
-- `+-*/^` for nats in expressions, not just types
-- makeArray 🤯
+
+- [ ] could try eqsat, probably need different substitution data structure. how to substitute there anyways?
+- [ ] foreign func
+- [ ] type-level functions
+  - [ ] dependent pair/array ops
+- [x] `+-*/^` for nats in expressions, not just types
+- [ ] makeArray 🤯
