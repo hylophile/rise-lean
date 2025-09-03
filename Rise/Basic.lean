@@ -65,7 +65,7 @@ inductive RType where
   | data (dt : RData)
   -- do we need this distinction? yes, but we could do these cases with universe level. would need a RType.sort variant though
   | upi (binderKind : RKind) (pc : Plicity) (userName : Lean.Name) (body : RType)
-  | pi (binderType : RType) (body : RType)
+  | fn (binderType : RType) (body : RType)
   -- upi ->, pi -> fn
 deriving Repr, BEq
 
@@ -168,13 +168,13 @@ def RType.substNat (t : RType) (x : RMVarId) (s : RNat) : RType :=
   match t with
   | .data dt => .data (dt.substNat x s)
   | .upi bk pc un body => .upi bk pc un (body.substNat x s)
-  | .pi binderType body => .pi (binderType.substNat x s) (body.substNat x s)
+  | .fn binderType body => .fn (binderType.substNat x s) (body.substNat x s)
 
 def RType.substData (t : RType) (x : RMVarId) (s : RData) : RType :=
   match t with
   | .data dt => .data (dt.substData x s)
   | .upi bk pc un body => .upi bk pc un (body.substData x s)
-  | .pi binderType body => .pi (binderType.substData x s) (body.substData x s)
+  | .fn binderType body => .fn (binderType.substData x s) (body.substData x s)
 
 def RType.subst (t : RType) (x : RMVarId) (s : SubstEnum) : RType :=
   match s with
@@ -277,9 +277,9 @@ def RType.toString : RType → String
       let plicityStr := if pc == Plicity.im then "{" else "("
       let plicityEnd := if pc == Plicity.im then "}" else ")"
       s!"{plicityStr}{un} : {kind}{plicityEnd} → {RType.toString body}"
-  | RType.pi binderType body =>
+  | RType.fn binderType body =>
     match binderType with
-    | .pi .. | .upi .. => s!"({RType.toString binderType}) → {RType.toString body}"
+    | .fn .. | .upi .. => s!"({RType.toString binderType}) → {RType.toString body}"
     | _ => s!"{RType.toString binderType} → {RType.toString body}"
 
 instance : ToString RType where

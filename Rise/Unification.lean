@@ -112,7 +112,7 @@ partial def unifyOneRType (s t : RType) : Option Substitution :=
     else
       none
 
-  | .pi binderType1 body1, .pi binderType2 body2 =>
+  | .fn binderType1 body1, .fn binderType2 body2 =>
     unifyRType [(binderType1, binderType2), (body1, body2)]
 
   | _, _ => none

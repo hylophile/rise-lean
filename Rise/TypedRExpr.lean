@@ -83,12 +83,12 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let t :=  RType.data (.mvar id Lean.Name.anonymous)
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
     let t ← applyUnifyResultsUntilStable t
-    return ⟨.lam x.getId t b, .pi t b.type⟩
+    return ⟨.lam x.getId t b, .fn t b.type⟩
 
   | `(rise_expr| fun ( $x:ident : $t:rise_type ) => $b:rise_expr ) => do
     let t ← elabToRType t
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
-    return ⟨.lam x.getId t b, .pi t b.type⟩
+    return ⟨.lam x.getId t b, .fn t b.type⟩
 
   | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr ) => do
     let k ← elabToRKind k
@@ -101,7 +101,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       let e ← elabToTypedRExpr e_syn
       let e := {e with type := (← addImplicits e.type)}
       match f.type with
-      | .pi blt brt =>
+      | .fn blt brt =>
         match blt.unify e.type with
         | some sub =>
           addSubst sub
