@@ -235,11 +235,11 @@ partial def elabRData : Syntax → RElabM Expr
     let d ← elabToRData stx
     return toExpr d
 
-instance : ToExpr Plicity where
+instance : ToExpr RBinderInfo where
   toExpr e := match e with
-  | Plicity.ex => mkConst ``Plicity.ex
-  | Plicity.im => mkConst ``Plicity.im
-  toTypeExpr := mkConst ``Plicity
+  | RBinderInfo.explicit => mkConst ``RBinderInfo.explicit
+  | RBinderInfo.implicit => mkConst ``RBinderInfo.implicit
+  toTypeExpr := mkConst ``RBinderInfo
 
 
 declare_syntax_cat rise_type
@@ -291,12 +291,12 @@ partial def elabToRType : Syntax → RElabM RType
   | `(rise_type| {$x:ident : $k:rise_kind} → $t:rise_type) => do
     let k ← elabToRKind k
     let body ← withNewType (x.getId, k) do elabToRType t
-    return RType.pi k Plicity.im x.getId body
+    return RType.pi k RBinderInfo.implicit x.getId body
 
   | `(rise_type| ($x:ident : $k:rise_kind) → $t:rise_type) => do
     let k ← elabToRKind k
     let body ← withNewType (x.getId, k) do elabToRType t
-    return RType.pi k Plicity.ex x.getId body
+    return RType.pi k RBinderInfo.explicit x.getId body
   | _ => throwUnsupportedSyntax
 
 instance : ToExpr RType where
@@ -352,8 +352,8 @@ elab "[RiseT|" t:rise_type "]" : term => do
 #check [RiseT| {δ : data} → δ → δ → δ]
 #check [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1]
 #guard [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1] ==
-  RType.pi RKind.data Plicity.im `δ1
-        (RType.pi RKind.data Plicity.im `δ2
+  RType.pi RKind.data RBinderInfo.implicit `δ1
+        (RType.pi RKind.data RBinderInfo.implicit `δ2
           ((RType.data ((RData.bvar 1 `δ1).pair (RData.bvar 0 `δ2))).fn (RType.data (RData.bvar 1 `δ1))))
 
 
@@ -534,12 +534,12 @@ def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
 
 
 -- #eval [RiseT| (n : nat) →(m:nat)→ n·scalar].rnatbvar2rnat <| .nat 9
--- #eval (RType.pi RKind.nat Plicity.ex `n (RType.pi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
--- #eval ((RType.pi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
+-- #eval (RType.pi RKind.nat RBinderInfo.explicit `n (RType.pi RKind.nat RBinderInfo.explicit `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
+-- #eval ((RType.pi RKind.nat RBinderInfo.explicit `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
 
--- #eval (RType.pi RKind.nat Plicity.ex `n
+-- #eval (RType.pi RKind.nat RBinderInfo.explicit `n
 --         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).fn
 --           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5
--- #eval (--RType.pi RKind.nat Plicity.ex `n
+-- #eval (--RType.pi RKind.nat RBinderInfo.explicit `n
 --         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).fn
 --           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5

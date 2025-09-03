@@ -50,7 +50,7 @@ macro_rules
 
 partial def addImplicits (t: RType) : RElabM RType := do
   match t with
-  | .pi bk .im un b => do
+  | .pi bk .implicit un b => do
     let mid ← getFreshMVarId
     addMVar mid un bk none
     let newB := b.bvar2mvar mid
@@ -93,7 +93,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr ) => do
     let k ← elabToRKind k
     let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
-    return ⟨.deplam x.getId k b, .pi k .ex x.getId b.type⟩
+    return ⟨.deplam x.getId k b, .pi k .explicit x.getId b.type⟩
 
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
       let f ← elabToTypedRExpr f_syn
@@ -110,11 +110,11 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
           -- logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
           throwError "unification failed"
-      | .pi _ .im _ _ =>
+      | .pi _ .implicit _ _ =>
         throwError s!"unexpected implicit pi {f.type}"
-      | .pi .data .ex _ _ =>
+      | .pi .data .explicit _ _ =>
         throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
-      | .pi .nat .ex _ b =>
+      | .pi .nat .explicit _ b =>
         match e.node, e.type with
         | .lit x, .data (.scalar .int) =>
           let bt :=  b.rnatbvar2rnat (RNat.nat x)

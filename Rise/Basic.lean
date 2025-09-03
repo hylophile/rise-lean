@@ -54,16 +54,16 @@ inductive RData
 deriving Repr, BEq
 
 -- Im-/ex-plicity of parameters
-inductive Plicity
-  | ex
-  | im
+inductive RBinderInfo
+  | explicit
+  | implicit
 deriving Repr, BEq
 
 -- Types
 --   τ ::= δ | τ → τ | (x : κ) → τ (Data Type, Function Type, Dependent Function Type)
 inductive RType where
   | data (dt : RData)
-  | pi (binderKind : RKind) (pc : Plicity) (userName : Lean.Name) (body : RType)
+  | pi (binderKind : RKind) (binderInfo : RBinderInfo) (userName : Lean.Name) (body : RType)
   | fn (binderType : RType) (body : RType)
 deriving Repr, BEq
 
@@ -279,16 +279,16 @@ def RData.toString : RData → String
 instance : ToString RData where
   toString := RData.toString
 
-instance : ToString Plicity where
+instance : ToString RBinderInfo where
   toString
-    | Plicity.ex => "explicit"
-    | Plicity.im => "implicit"
+    | RBinderInfo.explicit => "explicit"
+    | RBinderInfo.implicit => "implicit"
 
 def RType.toString : RType → String
   | RType.data dt => RData.toString dt
   | RType.pi kind pc un body =>
-      let plicityStr := if pc == Plicity.im then "{" else "("
-      let plicityEnd := if pc == Plicity.im then "}" else ")"
+      let plicityStr := if pc == RBinderInfo.implicit then "{" else "("
+      let plicityEnd := if pc == RBinderInfo.implicit then "}" else ")"
       s!"{plicityStr}{un} : {kind}{plicityEnd} → {RType.toString body}"
   | RType.fn binderType body =>
     match binderType with
