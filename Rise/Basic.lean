@@ -63,10 +63,8 @@ deriving Repr, BEq
 --   τ ::= δ | τ → τ | (x : κ) → τ (Data Type, Function Type, Dependent Function Type)
 inductive RType where
   | data (dt : RData)
-  -- do we need this distinction? yes, but we could do these cases with universe level. would need a RType.sort variant though
-  | upi (binderKind : RKind) (pc : Plicity) (userName : Lean.Name) (body : RType)
+  | pi (binderKind : RKind) (pc : Plicity) (userName : Lean.Name) (body : RType)
   | fn (binderType : RType) (body : RType)
-  -- upi ->, pi -> fn
 deriving Repr, BEq
 
 
@@ -167,13 +165,13 @@ def RData.subst (t : RData) (x : RMVarId) (s : SubstEnum) : RData :=
 def RType.substNat (t : RType) (x : RMVarId) (s : RNat) : RType :=
   match t with
   | .data dt => .data (dt.substNat x s)
-  | .upi bk pc un body => .upi bk pc un (body.substNat x s)
+  | .pi bk pc un body => .pi bk pc un (body.substNat x s)
   | .fn binderType body => .fn (binderType.substNat x s) (body.substNat x s)
 
 def RType.substData (t : RType) (x : RMVarId) (s : RData) : RType :=
   match t with
   | .data dt => .data (dt.substData x s)
-  | .upi bk pc un body => .upi bk pc un (body.substData x s)
+  | .pi bk pc un body => .pi bk pc un (body.substData x s)
   | .fn binderType body => .fn (binderType.substData x s) (body.substData x s)
 
 def RType.subst (t : RType) (x : RMVarId) (s : SubstEnum) : RType :=
@@ -273,13 +271,13 @@ instance : ToString Plicity where
 
 def RType.toString : RType → String
   | RType.data dt => RData.toString dt
-  | RType.upi kind pc un body =>
+  | RType.pi kind pc un body =>
       let plicityStr := if pc == Plicity.im then "{" else "("
       let plicityEnd := if pc == Plicity.im then "}" else ")"
       s!"{plicityStr}{un} : {kind}{plicityEnd} → {RType.toString body}"
   | RType.fn binderType body =>
     match binderType with
-    | .fn .. | .upi .. => s!"({RType.toString binderType}) → {RType.toString body}"
+    | .fn .. | .pi .. => s!"({RType.toString binderType}) → {RType.toString body}"
     | _ => s!"{RType.toString binderType} → {RType.toString body}"
 
 instance : ToString RType where

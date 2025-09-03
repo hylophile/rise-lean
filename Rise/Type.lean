@@ -291,12 +291,12 @@ partial def elabToRType : Syntax → RElabM RType
   | `(rise_type| {$x:ident : $k:rise_kind} → $t:rise_type) => do
     let k ← elabToRKind k
     let body ← withNewType (x.getId, k) do elabToRType t
-    return RType.upi k Plicity.im x.getId body
+    return RType.pi k Plicity.im x.getId body
 
   | `(rise_type| ($x:ident : $k:rise_kind) → $t:rise_type) => do
     let k ← elabToRKind k
     let body ← withNewType (x.getId, k) do elabToRType t
-    return RType.upi k Plicity.ex x.getId body
+    return RType.pi k Plicity.ex x.getId body
   | _ => throwUnsupportedSyntax
 
 instance : ToExpr RType where
@@ -305,8 +305,8 @@ instance : ToExpr RType where
     | RType.data d =>
       let f := mkConst ``RType.data
       mkAppN f #[toExpr d]
-    | RType.upi binderKind pc userName body =>
-      let f := mkConst ``RType.upi
+    | RType.pi binderKind pc userName body =>
+      let f := mkConst ``RType.pi
       mkAppN f #[toExpr binderKind, toExpr pc, toExpr userName, go body]
     | RType.fn binderType body =>
       let f := mkConst ``RType.fn
@@ -352,8 +352,8 @@ elab "[RiseT|" t:rise_type "]" : term => do
 #check [RiseT| {δ : data} → δ → δ → δ]
 #check [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1]
 #guard [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1] ==
-  RType.upi RKind.data Plicity.im `δ1
-        (RType.upi RKind.data Plicity.im `δ2
+  RType.pi RKind.data Plicity.im `δ1
+        (RType.pi RKind.data Plicity.im `δ2
           ((RType.data ((RData.bvar 1 `δ1).pair (RData.bvar 0 `δ2))).fn (RType.data (RData.bvar 1 `δ1))))
 
 
@@ -378,7 +378,7 @@ elab "[RiseT|" t:rise_type "]" : term => do
 --   | .vector k   => .vector (k.liftmvars n)
 
 -- def RType.liftmvars (n : Nat) : RType → RType
---   | .upi bk pc un b   => .upi bk pc un (b.liftmvars n)
+--   | .pi bk pc un b   => .pi bk pc un (b.liftmvars n)
 --   | .fn bt b    => .fn (bt.liftmvars n) (b.liftmvars n)
 --   | .data dt    => .data (dt.liftmvars n)
 
@@ -399,7 +399,7 @@ elab "[RiseT|" t:rise_type "]" : term => do
 --   | .vector k   => .vector (k.mapMVars n)
 
 -- def RType.mapMVars (f : Nat → String → (Nat × String) ) : RType → RType
---   | .upi bk b   => .upi bk (b.mapMVars n)
+--   | .pi bk b   => .pi bk (b.mapMVars n)
 --   | .fn bt b    => .fn (bt.mapMVars n) (b.mapMVars n)
 --   | .data dt    => .data (dt.mapMVars n)
 
@@ -423,7 +423,7 @@ elab "[RiseT|" t:rise_type "]" : term => do
 
 
 -- private def RType.getmvarsAux : RType → Array (Nat × String × RKind) → Array (Nat × String × RKind)
---   | .upi _bk _pc _un b, acc   => b.getmvarsAux acc
+--   | .pi _bk _pc _un b, acc   => b.getmvarsAux acc
 --   | .fn bt b, acc    => b.getmvarsAux (bt.getmvarsAux acc)
 --   | .data dt, acc    => dt.getmvarsAux acc
 
@@ -458,7 +458,7 @@ def RData.substdata (x : RData) (v : RData) (t : RData) : RData :=
 def RType.substdata (x : RType) (v : RData) (t : RData) : RType :=
   match x with
   | .data dt => if dt == v then .data t else .data <| dt.substdata v t
-  | .upi bk pc un b => .upi bk pc un (b.substdata v t)
+  | .pi bk pc un b => .pi bk pc un (b.substdata v t)
   | .fn bt b => .fn (bt.substdata v t) (b.substdata v t)
 
 
@@ -504,7 +504,7 @@ def RType.bvar2mvar (t : RType) (mid : RMVarId) : RType :=
   go t 0 mid where
   go : RType → RBVarId → RMVarId → RType
   | .data dt, n, m => .data (dt.bvar2mvar n m)
-  | .upi bk pc un b, n, m => .upi bk pc un (go b (n+1) m)
+  | .pi bk pc un b, n, m => .pi bk pc un (go b (n+1) m)
   | .fn bt b, n, m => .fn (go bt n m) (go b n m)
 
 def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
@@ -529,17 +529,17 @@ def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
   go t 0 rnat where
   go : RType → RBVarId → RNat → RType
   | .data dt, n, rnat => .data (dt.rnatbvar2rnat n rnat)
-  | .upi bk pc un b, n, rnat => .upi bk pc un (go b (n+1) rnat)
+  | .pi bk pc un b, n, rnat => .pi bk pc un (go b (n+1) rnat)
   | .fn bt b, n, rnat => .fn (go bt n rnat) (go b n rnat)
 
 
 -- #eval [RiseT| (n : nat) →(m:nat)→ n·scalar].rnatbvar2rnat <| .nat 9
--- #eval (RType.upi RKind.nat Plicity.ex `n (RType.upi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
--- #eval ((RType.upi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
+-- #eval (RType.pi RKind.nat Plicity.ex `n (RType.pi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
+-- #eval ((RType.pi RKind.nat Plicity.ex `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
 
--- #eval (RType.upi RKind.nat Plicity.ex `n
+-- #eval (RType.pi RKind.nat Plicity.ex `n
 --         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).fn
 --           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5
--- #eval (--RType.upi RKind.nat Plicity.ex `n
+-- #eval (--RType.pi RKind.nat Plicity.ex `n
 --         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).fn
 --           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5
