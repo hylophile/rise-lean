@@ -8,9 +8,6 @@ name = "Rise"
 [[lean_lib]]
 name = "Elevate"
 
-[[lean_lib]]
-name = "Assert"
-
 [[lean_exe]]
 name = "rise-lean"
 root = "Main"

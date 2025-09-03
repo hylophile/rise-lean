@@ -1,5 +1,4 @@
 import Rise.Basic
-import Assert
 import Lean
 
 -- unification algorithm adapted from
