@@ -69,10 +69,16 @@ inductive RType where
 deriving Repr, BEq
 
 
-def typeOfKind: RKind -> Type
+def typeOfKind : RKind -> Type
   | .nat => RNat
   | .data => RData
   | .type => RType
+
+inductive RWrapper
+  | nat (v: RNat)
+  | data (v: RData)
+  | type (v: RType)
+deriving Repr, BEq
 
 inductive RLit
   | bool (val : Bool)
@@ -93,11 +99,8 @@ inductive TypedRExprNode where
 -- mvar
   | const (userName : Lean.Name)
   | lit (val : RLit)
-  | nat (val : RNat)
   | app (fn arg : TypedRExpr)
-  -- depapp / dapp, fn: typedrexpr, kind: RKind, arg: typeOfKind kind
-
-
+  | depapp (fn : TypedRExpr) (arg : RWrapper)
   | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
   | deplam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
 deriving Repr, BEq
@@ -319,18 +322,23 @@ instance : ToString SubstEnum where
 instance : ToString Substitution where
   toString s := String.intercalate "\n" (s.map toString)
 
+def RWrapper.render : RWrapper -> Std.Format
+  | .nat v => toString v ++ " : nat"   
+  | .data v => toString v ++ " : data"   
+  | .type v => toString v ++ " : type"   
+
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .bvar id      => f!"@{id}"
   | .mvar id      => f!"?{id}"
   | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
-  | .nat n => s!"{n}"
   | .app f e      => match f.node, e.node with
     | .app .. , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
     | .app .. , _       => f.node.render ++ " " ++ e.node.render
     | _       , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
     | _       , _       => f.node.render ++ " " ++ e.node.render
+  | .depapp f e   => f.node.render ++ " " ++ Std.Format.paren e.render
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
 
@@ -340,12 +348,12 @@ partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
   | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
-  | .nat n => s!"{n}"
   | .app f e      => match f.node, e.node with
     | .app .. , .app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
     | .app .. , _       => f.node.renderInline ++ " " ++ e.node.renderInline
     | _       , .app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
     | _       ,       _ => f.node.renderInline ++ " " ++ e.node.renderInline
+  | .depapp f e   => f.node.renderInline ++ " " ++ Std.Format.paren e.render
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInline}"
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInline}"
 

@@ -25,8 +25,6 @@ syntax "f64"   : rise_expr_scilit_suffix
 
 declare_syntax_cat                                            rise_expr
 syntax num (rise_expr_numlit_suffix)?                       : rise_expr
-syntax "(" rise_nat ":" "nat" ")" : rise_expr
-syntax "(" rise_data ":" "data" ")" : rise_expr
 syntax scientific (rise_expr_scilit_suffix)?                : rise_expr
 syntax ident                                                : rise_expr
 syntax "?" ident                                                : rise_expr
@@ -35,12 +33,14 @@ syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ (":" rise_kind)      "=>" rise_expr : rise_expr
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
+syntax:50 rise_expr:50 rise_nat:51             : rise_expr
+syntax:50 rise_expr:50 rise_data:51           : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 ">>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<<" rise_expr:41                    : rise_expr
 syntax:60 "(" rise_expr ")"                                 : rise_expr
 
--- set_option pp.raw true
+set_option pp.raw true
 -- set_option pp.raw.maxDepth 10
 
 macro_rules
@@ -81,7 +81,7 @@ macro_rules
   | `(rise_expr| $f:rise_expr << $g:rise_expr) =>
     `(rise_expr| $g >> $f)
   | `(rise_expr| $e:rise_expr |> $f:rise_expr) => do
-    `(rise_expr| $f $e)
+    `(rise_expr| $f:rise_expr $e:rise_expr)
   | `(rise_expr| ($e:rise_expr)) => do
     `(rise_expr| $e)
 
@@ -108,7 +108,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | `(rise_expr_numlit_suffix| u8)  => return ⟨.lit (.int l.getNat), .data <| .scalar .u8⟩
       | `(rise_expr_numlit_suffix| u16) => return ⟨.lit (.int l.getNat), .data <| .scalar .u16⟩
       | `(rise_expr_numlit_suffix| u32) => return ⟨.lit (.int l.getNat), .data <| .scalar .u32⟩
-      | _                               => throwErrorAt suffix s!"unknown suffix {suffix}"
+      | _                               => throwErrorAt suffix s!"unknown integer suffix {suffix}"
     | .none => return ⟨.lit (.int l.getNat), .data <| .scalar .int⟩
       -- let _ ← Term.addTermInfo l (toExpr t.toString) -- meh
   | `(rise_expr| $l:scientific $[$s:rise_expr_scilit_suffix]?) => do
@@ -118,14 +118,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | `(rise_expr_scilit_suffix| f16)   => return ⟨.lit (.float (toString l)), .data <| .scalar .f16⟩
       | `(rise_expr_scilit_suffix| f32)   => return ⟨.lit (.float (toString l)), .data <| .scalar .f32⟩
       | `(rise_expr_scilit_suffix| f64)   => return ⟨.lit (.float (toString l)), .data <| .scalar .f64⟩
-      | _                                 => throwErrorAt suffix s!"unknown suffix {suffix}"
+      | _                                 => throwErrorAt suffix s!"unknown float suffix {suffix}"
     | .none => return ⟨.lit (.float (toString l)), .data <| .scalar .float⟩
-  | `(rise_expr| ($n:rise_nat : nat)) => do
-    let n ← elabToRNat n
-    return ⟨.nat n, .data .natType⟩
-
-  -- | `(rise_expr| ($d:rise_data : data)) => do
-    
 
   | `(rise_expr| ? $_i:ident) => do
     return ⟨.mvar `testing, .data <| .mvar 0 `testing⟩
@@ -173,24 +167,65 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
         | none =>
-          logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
+          logErrorAt f_syn s!"\ncannot unify application of '{toString f.node}' to '{toString e.node}':\n{blt} != {e.type}"
+          -- logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
           -- logErrorAt e_syn s!"\ncannot unify {blt} with {e.type}"
           throwError "unification failed"
-      | .pi _ .implicit _ _ =>
-        throwError s!"unexpected implicit pi {f.type}"
-      | .pi .data .explicit _ _ =>
-        throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
-      | .pi .nat .explicit _ b =>
-        match e.node, e.type with
-        | .nat n, .data .natType =>
-          let bt :=  b.rnatbvar2rnat n
-          return ⟨.app f e, bt⟩
-        | _, _ =>
-          throwErrorAt e_syn "TODO, found {e.type}"
-      | _ => throwErrorAt f_syn s!"expected a function type for ({f_syn.raw.prettyPrint}), but found: {repr f.type}"
+      -- | .pi _ .implicit _ _ =>
+      --   throwError s!"unexpected implicit pi {f.type}"
+      -- | .pi .data .explicit _ _ =>
+      --   throwErrorAt f_syn s!"i haven't seen this case yet: {f.type}"
+      -- | .pi .nat .explicit _ b =>
+      --   match e.node, e.type with
+      --   -- | .nat n, .data .natType =>
+      --   --   let bt :=  b.rnatbvar2rnat n
+      --   --   return ⟨.app f e, bt⟩
+      --   | _, _ =>
+      --     throwErrorAt e_syn "TODO, found {e.type}"
+      | _ => throwErrorAt f_syn s!"expected a function type for ({toString f.node}), but found: {toString f.type}"
       -- return TypedRExpr.app e1 e2
 
-  | e => throwErrorAt e s!"unexpected rise expr syntax:\n{e}" --throwUnsupportedSyntax
+  | `(rise_expr| $f_syn:rise_expr $n:rise_nat) => do
+    let n <- elabToRNat n
+    let f <- elabToTypedRExpr f_syn
+    let f := {f with type := (← addImplicits f.type)}
+    match f.type with
+    | .pi .nat .explicit _ b =>
+      let bt := b.rnatbvar2rnat n
+      return ⟨.depapp f <| .nat n, bt⟩
+    | _ => throwErrorAt f_syn s!"expected a pi type for ({toString f.node}), but found: {toString f.type}"
+
+  | `(rise_expr| $f_syn:rise_expr $d:rise_data) => do
+    let d ← elabToRData d
+    let f <- elabToTypedRExpr f_syn
+    let f := {f with type := (← addImplicits f.type)}
+    match f.type with
+    | .pi .data .explicit _ b =>
+      -- let bt := b.rnatbvar2rnat n
+      -- TODO we need rdatabvar2rdata here i guess
+      return ⟨.depapp f <| .data d, b⟩
+    | _ => throwErrorAt f_syn s!"expected a pi type for ({toString f.node}), but found: {toString f.type}"
+    
+  | stx =>
+    match stx with
+    | .node _ `choice choices => do
+      -- dbg_trace choices
+      let results ← choices.mapM (fun c =>
+        try
+          Except.ok <$> elabToTypedRExpr c
+        catch e => do
+          return Except.error e)
+      match results.partition (·.isOk) with
+      | (#[.ok res], _) => return res
+      | (#[], errs) => do
+        errs.forM (fun err => match err with
+        | .error e => logErrorAt stx e.toMessageData
+        | _ => throwError "unreachable"
+        ) 
+        throwErrorAt stx "Only found errors under all interpretations"
+      | _ => throwError "Multiple interpretations possible. Haven't seen this case yet though"
+    | stx =>
+      throwErrorAt stx s!"unexpected rise expr syntax:\n{stx}"
 
 instance : ToExpr RLit where
   toExpr
@@ -199,6 +234,12 @@ instance : ToExpr RLit where
     | .float f => mkAppN (mkConst ``RLit.float) #[toExpr f]
   toTypeExpr := mkConst ``RLit
 
+instance : ToExpr RWrapper where
+  toExpr
+    | .nat b => mkAppN (mkConst ``RWrapper.nat) #[toExpr b]
+    | .data i => mkAppN (mkConst ``RWrapper.data) #[toExpr i]
+    | .type f => mkAppN (mkConst ``RWrapper.type) #[toExpr f]
+  toTypeExpr := mkConst ``RWrapper
 
 mutual
 partial
@@ -211,8 +252,6 @@ partial
 def TypedRExprNode.toExpr : TypedRExprNode → Expr
     | .lit n =>
         mkAppN (mkConst ``TypedRExprNode.lit) #[toExpr n]
-    | .nat n =>
-        mkAppN (mkConst ``TypedRExprNode.nat) #[toExpr n]
     | .bvar index =>
         mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index]
     | .fvar name =>
@@ -227,6 +266,8 @@ def TypedRExprNode.toExpr : TypedRExprNode → Expr
         mkAppN (mkConst ``TypedRExprNode.deplam) #[toExpr name, toExpr kind, body.toExpr]
     | .app e1 e2 =>
         mkAppN (mkConst ``TypedRExprNode.app) #[e1.toExpr, e2.toExpr]
+    | .depapp e1 e2 =>
+        mkAppN (mkConst ``TypedRExprNode.depapp) #[e1.toExpr, toExpr e2]
 end
 
 instance : ToExpr TypedRExpr where
@@ -251,19 +292,25 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 #check [RiseTE| 3]
 #check [RiseTE| 3u32]
 #check [RiseTE| 3.0f32]
+#eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 3.0f32]
+#eval toJson [RiseTE| fun x: f32 → f32 → f32 => (x 5.0f32) 3.0f32]
+#eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 (3.0f32)]
+#eval toJson [RiseTE| (fun n: nat => fun x : f32 => x) (3+5) 5.0f32]
+#eval toJson [RiseTE| (fun n: nat => fun x : f32 => x) 3 5.0f32]
+-- #eval toJson [RiseTE| 5.0f32 |> ((fun n: nat => fun y : f32 => fun x : f32 → n·f32 => x) (3 + 5 : nat)) 5.0f32]
 
 
--- --set_option pp.explicit true
--- #check [RiseE| fun as => as]
--- #check [RiseE| fun as bs => as]
--- #check [RiseE| fun as bs cs => as]
--- #check [RiseE| fun as => fun bs => (as bs)]
--- #check [RiseE| fun as => fun bs => as bs (fun c => c)]
--- #check [RiseE| fun as => as (fun as => as)]
+#check [RiseTE| fun as => as]
+#check [RiseTE| fun as bs => as]
+#eval toJson [RiseTE| fun as bs cs => as]
+#check [RiseTE| fun as: f32 → f32 => fun bs => (as bs)]
+-- #check [RiseTE| fun as => fun bs => as bs (fun c => c)]
+#check [RiseTE| fun as => (fun as => as)]
 
--- #check [RiseE| fun x => x]
+#check [RiseTE| fun x => x]
 
--- #check [RiseE| fun(x : nat) => 3]
+#check [RiseTE| fun(x : nat) => 3]
+#check [RiseTE| fun(x : data) => 3]
 
 -- -- trying to use x at term level. it's not legal,
 -- -- because x is only in the kinding context

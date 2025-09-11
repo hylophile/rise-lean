@@ -240,7 +240,7 @@ def x : RNat := .nat 4
 
 #pp [RiseC|
   def x : (5+2)·f32
-  take (5 : nat) x
+  take 5 x
 ]
 
 #pp [RiseC|
@@ -278,23 +278,23 @@ def x : RNat := .nat 4
 ]
 
 #eval toJson [RiseC|
-  (fun (n : nat) => fun (x : n·f32) => x) (2 : nat)
+  (fun (n : nat) => fun (x : n·f32) => x) 2
 ]
 
 #pp [RiseC|
-  (fun (n m : nat) => fun (x : n·m+n·f32) => x) (3+4 : nat) (95 : nat)
+  (fun (n m : nat) => fun (x : n·m+n·f32) => x) (3+4) 95
 ]
 
--- #pp [RiseC|
---   (fun (dt : data) => fun (x : 32·dt) => x) (f32 : data)
--- ]
+#pp [RiseC|
+  (fun (dt : data) => fun (x : 32·dt) => x) f32
+]
 
 
 -- #pp [RiseC|
 --   (fun (dt : data) => ((fun (n : nat) => fun (x : n.dt) => x) (42 : RNat))) (f32 : RData)
 -- ]
 
-#pp [RiseC| add 0 5]
+#eval toJson [RiseC| add 0 5]
 #pp [RiseC| reduce add 0]
 #pp [RiseC| map transpose]
 #eval toJson [RiseC| map transpose]
@@ -315,25 +315,31 @@ fun a b =>
     transpose(b) |> map(fun bcol => -- iterating over N
       zip arow bcol |>
         map (fun ab => mul (fst ab) (snd ab)) |>
-        reduce add 0)) -- iterating over K
+        reduce add 0.0f32)) -- iterating over K
 ]
+
 /--
-error:
-cannot unify application of 'take (5 : nat)' to 'x':
+error: cannot unify application of 'take (5 : nat)' to 'x':
 (5+?m₀)·?t₁ != 7·f32
 ---
+error: rdata: unknown identifier x
+---
+error: rnat: unknown identifier x
+---
 error: unification failed
+---
+error: Only found errors under all interpretations
 -/
 #guard_msgs in
 #pp [RiseC|
   def x : 7·f32
-  take (5 : nat) x
+  take 5 x
 ]
 
 -- from shine/src/test/scala/apps/scal.scala
 /--
 error:
-cannot unify application of 'split (4 * 128 * 128 : nat)' to 'input':
+cannot unify application of 'split (((4*128)*128) : nat)' to 'input':
 (?m₃₀*((4*128)*128))·?t₃₁ != n@0·f32
 ---
 error: unification failed
@@ -342,12 +348,10 @@ error: unification failed
 #eval [RiseC|
 fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
   input |>
-  -- inlining this for now
-  -- split (mul 4 (mul 128 128)) |>
-  split (4 * 128 * 128 : nat) |>
+  split (4 * 128 * 128) |>
   mapPar(
-    asVectorAligned(4 : nat) >>
-    split(128 : nat) >>
+    asVectorAligned 4 >>
+    split 128 >>
     mapSeq(mapSeq(fun x =>
       vectorFromScalar(alpha) |> mul x
     )) >> join >> asScalar
@@ -365,3 +369,6 @@ fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
 #eval [RiseC| fun (x: 1024·f32) => fun (alpha : f32) =>
   x |> map (mul alpha)
 ]
+
+
+def y : Nat := (3 + (5+1 : Nat) : Nat)
