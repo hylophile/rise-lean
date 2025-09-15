@@ -350,7 +350,7 @@ fun n : nat => fun input : n·f32 => fun alpha : f32 =>
     asVectorAligned 4 >>
     split 128 >>
     mapSeq(mapSeq(fun x =>
-      vectorFromScalar(alpha) |> mul x
+      vectorFromScalar alpha |> mul x
     )) >> join >> asScalar
   ) |>
   join
@@ -363,7 +363,7 @@ fun n : nat => fun input : n·f32 => fun alpha : f32 =>
     transpose (transpose x)
 ]
 
-#eval [RiseC| fun (x: 1024·f32) => fun (alpha : f32) =>
+#pp [RiseC| fun (x: 1024·f32) => fun (alpha : f32) =>
   x |> map (mul alpha)
 ]
 

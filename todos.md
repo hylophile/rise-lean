@@ -1,8 +1,8 @@
-- request: option to type-annotate rexprs which we then check against in the end
-
 - [ ] could try eqsat, probably need different substitution data structure. how to substitute there anyways?
 - [ ] foreign func
-- [ ] type-level functions
+- [ ] natType?
+- [ ] type-level functions (TODO: we wanted to rethink those)
   - [ ] dependent pair/array ops
 - [x] `+-*/^` for nats in expressions, not just types
 - [ ] makeArray 🤯
+- request: option to type-annotate rexprs which we then check against in the end

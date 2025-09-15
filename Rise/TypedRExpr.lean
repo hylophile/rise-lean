@@ -191,9 +191,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let f := {f with type := (← addImplicits f.type)}
     match f.type with
     | .pi .data .explicit _ b =>
-      -- let bt := b.rnatbvar2rnat n
-      -- TODO we need rdatabvar2rdata here i guess
-      return ⟨.depapp f <| .data d, b⟩
+      let bt := b.rdatabvar2rdata d
+      return ⟨.depapp f <| .data d, bt⟩
     | _ => throwErrorAt f_syn s!"expected a pi type for '{syn2str f_syn}', but found: {toString f.type}"
     
   | stx =>
@@ -287,6 +286,13 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 -- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 (3.0f32)]
 -- #eval toJson [RiseTE| (fun n: nat => fun x : f32 => x) (3+5) 5.0f32]
 -- #eval toJson [RiseTE| (fun n: nat => fun x : f32 => x) 3 5.0f32]
+
+
+-- dependent application demo
+
+#eval toJson [RiseTE| (fun n: nat => fun x : n·f32 => x) 3]
+
+#eval toJson [RiseTE| (fun d: data => fun x : d => x) f32]
 
 
 -- #check [RiseTE| fun as => as]

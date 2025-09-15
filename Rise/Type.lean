@@ -534,6 +534,24 @@ def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
   | .fn bt b, n, rnat => .fn (go bt n rnat) (go b n rnat)
 
 
+def RData.rdatabvar2rdata (dt : RData) (n : RBVarId) (rdata : RData) : RData :=
+  match dt with
+  | .bvar bn .. => if bn == n then rdata else dt
+  | .array rn dt => .array rn (dt.rdatabvar2rdata n rdata)
+  | .pair dt1 dt2 => .pair (dt1.rdatabvar2rdata n rdata) (dt2.rdatabvar2rdata n rdata)
+  | .index rn => .index rn
+  | .vector rn d => .vector rn (d.rdatabvar2rdata n rdata)
+  | .scalar .. | .mvar .. | .natType => dt
+
+def RType.rdatabvar2rdata (t : RType) (rdata : RData) : RType :=
+  go t 0 rdata where
+  go : RType → RBVarId → RData → RType
+  | .data dt, n, rdata => .data (dt.rdatabvar2rdata n rdata)
+  | .pi bk pc un b, n, rdata => .pi bk pc un (go b (n+1) rdata)
+  | .fn bt b, n, rdata => .fn (go bt n rdata) (go b n rdata)
+
+
+
 -- #eval [RiseT| (n : nat) →(m:nat)→ n·scalar].rnatbvar2rnat <| .nat 9
 -- #eval (RType.pi RKind.nat RBinderInfo.explicit `n (RType.pi RKind.nat RBinderInfo.explicit `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
 -- #eval ((RType.pi RKind.nat RBinderInfo.explicit `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
