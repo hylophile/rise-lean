@@ -12,7 +12,7 @@ syntax "def" ident ":" rise_type                        : rise_decl
 -- without separating with ;, the rise_expr is overlapping with the
 -- first and only rise_expr of rise_program. there is probably a way to
 -- make rise_expr's whitespace-sensitive, but this will do for now
-syntax "def" ident (":" rise_type)? ":=" rise_expr ";"  : rise_decl
+-- syntax "def" ident (":" rise_type)? ":=" rise_expr ";"  : rise_decl
 syntax "import" "core"                                  : rise_decl
 
 -- TODO : a rise program could have more than one expr
@@ -33,17 +33,17 @@ partial def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl))
       -- let _ ← Term.addTermInfo x (toExpr t.toString) -- meh
       withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
 
-    | `(rise_decl| def $x:ident := $e:rise_expr;) => do
-      let e ← elabToTypedRExpr e
-      -- let e := {e with type := (← addImplicits e.type)}
-      withNewGlobalTerm (x.getId, e.type) do elabRDeclAndRExpr expr rest
+    -- | `(rise_decl| def $x:ident := $e:rise_expr;) => do
+    --   let e ← elabToTypedRExpr e
+    --   -- let e := {e with type := (← addImplicits e.type)}
+    --   withNewGlobalTerm (x.getId, e.type) do elabRDeclAndRExpr expr rest
 
-    | `(rise_decl| def $x:ident : $t_syn:rise_type := $e:rise_expr;) => do
-      let t ← elabToRType t_syn
-      let e ← elabToTypedRExpr e
-      let e := {e with type := (← addImplicits e.type)}
-      if t.unify e.type == .none then throwErrorAt x s!"cannot unify type annotation '{t_syn.raw.prettyPrint}' with inferred type '{e.type}'"
-      withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
+    -- | `(rise_decl| def $x:ident : $t_syn:rise_type := $e:rise_expr;) => do
+    --   let t ← elabToRType t_syn
+    --   let e ← elabToTypedRExpr e
+    --   let e := {e with type := (← addImplicits e.type)}
+    --   if t.unify e.type == .none then throwErrorAt x s!"cannot unify type annotation '{t_syn.raw.prettyPrint}' with inferred type '{e.type}'"
+    --   withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
 
     | s => throwErrorAt s m!"{s}"
     -- | _ => throwUnsupportedSyntax
@@ -198,106 +198,103 @@ syntax "#pp " term : command
 macro_rules
 | `(#pp $e) => `(#eval IO.print <| toString $e)
 
-#pp [RiseC|
-  fun as => fun bs =>
-       zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
-]
---
 -- #pp [RiseC|
---   fun(k : nat) => fun(a : k·f32) => reduce add 0 a
+--   fun as => fun bs =>
+--        zip as bs |> map (fun ab => mul (fst ab) (snd ab)) |> reduce add 0
 -- ]
 
 
-#pp [RiseC|
-  fun x:2·3·f32 => concat (x |> transpose |> join) (x |> join)
-]
+--  #pp [RiseC|
+--    fun(k : nat) => fun(a : k·f32) => reduce add 0.0f32 a
+--  ]
 
-#eval [RiseC|
-  take
-]
 
-#pp [RiseC|
-  circularBuffer
-]
+-- #pp [RiseC|
+--   fun x:2·3·f32 => concat (x |> transpose |> join) (x |> join)
+-- ]
 
-#pp [Rise|
-  import core
-  fst >> snd >> add 0
-]
+-- #eval [RiseC|
+--   take
+-- ]
 
-def x : RNat := .nat 4
+-- #pp [RiseC|
+--   circularBuffer
+-- ]
 
-#pp [Rise|
-  import core
+-- #pp [Rise|
+--   import core
+--   fst >> snd >> add 0
+-- ]
 
-  def rxx : f32 → f32 := id;
-  def ryx : f32 → f32
-  def rzx := map fst;
+-- def x : RNat := .nat 4
 
-  rzx
-  --[x]
-]
 
-#pp [RiseC|
-  def x : (5+2)·f32
-  take 5 x
-]
+-- -- #pp [Rise|
+-- -- -- instead of def ... : ... := ... (to inline definitions)
+-- --   $x
+-- -- ]
 
-#pp [RiseC|
-  gather
-]
-#pp [RiseC|
-  iterate
-]
+-- #pp [RiseC|
+--   def x : (5+2)·f32
+--   take 5 x
+-- ]
 
-#pp [RiseC|
-  fun(a : 3+5*9·int) => reduce add 0 a
-]
+-- #pp [RiseC|
+--   gather
+-- ]
+-- #pp [RiseC|
+--   iterate
+-- ]
 
-#pp [RiseC|
-  fun a => reduce add 0 a
-]
+-- #pp [RiseC|
+--   fun(a : 3+5*9·int) => reduce add 0 a
+-- ]
 
-#pp [RiseC|
-  fun a => reduce add 0
-]
+-- #pp [RiseC|
+--   fun a => reduce add 0 a
+-- ]
+
+-- #pp [RiseC|
+--   fun a => reduce add 0
+-- ]
 
 -- #pp [RiseC|
 --   map (fun ab : f32 × f32 => mul (fst ab) (snd ab))
 -- ]
-#pp [RiseC|
-  map (fun ab => mul (fst ab) (snd ab))
-]
 
-#pp [RiseC|
-  (fun ab => mul (fst ab) (snd ab))
-]
+-- #pp [RiseC|
+--   map (fun ab => mul (fst ab) (snd ab))
+-- ]
 
-#pp [RiseC|
-  fun as => fun bs => zip as bs
-]
+-- #pp [RiseC|
+--   (fun ab => mul (fst ab) (snd ab))
+-- ]
 
-#eval toJson [RiseC|
-  (fun (n : nat) => fun (x : n·f32) => x) 2
-]
+-- #pp [RiseC|
+--   fun as => fun bs => zip as bs
+-- ]
 
-#pp [RiseC|
-  (fun (n m : nat) => fun (x : n·m+n·f32) => x) (3+4) 95
-]
+-- #eval toJson [RiseC|
+--   (fun (n : nat) => fun (x : n·f32) => x) 2
+-- ]
 
-#pp [RiseC|
-  (fun (dt : data) => fun (x : 32·dt) => x) f32
-]
+-- #pp [RiseC|
+--   (fun (n m : nat) => fun (x : n·m+n·f32) => x) (3+4) 95
+-- ]
+
+-- #pp [RiseC|
+--   (fun (dt : data) => fun (x : 32·dt) => x) f32
+-- ]
 
 
 -- #pp [RiseC|
 --   (fun (dt : data) => ((fun (n : nat) => fun (x : n.dt) => x) (42 : RNat))) (f32 : RData)
 -- ]
 
-#eval toJson [RiseC| add 0 5]
-#pp [RiseC| reduce add 0]
-#pp [RiseC| map transpose]
-#eval toJson [RiseC| map transpose]
+-- #eval toJson [RiseC| add 0 5]
+-- #pp [RiseC| reduce add 0]
+-- #pp [RiseC| map transpose]
+-- #eval toJson [RiseC| map transpose]
 
 
 #pp [RiseC|
@@ -319,7 +316,7 @@ fun a b =>
 ]
 
 /--
-error: cannot unify application of 'take (5 : nat)' to 'x':
+error: cannot unify application of 'take 5' to 'x':
 (5+?m₀)·?t₁ != 7·f32
 ---
 error: rdata: unknown identifier x
@@ -339,14 +336,14 @@ error: Only found errors under all interpretations
 -- from shine/src/test/scala/apps/scal.scala
 /--
 error:
-cannot unify application of 'split (((4*128)*128) : nat)' to 'input':
+cannot unify application of 'split (4 * 128 * 128)' to 'input':
 (?m₃₀*((4*128)*128))·?t₃₁ != n@0·f32
 ---
 error: unification failed
 -/
 #guard_msgs in
 #eval [RiseC|
-fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
+fun n : nat => fun input : n·f32 => fun alpha : f32 =>
   input |>
   split (4 * 128 * 128) |>
   mapPar(
@@ -370,5 +367,3 @@ fun(n: nat) => fun(input : n·f32) => fun(alpha : f32) =>
   x |> map (mul alpha)
 ]
 
-
-def y : Nat := (3 + (5+1 : Nat) : Nat)
