@@ -10,7 +10,10 @@ opaque runEgg (input : String) : String
 
 
 
--- #eval runEgg "hi"
+#eval runEgg "hi"
+
+
+
 -- 
 declare_syntax_cat rise_expr_numlit_suffix
 syntax "int" : rise_expr_numlit_suffix

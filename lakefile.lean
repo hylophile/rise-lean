@@ -18,6 +18,7 @@ lean_lib Rise where
 --   precompileModules := true
 
 lean_exe rise_lean where
+  root := `Main
   supportInterpreter := true
 
 target importTarget pkg : System.FilePath :=
