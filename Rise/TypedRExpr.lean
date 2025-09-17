@@ -173,8 +173,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | .fn blt brt =>
         match blt.unify e.type with
         | some sub =>
-          let x := runEgg "hi"
-          dbg_trace (toString blt)
+          let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
+          dbg_trace x
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
         | none =>

@@ -401,7 +401,7 @@ def RNat.toSExpr : RNat → String
 
 def RData.toSExpr : RData → String
   | .bvar idx name => s!"(bvar {name}@{idx})"
-  | .mvar id name  => s!"(mvar ?{name}{natToSubscript id})"
+  | .mvar id name  => s!"(mvar {name}{natToSubscript id})"
   | .array n d     => s!"(array {n.toSExpr} {d.toSExpr})"
   | .pair d1 d2    => s!"(pair {d1.toSExpr} {d2.toSExpr})"
   | .index n       => s!"(index {n.toSExpr})"
