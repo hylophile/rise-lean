@@ -4,11 +4,6 @@ import Rise.Type
 import Lean
 open Lean Elab
 
-@[extern "run_egg_c"]
-opaque runEgg (input : String) : String
-
-
-
 
 #eval runEgg "hi"
 
@@ -34,10 +29,10 @@ syntax "f32"   : rise_expr_scilit_suffix
 syntax "f64"   : rise_expr_scilit_suffix
 
 declare_syntax_cat                                            rise_expr
-syntax num         (noWs rise_expr_numlit_suffix)?                       : rise_expr
-syntax scientific  (noWs rise_expr_scilit_suffix)?                : rise_expr
+syntax num         (noWs rise_expr_numlit_suffix)?          : rise_expr
+syntax scientific  (noWs rise_expr_scilit_suffix)?          : rise_expr
 syntax ident                                                : rise_expr
-syntax "?" ident                                                : rise_expr
+syntax "?" ident                                            : rise_expr
 syntax "fun" "(" ident+ (":" rise_type)? ")" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
@@ -179,7 +174,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         match blt.unify e.type with
         | some sub =>
           let x := runEgg "hi"
-          dbg_trace x
+          dbg_trace (toString blt)
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
         | none =>
@@ -292,9 +287,9 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 -- #check [RiseTE| fun a : int → int → int => a 10000 2]
 -- #check [RiseTE| 3]
 -- #check [RiseTE| 3]
-#check [RiseTE| 3u32]
+-- #check [RiseTE| 3u32]
 -- #check [RiseTE| 3.0f32]
-#eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 3.0f32]
+-- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 3.0f32]
 -- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => (x 5.0f32) 3.0f32]
 -- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 (3.0f32)]
 -- #eval toJson [RiseTE| (fun n: nat => fun x : f32 => x) (3+5) 5.0f32]
@@ -303,9 +298,9 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 
 -- dependent application demo
 
-#eval toJson [RiseTE| (fun n: nat => fun x : n·f32 => x) 3]
+-- #eval toJson [RiseTE| (fun n: nat => fun x : n·f32 => x) 3]
 
-#eval toJson [RiseTE| (fun d: data => fun x : d => x) f32]
+-- #eval toJson [RiseTE| (fun d: data => fun x : d => x) f32]
 
 
 -- #check [RiseTE| fun as => as]

@@ -1,5 +1,10 @@
 import Lean.Data.Json
 
+
+@[extern "run_egg_c"]
+opaque runEgg (input : String) : String
+
+
 --
 -- Kind
 --   κ ::= nat | data (Natural Number Kind, Datatype Kind)
@@ -384,3 +389,27 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
 
 instance : Lean.ToJson TypedRExpr where
   toJson e := e.toJson
+
+def RNat.toSExpr : RNat → String
+  | .bvar idx name => s!"(bvar {name}@{idx})"
+  | .mvar id name => s!"(mvar {name}{natToSubscript id})"
+  | .nat n => s!"{n}"
+  | .plus n m => s!"(+ {n.toSExpr} {m.toSExpr})"
+  | .minus n m => s!"(- {n.toSExpr} {m.toSExpr})"
+  | .mult n m => s!"(* {n.toSExpr} {m.toSExpr})"
+  | .pow n m => s!"(^ {n.toSExpr} {m.toSExpr})"
+
+def RData.toSExpr : RData → String
+  | .bvar idx name => s!"(bvar {name}@{idx})"
+  | .mvar id name  => s!"(mvar ?{name}{natToSubscript id})"
+  | .array n d     => s!"(array {n.toSExpr} {d.toSExpr})"
+  | .pair d1 d2    => s!"(pair {d1.toSExpr} {d2.toSExpr})"
+  | .index n       => s!"(index {n.toSExpr})"
+  | .scalar x      => s!"{x}"
+  | .natType       => "natType"
+  | .vector n d    => s!"(vector {n.toSExpr} {d.toSExpr})"
+
+def RType.toSExpr : RType → String
+  | .data dt => RData.toSExpr dt
+  | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSExpr})"
+  | .fn binderType body => s!"(→ {binderType.toSExpr} {body.toSExpr})"
