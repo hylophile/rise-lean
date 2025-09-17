@@ -1,5 +1,5 @@
 import Rise.Program
-import Rise.Rules
+-- import Rise.Rules
 
 -- RISE
 --

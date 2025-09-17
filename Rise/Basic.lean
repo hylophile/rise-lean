@@ -96,7 +96,6 @@ inductive TypedRExprNode where
   | bvar (deBruijnIndex : Nat)
   | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
   | mvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
--- mvar
   | const (userName : Lean.Name)
   | lit (val : RLit)
   | app (fn arg : TypedRExpr)
@@ -323,9 +322,9 @@ instance : ToString Substitution where
   toString s := String.intercalate "\n" (s.map toString)
 
 def RWrapper.render : RWrapper -> Std.Format
-  | .nat v => toString v ++ " : nat"   
-  | .data v => toString v ++ " : data"   
-  | .type v => toString v ++ " : type"   
+  | .nat v => toString v ++ " : nat"
+  | .data v => toString v ++ " : data"
+  | .type v => toString v ++ " : type"
 
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .bvar id      => f!"@{id}"

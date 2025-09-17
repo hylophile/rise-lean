@@ -235,7 +235,7 @@ macro_rules
 -- -- ]
 
 -- #pp [RiseC|
---   def x : (5+2)·f32
+--   def x : 7·f32
 --   take 5 x
 -- ]
 
@@ -291,7 +291,7 @@ macro_rules
 --   (fun (dt : data) => ((fun (n : nat) => fun (x : n.dt) => x) (42 : RNat))) (f32 : RData)
 -- ]
 
--- #eval toJson [RiseC| add 0 5]
+#eval toJson [RiseC| add 0 5]
 -- #pp [RiseC| reduce add 0]
 -- #pp [RiseC| map transpose]
 -- #eval toJson [RiseC| map transpose]
@@ -319,6 +319,9 @@ fun a b =>
 error: cannot unify application of 'take 5' to 'x':
 (5+?m₀)·?t₁ != 7·f32
 ---
+error: cannot unify application of 'take 5' to 'x':
+(5+?m₀)·?t₁ != 7·f32
+---
 error: rdata: unknown identifier x
 ---
 error: rnat: unknown identifier x
@@ -335,6 +338,10 @@ error: Only found errors under all interpretations
 
 -- from shine/src/test/scala/apps/scal.scala
 /--
+error:
+cannot unify application of 'split (4 * 128 * 128)' to 'input':
+(?m₃₀*((4*128)*128))·?t₃₁ != n@0·f32
+---
 error:
 cannot unify application of 'split (4 * 128 * 128)' to 'input':
 (?m₃₀*((4*128)*128))·?t₃₁ != n@0·f32
@@ -366,4 +373,5 @@ fun n : nat => fun input : n·f32 => fun alpha : f32 =>
 #pp [RiseC| fun (x: 1024·f32) => fun (alpha : f32) =>
   x |> map (mul alpha)
 ]
+
 

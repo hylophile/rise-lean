@@ -4,6 +4,14 @@ import Rise.Type
 import Lean
 open Lean Elab
 
+@[extern "run_egg_c"]
+opaque runEgg (input : String) : String
+
+
+
+
+-- #eval runEgg "hi"
+-- 
 declare_syntax_cat rise_expr_numlit_suffix
 syntax "int" : rise_expr_numlit_suffix
 syntax "i8"  : rise_expr_numlit_suffix
@@ -167,6 +175,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | .fn blt brt =>
         match blt.unify e.type with
         | some sub =>
+          let x := runEgg "hi"
+          dbg_trace x
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
         | none =>

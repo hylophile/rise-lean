@@ -1,5 +1,6 @@
 import Rise.Main
 
+#eval runEgg "hi"
 
 def main : IO Unit := do
   IO.println ""
