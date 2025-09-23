@@ -1,13 +1,86 @@
 import Rise.Basic
 import Lean
 
+  
+
+open IO
+
+unsafe def runZ3 (input : String) : Except Error String :=
+  unsafeIO do
+    let child ← do
+      let (stdin, child) ← (← IO.Process.spawn {
+        cmd := "z3",
+        args := #["-in"],
+        stdin := .piped,
+        stdout := .piped,
+        stderr := .null
+      }).takeStdin
+
+      stdin.putStrLn input
+      pure child
+    child.stdout.readToEnd
+
+def s := "(set-option :model.v2 true) (declare-const x_44 Int) (assert (= (+ 5 x_44) 7)) (check-sat) (get-model)"
+
+def l : RNat := .plus (.nat 5) (.mvar 55 `x)
+def r : RNat := .nat 7
+
+#eval "(-5)".toNat?
+
+def parseArrowFormat (input : String) : Option Substitution := do
+  let lines := input.splitOn "\n"
+  
+  match lines.head? with
+  | some "sat" => 
+    let assignments := lines.tail?.getD []
+    let mut result := []
+    
+    for line in assignments do
+      let line := (line.splitOn "\"")[1]?.getD "" 
+      let parts := line.splitOn "->"
+      match parts.map (·.trim) with
+      | name :: value ::[] => 
+        match value.toNat? with
+        | some n =>
+          let id : Option RMVarId := (name.splitOn "_")[1]? >>= (·.toNat?)
+          match id with
+          | some id =>
+              result := (id, .nat <| .nat n) :: result
+          | none => none
+        | none => none
+      | _ => continue
+    
+    some result
+  | _ => none
+
+-- #eval parseArrowFormat "sat\nx_55 -> 5\ny_59 -> 8"
+
+unsafe def solveWithZ3 (l r : RNat) : Option Substitution :=
+  let smtlib := RNat.toSMTLib l r
+  match runZ3 smtlib with
+  | .ok s =>  
+    dbg_trace (smtlib,s)
+    parseArrowFormat s
+  | _ => .none
+
+unsafe def s3 (smtlib : String) : Option Substitution :=
+  match runZ3 smtlib with
+  | .ok s =>  
+    parseArrowFormat s
+  | _ => .none
+
+
+-- #eval solveWithZ3 l r
+-- #eval s3 s
+
+
 -- unification algorithm adapted from
 -- https://web.archive.org/web/20250713140859/http://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
 
 -- we could throw errors here instead of just Option
 
 mutual
-partial def unifyOneRNat (s t : RNat) : Option Substitution :=
+unsafe def unifyOneRNat (s t : RNat) : Option Substitution :=
   match s, t with
   | .nat n, .nat m =>
     if n == m then return [] else none
@@ -24,18 +97,22 @@ partial def unifyOneRNat (s t : RNat) : Option Substitution :=
     else
       some [(x, .nat term)]
 
-  | .plus n1 m1, .plus n2 m2 =>
-    unifyRNat [(n1, n2), (m1, m2)]
+  -- | .plus n1 m1, .plus n2 m2 =>
+  --   unifyRNat [(n1, n2), (m1, m2)]
 
-  | .minus n1 m1, .minus n2 m2 =>
-    unifyRNat [(n1, n2), (m1, m2)]
+  -- | .minus n1 m1, .minus n2 m2 =>
+  --   unifyRNat [(n1, n2), (m1, m2)]
 
-  | .mult n1 m1, .mult n2 m2 =>
-    unifyRNat [(n1, n2), (m1, m2)]
+  -- | .mult n1 m1, .mult n2 m2 =>
+  --   unifyRNat [(n1, n2), (m1, m2)]
 
-  | _, _ => none
+  | _, _ => do
+    let x := solveWithZ3 s t --(RNat.toSMTLib s t)
+    x
+    -- dbg_trace x
+    -- none
 
-partial def unifyRNat (equations : List (RNat × RNat)) : Option Substitution :=
+unsafe def unifyRNat (equations : List (RNat × RNat)) : Option Substitution :=
   match equations with
   | [] => some []
   | (x, y) :: rest => do
@@ -50,7 +127,7 @@ end
 -- TODO relate eqsat and unifi
 
 mutual
-partial def unifyOneRData (s t : RData) : Option Substitution :=
+unsafe def unifyOneRData (s t : RData) : Option Substitution :=
   match s, t with
   | .mvar x _, .mvar y _ =>
     if x == y then some [] else some [(x, .data t)]
@@ -86,7 +163,7 @@ partial def unifyOneRData (s t : RData) : Option Substitution :=
 
   | _, _ => none
 
-partial def unifyRData (equations : List (RData × RData)) : Option Substitution :=
+unsafe def unifyRData (equations : List (RData × RData)) : Option Substitution :=
   match equations with
   | [] => some []
   | (x, y) :: t => do
@@ -100,7 +177,7 @@ partial def RData.unify (l r : RData) : Option Substitution :=
   result
 
 mutual
-partial def unifyOneRType (s t : RType) : Option Substitution :=
+unsafe def unifyOneRType (s t : RType) : Option Substitution :=
   match s, t with
   | .data dt1, .data dt2 =>
     unifyRData [(dt1, dt2)]
@@ -116,7 +193,7 @@ partial def unifyOneRType (s t : RType) : Option Substitution :=
 
   | _, _ => none
 
-partial def unifyRType (equations : List (RType × RType)) : Option Substitution :=
+unsafe def unifyRType (equations : List (RType × RType)) : Option Substitution :=
   match equations with
   | [] => some []
   | (x, y) :: rest => do
@@ -127,7 +204,7 @@ partial def unifyRType (equations : List (RType × RType)) : Option Substitution
     headSubst ++ tailSubst
 end
 
-def RType.unify (l r : RType) : Option Substitution :=
+unsafe def RType.unify (l r : RType) : Option Substitution :=
   unifyRType [(l, r)]
 
 -- def Substitution.toString (s : Substitution) : String :=
@@ -137,11 +214,11 @@ def RType.unify (l r : RType) : Option Substitution :=
 -- instance : ToString Substitution where
 --   toString := Substitution.toString
 
-def unify := RType.unify
+unsafe def unify := RType.unify
 
 
 -- technically, the "_, _" case doesn't check for enough. we would want better checking here, but we trust the algorithm.
-private def unifies (l r : RType) : Bool :=
+private unsafe def unifies (l r : RType) : Bool :=
   match l.unify r, r.unify l with
   | some s1, some s2 =>
     -- dbg_trace s1

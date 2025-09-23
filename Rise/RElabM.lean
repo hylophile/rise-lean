@@ -47,7 +47,7 @@ def findMVar? (id : RMVarId) : RElabM <| Option MetaVarDeclaration := do
   let rstate : RState ← get
   return rstate.mvars.find? id
 
-partial def addSubst (subst : Substitution) : RElabM Unit := do
+unsafe def addSubst (subst : Substitution) : RElabM Unit := do
   let unifyResults : Substitution := (← get).unifyResult
   subst.forM (λ x@(mv, se) =>
     match unifyResults.find? (λ (mvv, _) => mvv == mv) with

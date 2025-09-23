@@ -392,7 +392,7 @@ instance : Lean.ToJson TypedRExpr where
 
 def RNat.toSExpr : RNat → String
   | .bvar idx name => s!"(bvar {name}@{idx})"
-  | .mvar id name => s!"(mvar {name}{natToSubscript id})"
+  | .mvar id name => s!"(mvar {name}_{id})"
   | .nat n => s!"{n}"
   | .plus n m => s!"(+ {n.toSExpr} {m.toSExpr})"
   | .minus n m => s!"(- {n.toSExpr} {m.toSExpr})"
@@ -413,3 +413,46 @@ def RType.toSExpr : RType → String
   | .data dt => RData.toSExpr dt
   | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSExpr})"
   | .fn binderType body => s!"(→ {binderType.toSExpr} {body.toSExpr})"
+
+
+-- def RNat.toSMTLib : RNat → String
+--   | .bvar idx name => s!"(bvar {name}@{idx})"
+--   | .mvar id name => s!"(mvar {name}_{id})"
+--   | .nat n => s!"{n}"
+--   | .plus n m => s!"(+ {n.toSExpr} {m.toSExpr})"
+--   | .minus n m => s!"(- {n.toSExpr} {m.toSExpr})"
+--   | .mult n m => s!"(* {n.toSExpr} {m.toSExpr})"
+--   | .pow n m => s!"(^ {n.toSExpr} {m.toSExpr})"
+
+-- -- (declare-const x_54 Int)
+-- -- (assert (= 7 (+ 5 x_54)))
+-- -- (check-sat)
+-- -- (get-model)
+
+namespace RNat
+
+def toSMTTerm : RNat → String
+  | .bvar idx name => s!"{name}_{idx+5000}"
+  | .mvar id name  => s!"{name}_{id}"
+  | .nat n         => s!"{n}"
+  | .plus n m      => s!"(+ {n.toSMTTerm} {m.toSMTTerm})"
+  | .minus n m     => s!"(- {n.toSMTTerm} {m.toSMTTerm})"
+  | .mult n m      => s!"(* {n.toSMTTerm} {m.toSMTTerm})"
+  | .pow n m       => s!"(^ {n.toSMTTerm} {m.toSMTTerm})"
+
+def collectMVars : RNat → List (Nat × String)
+  | .bvar id nm    => [(id+5000, nm.toString)]
+  | .mvar id nm => [(id, nm.toString)]
+  | .nat _      => []
+  | .plus a b
+  | .minus a b
+  | .mult a b
+  | .pow a b    => collectMVars a ++ collectMVars b
+
+def toSMTLib (lhs rhs : RNat) : String :=
+  let mvars := (lhs.collectMVars ++ rhs.collectMVars).eraseDups
+  let decls : String := mvars.map (fun (id,nm) => s!"(declare-const {nm}_{id} Int)") |> String.intercalate "\n"
+  let assertion := s!"(assert (= {lhs.toSMTTerm} {rhs.toSMTTerm}))"
+  s!"(set-option :model.v2 true)\n{decls}\n{assertion}\n(check-sat)\n(get-model)"
+
+end RNat

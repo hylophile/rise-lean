@@ -19,7 +19,7 @@ syntax "import" "core"                                  : rise_decl
 declare_syntax_cat              rise_program
 syntax (rise_decl)* rise_expr : rise_program
 
-partial def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
+unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
   | [] => do
       let expr ← elabToTypedRExpr expr
@@ -48,13 +48,13 @@ partial def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl))
     | s => throwErrorAt s m!"{s}"
     -- | _ => throwUnsupportedSyntax
 
-partial def elabRProgram : Syntax → RElabM Expr
+unsafe def elabRProgram : Syntax → RElabM Expr
   | `(rise_program| $d:rise_decl* $e:rise_expr) => do
     elabRDeclAndRExpr e d.toList
   | s => throwErrorAt s m!"{s}"
     -- | _ => throwUnsupportedSyntax
 
-elab "[Rise|" p:rise_program "]" : term => do
+elab "[Rise|" p:rise_program "]" : term => unsafe do
   let p ← liftMacroM <| expandMacros p
   liftToTermElabM <| elabRProgram p
 
@@ -162,7 +162,8 @@ macro_rules
 
   -- vvv interesting
   -- iterate
-  def iterate : {n m k : nat} → {t : data} → ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
+  def iterate : {n m k : nat} →
+  {t : data} → ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
 
 
 
@@ -186,7 +187,7 @@ macro_rules
   $e:rise_expr
 )
 
-elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
+elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => unsafe do
   let p ← `(rise_program| import core
             $[$ds:rise_decl]* $e:rise_expr)
   let p ← liftMacroM <| expandMacros p
@@ -295,7 +296,10 @@ macro_rules
 -- #pp [RiseC| reduce add 0]
 -- #pp [RiseC| map transpose]
 -- #eval toJson [RiseC| map transpose]
+#pp [RiseC|
+(fun I : f32 → f32 => I) id
 
+]
 
 #pp [RiseC|
 --   // Matrix Matrix muliplication in RISE
@@ -337,19 +341,7 @@ error: Only found errors under all interpretations
 ]
 
 -- from shine/src/test/scala/apps/scal.scala
-/--
-error:
-cannot unify application of 'split (4 * 128 * 128)' to 'input':
-(?m₃₀*((4*128)*128))·?t₃₁ != n@0·f32
----
-error:
-cannot unify application of 'split (4 * 128 * 128)' to 'input':
-(?m₃₀*((4*128)*128))·?t₃₁ != n@0·f32
----
-error: unification failed
--/
-#guard_msgs in
-#eval [RiseC|
+#pp [RiseC|
 fun n : nat => fun input : n·f32 => fun alpha : f32 =>
   input |>
   split (4 * 128 * 128) |>
@@ -363,6 +355,11 @@ fun n : nat => fun input : n·f32 => fun alpha : f32 =>
   join
 ]
 
+#eval [RiseC|
+fun n : nat => fun input : n·f32 => fun alpha : f32 =>
+  input |>
+  split (4 * 128 * 128)
+]
 
 
 #pp [RiseC|
@@ -373,5 +370,3 @@ fun n : nat => fun input : n·f32 => fun alpha : f32 =>
 #pp [RiseC| fun (x: 1024·f32) => fun (alpha : f32) =>
   x |> map (mul alpha)
 ]
-
-

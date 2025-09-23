@@ -36,11 +36,12 @@ extern_lib ffi pkg := do
 
 extern_lib egg_for_lean pkg := do
   pkg.afterBuildCacheAsync do
-    let name      := nameToStaticLib "egg_for_lean"
+    let name      := nameToSharedLib "egg_for_lean"
     let srcPath   := pkg.dir / "Egg" / "Rust" / "target" / "release" / name
     let tgtPath   := pkg.sharedLibDir / name
     let traceFile := pkg.buildDir / "rust" / "egg.trace"
-    let _ ← buildUnlessUpToDate? traceFile (← getTrace) traceFile do
+    -- let _ ← buildUnlessUpToDate? traceFile (← getTrace) traceFile do
+    let _ ← buildAction (← getTrace) traceFile do
       proc {
         cmd := "cargo",
         args := #["rustc", "--release", "--", "-C", "relocation-model=pic"],

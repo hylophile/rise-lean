@@ -5,7 +5,7 @@ import Lean
 open Lean Elab
 
 
-#eval runEgg "hi"
+-- #eval runEgg "hi"
 
 
 
@@ -106,7 +106,7 @@ partial def addImplicits (t: RType) : RElabM RType := do
     addImplicits newB
   | x => return x
 
-partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
+unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| $l:num$[$s:rise_expr_numlit_suffix]?) => do
     match s with
     | .some suffix => match suffix with
@@ -173,8 +173,9 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | .fn blt brt =>
         match blt.unify e.type with
         | some sub =>
-          let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
-          dbg_trace x
+          -- let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
+          -- let x := runEgg RNat.toSMTLib 
+          -- dbg_trace x
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
         | none =>
@@ -275,13 +276,13 @@ instance : ToExpr TypedRExprNode where
   toExpr := TypedRExprNode.toExpr
   toTypeExpr := mkConst ``TypedRExprNode
 
-def elabTypedRExpr (stx : Syntax) : RElabM Expr := do
+unsafe def elabTypedRExpr (stx : Syntax) : RElabM Expr := do
   let rexpr ← elabToTypedRExpr stx
   return toExpr rexpr
 
-elab "[RiseTE|" e:rise_expr "]" : term => do
-  let p ← liftMacroM <| expandMacros e
-  liftToTermElabM <| elabTypedRExpr p
+-- elab "[RiseTE|" e:rise_expr "]" : term => do
+--   let p ← liftMacroM <| expandMacros e
+--   liftToTermElabM <| elabTypedRExpr p
 
 -- #eval IO.println <| toString [RiseTE| fun a : int → int => a 10000].node
 -- #check [RiseTE| fun a : int → int → int => a 10000 2]

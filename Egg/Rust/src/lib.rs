@@ -1,5 +1,6 @@
 use egg::*;
 use std::ffi::{c_char, CStr, CString};
+use z3::*;
 
 define_language! {
     enum RiseType {
@@ -14,7 +15,7 @@ define_language! {
         "~" = Unify([Id; 2]),
         // "int" = Int,
         "mvar" = MVar(Id),
-        Symbol(Symbol),
+        Symbol(egg::Symbol),
     }
 }
 
@@ -99,17 +100,105 @@ fn string_to_c_str(str: String) -> *const c_char {
 pub extern "C" fn run_egg(input: *const c_char) -> *const c_char {
     let input = c_str_to_string(input);
 
-    let u: RecExpr<RiseType> = input.parse().unwrap();
-    let mut eg: EGraph<RiseType, ()> = EGraph::new(());
-    eg.add_expr(&u);
-    let runner = Runner::default().with_egraph(eg).run(&rules());
-    // runner.egraph.dot().to_svg("target/foo.svg").unwrap();
+    // egg
+    // let u: RecExpr<RiseType> = input.parse().unwrap();
+    // let mut eg: EGraph<RiseType, ()> = EGraph::new(());
+    // eg.add_expr(&u);
+    // let runner = Runner::default().with_egraph(eg).run(&rules());
+    // // runner.egraph.dot().to_svg("target/foo.svg").unwrap();
 
-    let res: String = format!("{:?}", runner.egraph.dump());
+    // let res: String = format!("{:?}", runner.egraph.dump());
+    // string_to_c_str(res)
+
     // next steps:
     // - check that the unify eclass only has [x,x] nodes and no [x,y] nodes
     // - find the mvar class(es)
     // - find the "most concrete terms" and generate substitution
     // - stringify substitution, return it, and parse it with lean.
-    string_to_c_str(res)
+
+    // z3
+
+    let input = r#"
+;(set-option :print-success true) 
+;(set-option :unsat_core true) ; enable generation of unsat cores
+;(set-option :produce-models true) ; enable model generation
+(set-option :proof false) ; enable proof generation
+    (declare-const x Int)
+   (assert (= (+ 5 x) 2))
+ ;   (assert (= 2 2))
+    (check-sat)
+    (get-model)
+    (exit)
+"#;
+    let input = r#"
+(set-info :status unknown)
+(declare-fun x () Int)
+(assert
+ (let ((?x8 (+ x 5)))
+(= ?x8 2)))
+(check-sat)
+"#;
+    // let input = "(declare-const x Int) (assert (= x 2))";
+
+    // z3::trace
+    // println!("{}", z3::full_version());
+    // let solver1 = Solver::new();
+    // let t1 = ast::Bool::from_bool(true);
+    // let t2 = ast::Bool::from_bool(true);
+    // solver1.assert(t1.eq(&t2));
+    // solver1.check();
+    // let mut params = Params::new();
+    // params.set_bool("smt.mbqi", false);
+    // params.set_f64("smt.qi.eager_threshold", 5.0);
+    // params.set_u32("smt.qi.max_instances", 999);
+    // params.set_bool("trace", true);
+    // params.set_u32("verbose", 10);
+    // set_global_param("verbose", "1");
+    // set_global_param("trace", "true");
+    // let solver = Solver::new();
+    let solver1 = Solver::new();
+    let x = ast::Int::new_const("x");
+    let t2 = ast::Int::from_i64(2);
+    solver1.assert((&x + 5).eq(&t2));
+    solver1.check();
+    // let solver = Solver::new();
+    // // solver.set_params(&params);
+    // solver.from_string(input);
+    // if solver.check() == SatResult::Sat {
+    //     // solver.check();
+    //     // let m = solver.get_model();
+    //     // dbg!(m);
+
+    //     return string_to_c_str(format!("ok"));
+    //     // return string_to_c_str(format!("{m:?}"));
+    // }
+    string_to_c_str(format!("fail"))
+    // string_to_c_str(format!("ok"))
+}
+
+#[test]
+fn test_solver_new_from_smtlib2() {
+    let problem = r#"
+(declare-const x Int)
+(assert (= (+ 5 x) 2))
+"#;
+    let solver = Solver::new();
+    solver.from_string(problem);
+    assert_eq!(solver.check(), SatResult::Sat);
+    let m = solver.get_model();
+    println!("{}", z3::full_version());
+    assert!(false);
+    dbg!(m);
+}
+
+#[test]
+fn test_solver_to_smtlib2() {
+    let solver1 = Solver::new();
+    let x = ast::Int::new_const("x");
+    let t2 = ast::Int::from_i64(2);
+    solver1.assert((&x + 5).eq(&t2));
+    let s1_smt2 = solver1.to_smt2();
+    let solver2 = Solver::new();
+    solver2.from_string(s1_smt2);
+    assert_eq!(solver2.check(), solver1.check());
 }
