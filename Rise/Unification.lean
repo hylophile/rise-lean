@@ -1,6 +1,8 @@
 import Rise.Basic
 import Lean
+import Regex
 
+open Std.Internal.Parsec
   
 
 open IO
@@ -21,6 +23,8 @@ unsafe def runZ3 (input : String) : Except Error String :=
     child.stdout.readToEnd
 
 def s := "(set-option :model.v2 true) (declare-const x_44 Int) (assert (= (+ 5 x_44) 7)) (check-sat) (get-model)"
+
+#eval runZ3 s
 
 def l : RNat := .plus (.nat 5) (.mvar 55 `x)
 def r : RNat := .nat 7
@@ -55,6 +59,29 @@ def parseArrowFormat (input : String) : Option Substitution := do
 
 -- #eval parseArrowFormat "sat\nx_55 -> 5\ny_59 -> 8"
 
+unsafe def runSygus (input : String) : Except Error (String × String) :=
+  dbg_trace input
+  unsafeIO do
+    let child ← do
+      let (stdin, child) ← (← IO.Process.spawn {
+        cmd := "cvc5",
+        args := #["--lang", "sygus2"],
+        -- args := #["--output-lang", "ast"]
+        stdin := .piped,
+        stdout := .piped,
+        stderr := .piped
+      }).takeStdin
+      stdin.putStrLn input
+      pure child
+    let stdout ← child.stdout.readToEnd
+    let stderr ← child.stderr.readToEnd
+    return (stdout, stderr)
+
+def l1 : RNat := .plus (.nat 5) (.mvar 55 `x)
+def r1 : RNat := .bvar 23 `z
+
+#eval runSygus (RNat.toSygus l1 r1)
+
 unsafe def solveWithZ3 (l r : RNat) : Option Substitution :=
   let smtlib := RNat.toSMTLib l r
   match runZ3 smtlib with
@@ -63,11 +90,46 @@ unsafe def solveWithZ3 (l r : RNat) : Option Substitution :=
     parseArrowFormat s
   | _ => .none
 
+unsafe def solveWithSygus (l r : RNat) : Option Substitution :=
+  let s := RNat.toSygus l r
+  match runSygus s with
+  | .ok s =>
+    parseSygus s
+  | _ => .none
+
+unsafe def solve (l r : RNat) : Option Substitution :=
+  if l.hasBVar || r.hasBVar then
+    solveWithSygus l r
+  else
+    solveWithZ3 l r
+
+
 unsafe def s3 (smtlib : String) : Option Substitution :=
   match runZ3 smtlib with
   | .ok s =>  
     parseArrowFormat s
   | _ => .none
+
+def z := "
+
+
+(
+(define-fun p_3 ((q Real)) Real (- 1))
+(define-fun r_5 ((q Real)) Real (+ 5))
+)  
+"
+
+def parseSygus (s: String) : Option Substitution :=
+  let re := re! r"-fun (\w+) .* Real (.*)\)\n"
+  let matchs := re.captureAll s
+  let names := matchs.filterMap (fun x => (x.get 1) >>= (some ·.toString))
+  let exprs := matchs.filterMap (fun x => (x.get 2) >>= (some ·.toString))
+  
+  dbg_trace names.zip exprs
+  none
+
+#eval parseSygus z
+
 
 
 -- #eval solveWithZ3 l r

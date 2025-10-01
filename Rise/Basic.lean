@@ -431,28 +431,93 @@ def RType.toSExpr : RType → String
 
 namespace RNat
 
-def toSMTTerm : RNat → String
-  | .bvar idx name => s!"{name}_{idx+5000}"
-  | .mvar id name  => s!"{name}_{id}"
+def toSMTTerm : RNat → Option String
+  | .bvar ..       => none
+  | .mvar id name  => some s!"{name}_{id}"
+  | .nat n         => some s!"{n}"
+  | .plus n m      => some s!"(+ {n.toSMTTerm} {m.toSMTTerm})"
+  | .minus n m     => some s!"(- {n.toSMTTerm} {m.toSMTTerm})"
+  | .mult n m      => some s!"(* {n.toSMTTerm} {m.toSMTTerm})"
+  | .pow n m       => some s!"(^ {n.toSMTTerm} {m.toSMTTerm})"
+
+def toSygusTerm (n:RNat) (bvname:String) : String :=
+  match n with
+  | .bvar id name       => s!"{name}.{id}"
+  | .mvar id name  => s!"({name}_{id} {bvname})"
   | .nat n         => s!"{n}"
-  | .plus n m      => s!"(+ {n.toSMTTerm} {m.toSMTTerm})"
-  | .minus n m     => s!"(- {n.toSMTTerm} {m.toSMTTerm})"
-  | .mult n m      => s!"(* {n.toSMTTerm} {m.toSMTTerm})"
-  | .pow n m       => s!"(^ {n.toSMTTerm} {m.toSMTTerm})"
+  | .plus n m      => s!"(+ {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .minus n m     => s!"(- {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .mult n m      => s!"(* {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .pow n m       => s!"(^ {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
 
 def collectMVars : RNat → List (Nat × String)
-  | .bvar id nm    => [(id+5000, nm.toString)]
+  | .bvar ..    => []
   | .mvar id nm => [(id, nm.toString)]
   | .nat _      => []
   | .plus a b
   | .minus a b
   | .mult a b
   | .pow a b    => collectMVars a ++ collectMVars b
+  
+def collectBVars : RNat → List (Nat × String)
+  | .mvar ..    => []
+  | .bvar id nm => [(id, nm.toString)]
+  | .nat _      => []
+  | .plus a b
+  | .minus a b
+  | .mult a b
+  | .pow a b    => collectBVars a ++ collectBVars b
 
 def toSMTLib (lhs rhs : RNat) : String :=
   let mvars := (lhs.collectMVars ++ rhs.collectMVars).eraseDups
   let decls : String := mvars.map (fun (id,nm) => s!"(declare-const {nm}_{id} Int)") |> String.intercalate "\n"
-  let assertion := s!"(assert (= {lhs.toSMTTerm} {rhs.toSMTTerm}))"
+  let assertion := s!"(assert (= {lhs.toSMTTerm.get!} {rhs.toSMTTerm.get!}))"
   s!"(set-option :model.v2 true)\n{decls}\n{assertion}\n(check-sat)\n(get-model)"
 
+def hasBVar : RNat → Bool
+| .bvar ..   => true
+| .mvar ..   => false
+| .nat ..    => false
+| .plus n m  
+| .minus n m 
+| .mult n m  
+| .pow n m   => hasBVar n || hasBVar m
+
+def toSygus (lhs rhs : RNat) : String :=
+  let mvars := (lhs.collectMVars ++ rhs.collectMVars).eraseDups
+  let bvars := (lhs.collectBVars ++ rhs.collectBVars).eraseDups
+  let bvarnames := bvars.map (fun (id,nm) => s!"{nm}.{id}")
+  let bvardecls : String := bvarnames.map (s!"(declare-var {·} Real)")
+    |> String.intercalate "\n"
+  let bvarargs := bvarnames.map (s!"({·} Real)")
+    |> String.intercalate " "
+  let natconstraints := ";todo"
+  let mvarfuns : String := mvars.map (fun (id,nm) => s!"(synth-fun {nm}_{id} ({bvarargs}) Real)")
+    |> String.intercalate "\n"
+  let n := bvarnames[0]!
+  let constraint := s!"(constraint (= {lhs.toSygusTerm n} {rhs.toSygusTerm n}))"
+  s!"
+    (set-logic NRA)
+    {mvarfuns}
+    {bvardecls}
+    {natconstraints}
+    {constraint}
+    (check-synth)
+  "
+
+
+
+
 end RNat
+
+namespace Ex
+
+ 
+def l : RNat := .plus (.nat 5) (.mvar 55 `x)
+-- def l : RNat := .plus (.nat 5) (.mvar 55 `x)
+def r : RNat := .bvar 23 `y
+
+#eval IO.print $ RNat.toSygus l r
+
+
+end Ex

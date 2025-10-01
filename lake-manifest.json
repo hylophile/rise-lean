@@ -1,5 +1,15 @@
 {"version": "1.1.0",
  "packagesDir": ".lake/packages",
- "packages": [],
- "name": "«rise-lean»",
+ "packages":
+ [{"url": "https://github.com/pandaman64/lean-regex.git",
+   "type": "git",
+   "subDir": "regex",
+   "scope": "",
+   "rev": "28454366bfc58adba6f80f1c19e196edeefa3c0e",
+   "name": "Regex",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "v4.23.0",
+   "inherited": false,
+   "configFile": "lakefile.toml"}],
+ "name": "rise_lean",
  "lakeDir": ".lake"}

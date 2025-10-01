@@ -1,6 +1,8 @@
 import Lake
 open Lake DSL
 
+require Regex from git "https://github.com/pandaman64/lean-regex.git" @ "v4.23.0" / "regex"
+
 package rise_lean where
   -- srcDir := "Rise"
   -- See https://github.com/leanprover/lean4/tree/master/src/lake#github-release-builds
