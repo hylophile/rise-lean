@@ -301,6 +301,13 @@ macro_rules
 
 ]
 
+
+#pp [RiseC|
+  def x:4·f32
+
+  fun n : nat => take n x
+]
+
 #pp [RiseC|
 --   // Matrix Matrix muliplication in RISE
 --   val dot = fun(as, fun(bs,

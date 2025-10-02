@@ -103,6 +103,9 @@ instance : ToExpr RNat where
     | .mult n m =>
       let f := mkConst ``RNat.mult
       mkAppN f #[go n, go m]
+    | .div n m =>
+      let f := mkConst ``RNat.div
+      mkAppN f #[go n, go m]
     | .pow n m =>
       let f := mkConst ``RNat.pow
       mkAppN f #[go n, go m]
@@ -466,6 +469,7 @@ def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
   | .plus p q => .plus (p.bvar2mvar n m) (q.bvar2mvar n m)
   | .minus p q => .minus (p.bvar2mvar n m) (q.bvar2mvar n m)
   | .mult p q => .mult (p.bvar2mvar n m) (q.bvar2mvar n m)
+  | .div p q => .div (p.bvar2mvar n m) (q.bvar2mvar n m)
   | .pow p q => .pow (p.bvar2mvar n m) (q.bvar2mvar n m)
 
 def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
@@ -492,6 +496,7 @@ def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
   | .plus p q => .plus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
   | .minus p q => .minus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
   | .mult p q => .mult (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
+  | .div p q => .div (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
   | .pow p q => .pow (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
 
 def RData.rnatbvar2rnat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=

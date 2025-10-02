@@ -24,6 +24,7 @@ inductive RNat
   | plus (n : RNat) (m : RNat)
   | minus (n : RNat) (m : RNat)
   | mult (n : RNat) (m : RNat)
+  | div (n : RNat) (m : RNat)
   | pow (n : RNat) (m : RNat)
 deriving Repr, BEq, DecidableEq
 
@@ -144,6 +145,7 @@ def RNat.substNat (t : RNat) (x : RMVarId) (s : RNat) : RNat :=
     | .plus n m => .plus (n.substNat x s) (m.substNat x s)
     | .minus n m => .minus (n.substNat x s) (m.substNat x s)
     | .mult n m => .mult (n.substNat x s) (m.substNat x s)
+    | .div n m => .div (n.substNat x s) (m.substNat x s)
     | .pow n m => .pow (n.substNat x s) (m.substNat x s)
 
 def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
@@ -196,6 +198,7 @@ def RNat.has (v : RMVarId) : RNat → Bool
   | .plus n m => n.has v || m.has v
   | .minus n m => n.has v || m.has v
   | .mult n m => n.has v || m.has v
+  | .div n m => n.has v || m.has v
   | .pow n m => n.has v || m.has v
 
 def RData.has (v : RMVarId) : RData → Bool
@@ -258,6 +261,7 @@ instance : ToString RNat where
       | .plus n m => s!"({go n}+{go m})"
       | .minus n m => s!"({go n}-{go m})"
       | .mult n m => s!"({go n}*{go m})"
+      | .div n m => s!"({go n}/{go m})"
       | .pow n m => s!"({go n}^{go m})"
     go
 
@@ -397,6 +401,7 @@ def RNat.toSExpr : RNat → String
   | .plus n m => s!"(+ {n.toSExpr} {m.toSExpr})"
   | .minus n m => s!"(- {n.toSExpr} {m.toSExpr})"
   | .mult n m => s!"(* {n.toSExpr} {m.toSExpr})"
+  | .div n m => s!"(/ {n.toSExpr} {m.toSExpr})"
   | .pow n m => s!"(^ {n.toSExpr} {m.toSExpr})"
 
 def RData.toSExpr : RData → String
@@ -438,16 +443,18 @@ def toSMTTerm : RNat → Option String
   | .plus n m      => some s!"(+ {n.toSMTTerm} {m.toSMTTerm})"
   | .minus n m     => some s!"(- {n.toSMTTerm} {m.toSMTTerm})"
   | .mult n m      => some s!"(* {n.toSMTTerm} {m.toSMTTerm})"
+  | .div n m      => some s!"(/ {n.toSMTTerm} {m.toSMTTerm})"
   | .pow n m       => some s!"(^ {n.toSMTTerm} {m.toSMTTerm})"
 
 def toSygusTerm (n:RNat) (bvname:String) : String :=
   match n with
   | .bvar id name       => s!"{name}.{id}"
-  | .mvar id name  => s!"({name}_{id} {bvname})"
+  | .mvar id name  => s!"({name}?{id} {bvname})"
   | .nat n         => s!"{n}"
   | .plus n m      => s!"(+ {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
   | .minus n m     => s!"(- {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
   | .mult n m      => s!"(* {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .div n m      => s!"(* {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
   | .pow n m       => s!"(^ {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
 
 def collectMVars : RNat → List (Nat × String)
@@ -457,6 +464,7 @@ def collectMVars : RNat → List (Nat × String)
   | .plus a b
   | .minus a b
   | .mult a b
+  | .div a b
   | .pow a b    => collectMVars a ++ collectMVars b
   
 def collectBVars : RNat → List (Nat × String)
@@ -466,6 +474,7 @@ def collectBVars : RNat → List (Nat × String)
   | .plus a b
   | .minus a b
   | .mult a b
+  | .div a b
   | .pow a b    => collectBVars a ++ collectBVars b
 
 def toSMTLib (lhs rhs : RNat) : String :=
@@ -481,6 +490,7 @@ def hasBVar : RNat → Bool
 | .plus n m  
 | .minus n m 
 | .mult n m  
+| .div n m  
 | .pow n m   => hasBVar n || hasBVar m
 
 def toSygus (lhs rhs : RNat) : String :=
@@ -492,7 +502,7 @@ def toSygus (lhs rhs : RNat) : String :=
   let bvarargs := bvarnames.map (s!"({·} Real)")
     |> String.intercalate " "
   let natconstraints := ";todo"
-  let mvarfuns : String := mvars.map (fun (id,nm) => s!"(synth-fun {nm}_{id} ({bvarargs}) Real)")
+  let mvarfuns : String := mvars.map (fun (id,nm) => s!"(synth-fun {nm}?{id} ({bvarargs}) Real)")
     |> String.intercalate "\n"
   let n := bvarnames[0]!
   let constraint := s!"(constraint (= {lhs.toSygusTerm n} {rhs.toSygusTerm n}))"
