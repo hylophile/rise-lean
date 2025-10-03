@@ -54,13 +54,13 @@ unsafe def addSubst (subst : Substitution) : RElabM Unit := do
     | some (_, see) => match se, see with
       | .data dt1, .data dt2 =>
         match unifyOneRData dt1 dt2 with
-        | some s => do
+        | .ok s => do
           -- dbg_trace ("!!!adding\n", toString s, "\n",dt1, dt2,"\n\n")
           -- dbg_trace ("because", x,"\n\n!!")
           -- let x ← addSubst s
           addSubst s
           -- modify (λ r => {r with unifyResult := x }) --s ++ r.unifyResult})
-        | none => throwError "unify error while addSubst"
+        | .error x => throwError "unify error while addSubst ({x})"
       | _,_ => throwError "handle nats!"
     | none => modify (λ r => {r with unifyResult := x :: r.unifyResult})
   )

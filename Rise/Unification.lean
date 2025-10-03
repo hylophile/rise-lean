@@ -7,23 +7,24 @@ import Lean
 
 -- we could throw errors here instead of just Option
 
+
 mutual
-unsafe def unifyOneRNat (s t : RNat) : Option Substitution :=
+unsafe def unifyOneRNat (s t : RNat) : UnificationResult :=
   match s, t with
   | .nat n, .nat m =>
-    if n == m then return [] else none
+    if n == m then return [] else .error <| .structural (.nat s) (.nat t)
 
   | .bvar x _, .bvar y _ =>
-    if x == y then some [] else none
+    if x == y then .ok [] else .error <| .structural (.nat s) (.nat t)
 
   | .mvar x _, .mvar y _ =>
-    if x == y then some [] else some [(x, .nat t)]
+    if x == y then .ok [] else .ok [(x, .nat t)]
 
   | .mvar x _, term | term, .mvar x _ =>
     if term.has x then
-      none
+      .error <| .structural (.nat s) (.nat t)
     else
-      some [(x, .nat term)]
+      .ok [(x, .nat term)]
 
   -- | .plus n1 m1, .plus n2 m2 =>
   --   unifyRNat [(n1, n2), (m1, m2)]
@@ -38,41 +39,39 @@ unsafe def unifyOneRNat (s t : RNat) : Option Substitution :=
     let x := solve s t --(RNat.toSMTLib s t)
     x
     -- dbg_trace x
-    -- none
+    -- .error <| .structural (.nat s) (.nat t)
 
-unsafe def unifyRNat (equations : List (RNat × RNat)) : Option Substitution :=
+unsafe def unifyRNat (equations : List (RNat × RNat)) : UnificationResult :=
   match equations with
-  | [] => some []
+  | [] => .ok []
   | (x, y) :: rest => do
     let tailSubst <- unifyRNat rest
-    let x' <- x.apply tailSubst
-    let y' <- y.apply tailSubst
+    let x' := x.apply tailSubst
+    let y' := y.apply tailSubst
     let headSubst <- unifyOneRNat x' y'
-    headSubst ++ tailSubst
+    .ok <| headSubst ++ tailSubst
 end
 
 -- TODO think about corresponding structural rules
 -- TODO relate eqsat and unifi
 
 mutual
-unsafe def unifyOneRData (s t : RData) : Option Substitution :=
+unsafe def unifyOneRData (s t : RData) : UnificationResult :=
   match s, t with
   | .mvar x _, .mvar y _ =>
-    if x == y then some [] else some [(x, .data t)]
+    if x == y then .ok [] else .ok [(x, .data t)]
 
   | .mvar x _, term | term, .mvar x _ =>
     if term.has x then
-      none
+      .error <| .structural (.data s) (.data t)
     else
-      some [(x, .data term)]
+      .ok [(x, .data term)]
 
   | .bvar n1 _, .bvar n2 _ =>
-    if n1 == n2 then some [] else none
+    if n1 == n2 then .ok [] else .error <| .structural (.data s) (.data t)
 
   | .array k1 d1, .array k2 d2 =>
-    match unifyRNat [(k1, k2)], unifyRData [(d1, d2)] with
-    | some s1, some s2 => s1 ++ s2
-    | _, _ => none
+    (unifyRNat [(k1, k2)])  |>.merge (unifyRData [(d1, d2)])
 
   | .pair l1 r1, .pair l2 r2 =>
     unifyRData [(l1, l2), (r1, r2)]
@@ -80,32 +79,30 @@ unsafe def unifyOneRData (s t : RData) : Option Substitution :=
   | .index k1, .index k2 =>
     unifyOneRNat k1 k2
 
-  | .scalar x, .scalar y => if x == y then some [] else none
+  | .scalar x, .scalar y => if x == y then .ok [] else .error <| .structural (.data s) (.data t)
 
-  | .natType, .natType => some []
+  | .natType, .natType => .ok []
 
   | .vector k1 d1, .vector k2 d2 =>
-    match unifyRNat [(k1, k2)], unifyRData [(d1, d2)] with
-    | some s1, some s2 => s1 ++ s2
-    | _, _ => none
+    (unifyRNat [(k1, k2)])  |>.merge (unifyRData [(d1, d2)])
 
-  | _, _ => none
+  | _, _ => .error <| .structural (.data s) (.data t)
 
-unsafe def unifyRData (equations : List (RData × RData)) : Option Substitution :=
+unsafe def unifyRData (equations : List (RData × RData)) : UnificationResult :=
   match equations with
-  | [] => some []
+  | [] => .ok []
   | (x, y) :: t => do
     let t2 <- unifyRData t
     let t1 <- unifyOneRData (x.apply t2) (y.apply t2)
-    t1 ++ t2
+    .ok <| t1 ++ t2
 end
 
-partial def RData.unify (l r : RData) : Option Substitution :=
+partial def RData.unify (l r : RData) : UnificationResult :=
   let result := unify l r
   result
 
 mutual
-unsafe def unifyOneRType (s t : RType) : Option Substitution :=
+unsafe def unifyOneRType (s t : RType) : UnificationResult :=
   match s, t with
   | .data dt1, .data dt2 =>
     unifyRData [(dt1, dt2)]
@@ -114,25 +111,25 @@ unsafe def unifyOneRType (s t : RType) : Option Substitution :=
     if bk1 == bk2 && pc1 == pc2 && un1 == un2 then
       unifyRType [(body1, body2)]
     else
-      none
+      .error <| .structuralType s t
 
   | .fn binderType1 body1, .fn binderType2 body2 =>
     unifyRType [(binderType1, binderType2), (body1, body2)]
 
-  | _, _ => none
+  | _, _ => .error <| .structuralType s t
 
-unsafe def unifyRType (equations : List (RType × RType)) : Option Substitution :=
+unsafe def unifyRType (equations : List (RType × RType)) : UnificationResult :=
   match equations with
-  | [] => some []
+  | [] => .ok []
   | (x, y) :: rest => do
     let tailSubst <- unifyRType rest
-    let x' <- x.apply tailSubst
-    let y' <- y.apply tailSubst
+    let x' := x.apply tailSubst
+    let y' := y.apply tailSubst
     let headSubst <- unifyOneRType x' y'
-    headSubst ++ tailSubst
+    .ok <| headSubst ++ tailSubst
 end
 
-unsafe def RType.unify (l r : RType) : Option Substitution :=
+unsafe def RType.unify (l r : RType) : UnificationResult :=
   unifyRType [(l, r)]
 
 -- def Substitution.toString (s : Substitution) : String :=
@@ -148,7 +145,7 @@ unsafe def unify := RType.unify
 -- technically, the "_, _" case doesn't check for enough. we would want better checking here, but we trust the algorithm.
 private unsafe def unifies (l r : RType) : Bool :=
   match l.unify r, r.unify l with
-  | some s1, some s2 =>
+  | .ok s1, .ok s2 =>
     -- dbg_trace s1
     -- dbg_trace s2
     -- dbg_trace (l.apply s1, r.apply s1)
@@ -170,7 +167,7 @@ private unsafe def unifies (l r : RType) : Bool :=
 -- elab "[RTw" mvars:ident* "|" t:rise_type "]" : term => do
 --   let l ← Lean.Elab.liftMacroM <| Lean.expandMacros t
 --   let mvars ← mvars.toList.mapM (fun var => do
---     return {userName := var.getId, kind := RKind.data, type:= none}
+--     return {userName := var.getId, kind := RKind.data, type:= .error <| .structural (.nat s) (.nat t)}
 --   )
 --   -- let mvars : List ((Lean.Name × RKind × Option RType) × Nat) := mvars.zipIdx
 --   let mvars : Lean.PersistentHashMap RMVarId MetaVarDeclaration :=

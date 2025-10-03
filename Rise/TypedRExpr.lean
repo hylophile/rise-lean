@@ -172,15 +172,15 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       match f.type with
       | .fn blt brt =>
         match blt.unify e.type with
-        | some sub =>
+        | .ok sub =>
           -- let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
           -- let x := runEgg RNat.toSMTLib 
           -- dbg_trace x
           addSubst sub
           return ⟨.app f e, brt.apply sub⟩
-        | none =>
-          logErrorAt f_syn s!"\ncannot unify application of '{syn2str f_syn}' to '{syn2str e_syn}':\n{blt} != {e.type}"
-          logErrorAt e_syn s!"\ncannot unify application of '{syn2str f_syn}' to '{syn2str e_syn}':\n{blt} != {e.type}"
+        | .error x =>
+          logErrorAt f_syn s!"\ncannot unify application of '{syn2str f_syn}' to '{syn2str e_syn}':\n{blt} != {e.type}\n{x}"
+          -- logErrorAt e_syn s!"\ncannot unify application of '{syn2str f_syn}' to '{syn2str e_syn}':\n{blt} != {e.type}"
           throwError "unification failed"
       | _ => throwErrorAt f_syn s!"expected a function type for '{syn2str f_syn}', but found: {toString f.type}"
 

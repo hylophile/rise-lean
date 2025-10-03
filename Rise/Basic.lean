@@ -131,7 +131,7 @@ abbrev RBVarId := Nat
 inductive SubstEnum
   | data (rdata : RData)
   | nat (rnat : RNat)
-deriving BEq
+deriving BEq, Repr
 
 abbrev Substitution := List (RMVarId × SubstEnum)
 
@@ -393,6 +393,39 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
 
 instance : Lean.ToJson TypedRExpr where
   toJson e := e.toJson
+
+
+inductive UnificationError
+  | structural (l r : SubstEnum)
+  | structuralType (l r : RType)
+  | unsolved (msg : String)
+deriving Repr, BEq
+
+def UnificationResult := Except UnificationError Substitution
+
+
+
+instance : ToString UnificationError where
+  toString x := match x with
+  | .structural l r => s!"structural: {l} != {r}"
+  | .structuralType l r => s!"structural: {l} != {r}"
+  | .unsolved s => s!"solver: {s}"
+
+instance : ToString UnificationResult where
+  toString x := match x with
+  | .ok s => s!"{s}"
+  | .error s => s!"{s}"
+
+instance : Repr UnificationResult where
+  reprPrec x _ :=
+    match x with
+    | .ok a    => s!".ok {a}"
+    | .error e => s!".error {repr e}"
+
+def UnificationResult.merge : UnificationResult → UnificationResult → UnificationResult
+  | .ok l, .ok r => .ok <| l ++ r
+  | .error e, .ok _ | .ok _, .error e => .error e
+  | .error e1, .error e2 => .error <| .unsolved s!"{e1}; {e2}"
 
 def RNat.toSExpr : RNat → String
   | .bvar idx name => s!"(bvar {name}@{idx})"
