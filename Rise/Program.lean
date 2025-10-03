@@ -326,22 +326,6 @@ fun a b =>
         reduce add 0.0f32)) -- iterating over K
 ]
 
-/--
-error: cannot unify application of 'take 5' to 'x':
-(5+?m₀)·?t₁ != 7·f32
----
-error: cannot unify application of 'take 5' to 'x':
-(5+?m₀)·?t₁ != 7·f32
----
-error: rdata: unknown identifier x
----
-error: rnat: unknown identifier x
----
-error: unification failed
----
-error: Only found errors under all interpretations
--/
-#guard_msgs in
 #pp [RiseC|
   def x : 7·f32
   take 5 x

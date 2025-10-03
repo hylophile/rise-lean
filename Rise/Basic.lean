@@ -469,15 +469,17 @@ def RType.toSExpr : RType → String
 
 namespace RNat
 
+
+-- TODO: the .get! calls are sad.
 def toSMTTerm : RNat → Option String
   | .bvar ..       => none
   | .mvar id name  => some s!"{name}_{id}"
   | .nat n         => some s!"{n}"
-  | .plus n m      => some s!"(+ {n.toSMTTerm} {m.toSMTTerm})"
-  | .minus n m     => some s!"(- {n.toSMTTerm} {m.toSMTTerm})"
-  | .mult n m      => some s!"(* {n.toSMTTerm} {m.toSMTTerm})"
-  | .div n m      => some s!"(/ {n.toSMTTerm} {m.toSMTTerm})"
-  | .pow n m       => some s!"(^ {n.toSMTTerm} {m.toSMTTerm})"
+  | .plus n m      => some s!"(+ {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .minus n m     => some s!"(- {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .mult n m      => some s!"(* {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .div n m      => some s!"(/ {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .pow n m       => some s!"(^ {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
 
 def toSygusTerm (n:RNat) (bvname:String) : String :=
   match n with

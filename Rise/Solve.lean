@@ -135,8 +135,10 @@ private unsafe def solveWithZ3 (l r : RNat) : UnificationResult :=
   let smtlib := RNat.toSMTLib l r
   match runZ3 smtlib with
   | .ok (s,_e) =>  
-    -- dbg_trace (smtlib,s)
-    parseArrowFormat s
+    match parseArrowFormat s with
+    | .ok x => .ok x
+    | e => let x : UnificationResult := .error <| .unsolved smtlib
+        x.merge e
   | _ => .error <| .unsolved "z3"
 
 private unsafe def solveWithSygus (l r : RNat) : UnificationResult :=
