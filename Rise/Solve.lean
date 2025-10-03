@@ -43,7 +43,7 @@ private def s := "
 (set-option :model.v2 true) (declare-const x_44 Int) (assert (= (+ 5 x_44) 7)) (check-sat) (get-model)
 "
 
-#eval runZ3 s
+-- #eval runZ3 s
 
 -- private def l : RNat := .plus (.nat 5) (.mvar 55 `x)
 -- private def r : RNat := .nat 7
@@ -81,7 +81,7 @@ private def parseArrowFormat (input : String) : UnificationResult := do
 private def l1 : RNat := .plus (.nat 5) (.mvar 55 `x)
 private def r1 : RNat := .bvar 23 `z
 
-#eval runSygus (RNat.toSygus l1 r1)
+-- #eval runSygus (RNat.toSygus l1 r1)
 
 -- private unsafe def s3 (smtlib : String) : UnificationResult :=
 --   match runZ3 smtlib with
@@ -122,7 +122,7 @@ private def parseSygus (s: String) : UnificationResult :=
       | .ok id, .ok e => some (id, .nat e)
       | _, _ => none
         
-#eval parseSygus z
+-- #eval parseSygus z
 
 
 

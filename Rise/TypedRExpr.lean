@@ -139,8 +139,8 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let gtctx ← getGTCtx
     -- todo: use findLocal? and findConst? here
     match ltctx.reverse.zipIdx.find? (λ ((name, _t), _id) => name == i.getId) with
-      | some ((_name, t), index) =>
-        return ⟨.bvar index, t⟩
+      | some ((name, t), index) =>
+        return ⟨.bvar index name, t⟩
       | none => match gtctx.reverse.zipIdx.find? (λ ((name, _t), _id) => name == i.getId) with
         | some ((_name, t), _index) =>
           return ⟨.const i.getId, t⟩
@@ -250,8 +250,8 @@ partial
 def TypedRExprNode.toExpr : TypedRExprNode → Expr
     | .lit n =>
         mkAppN (mkConst ``TypedRExprNode.lit) #[toExpr n]
-    | .bvar index =>
-        mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index]
+    | .bvar index name =>
+        mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index, toExpr name]
     | .fvar name =>
         mkAppN (mkConst ``TypedRExprNode.fvar) #[toExpr name]
     | .mvar name =>

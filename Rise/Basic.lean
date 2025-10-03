@@ -75,11 +75,6 @@ inductive RType where
 deriving Repr, BEq
 
 
-def typeOfKind : RKind -> Type
-  | .nat => RNat
-  | .data => RData
-  | .type => RType
-
 inductive RWrapper
   | nat (v: RNat)
   | data (v: RData)
@@ -99,7 +94,7 @@ structure TypedRExpr where
 deriving Repr, BEq
 
 inductive TypedRExprNode where
-  | bvar (deBruijnIndex : Nat)
+  | bvar (deBruijnIndex : Nat) (userName: Lean.Name)
   | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
   | mvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
   | const (userName : Lean.Name)
@@ -336,7 +331,7 @@ def RWrapper.render : RWrapper -> Std.Format
   | .type v => toString v ++ " : type"
 
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
-  | .bvar id      => f!"@{id}"
+  | .bvar id n    => f!"{n}@{id}"
   | .mvar id      => f!"?{id}"
   | .fvar s       => s.toString
   | .const s      => s.toString
@@ -351,7 +346,7 @@ partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
 
 partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
-  | .bvar id      => f!"@{id}"
+  | .bvar id n    => f!"{n}@{id}"
   | .mvar id      => f!"?{id}"
   | .fvar s       => s.toString
   | .const s      => s.toString
@@ -562,7 +557,7 @@ def l : RNat := .plus (.nat 5) (.mvar 55 `x)
 -- def l : RNat := .plus (.nat 5) (.mvar 55 `x)
 def r : RNat := .bvar 23 `y
 
-#eval IO.print $ RNat.toSygus l r
+-- #eval IO.print $ RNat.toSygus l r
 
 
 end Ex
