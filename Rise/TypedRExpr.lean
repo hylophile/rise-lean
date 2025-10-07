@@ -2,11 +2,63 @@ import Rise.Basic
 import Rise.RElabM
 import Rise.Type
 import Lean
-open Lean Elab
+open Lean Elab Meta
 
 
 -- #eval runEgg "hi"
 
+
+
+instance : ToExpr RLit where
+  toExpr
+    | .bool b => mkAppN (mkConst ``RLit.bool) #[toExpr b]
+    | .int i => mkAppN (mkConst ``RLit.int) #[toExpr i]
+    | .float f => mkAppN (mkConst ``RLit.float) #[toExpr f]
+  toTypeExpr := mkConst ``RLit
+
+instance : ToExpr RWrapper where
+  toExpr
+    | .nat b => mkAppN (mkConst ``RWrapper.nat) #[toExpr b]
+    | .data i => mkAppN (mkConst ``RWrapper.data) #[toExpr i]
+    | .type f => mkAppN (mkConst ``RWrapper.type) #[toExpr f]
+  toTypeExpr := mkConst ``RWrapper
+
+mutual
+partial
+def TypedRExpr.toExpr (e : TypedRExpr) : Expr  :=
+    let nodeExpr := e.node.toExpr
+    let typeExpr := ToExpr.toExpr e.type
+    mkAppN (mkConst ``TypedRExpr.mk) #[nodeExpr, typeExpr]
+
+partial
+def TypedRExprNode.toExpr : TypedRExprNode → Expr
+    | .lit n =>
+        mkAppN (mkConst ``TypedRExprNode.lit) #[toExpr n]
+    | .bvar index name =>
+        mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index, toExpr name]
+    | .fvar name =>
+        mkAppN (mkConst ``TypedRExprNode.fvar) #[toExpr name]
+    | .mvar name =>
+        mkAppN (mkConst ``TypedRExprNode.mvar) #[toExpr name]
+    | .const name =>
+        mkAppN (mkConst ``TypedRExprNode.const) #[toExpr name]
+    | .lam name t body =>
+        mkAppN (mkConst ``TypedRExprNode.lam) #[toExpr name, toExpr t, body.toExpr]
+    | .deplam name kind body =>
+        mkAppN (mkConst ``TypedRExprNode.deplam) #[toExpr name, toExpr kind, body.toExpr]
+    | .app e1 e2 =>
+        mkAppN (mkConst ``TypedRExprNode.app) #[e1.toExpr, e2.toExpr]
+    | .depapp e1 e2 =>
+        mkAppN (mkConst ``TypedRExprNode.depapp) #[e1.toExpr, toExpr e2]
+end
+
+instance : ToExpr TypedRExpr where
+  toExpr := TypedRExpr.toExpr
+  toTypeExpr := mkConst ``TypedRExpr
+
+instance : ToExpr TypedRExprNode where
+  toExpr := TypedRExprNode.toExpr
+  toTypeExpr := mkConst ``TypedRExprNode
 
 
 -- 
@@ -222,72 +274,41 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         ) 
         throwErrorAt stx "Only found errors under all interpretations"
       | _ => throwError "Multiple interpretations possible. Haven't seen this case yet though"
+    | .node _ `rise_expr.pseudo.antiquot xs
+    | .node _ `rise_decl.pseudo.antiquot xs =>
+      match xs[2]? with
+      | some x => match x with
+        | `($x:ident) => do
+          let env ← getEnv
+          let name ← resolveGlobalConstNoOverload x
+          let some decl := env.find? name
+            | throwError "definition {name} not found"
+          match decl.value? with
+          | some v =>
+            let v ← evalExpr TypedRExpr (mkConst ``TypedRExpr) v
+            return v
+          | none => throwError "?!?"
+        | _=> throwError "???"
+      | none => throwError "!!!"
     | stx =>
       throwErrorAt stx s!"unexpected rise expr syntax:\n{stx}"
-
-instance : ToExpr RLit where
-  toExpr
-    | .bool b => mkAppN (mkConst ``RLit.bool) #[toExpr b]
-    | .int i => mkAppN (mkConst ``RLit.int) #[toExpr i]
-    | .float f => mkAppN (mkConst ``RLit.float) #[toExpr f]
-  toTypeExpr := mkConst ``RLit
-
-instance : ToExpr RWrapper where
-  toExpr
-    | .nat b => mkAppN (mkConst ``RWrapper.nat) #[toExpr b]
-    | .data i => mkAppN (mkConst ``RWrapper.data) #[toExpr i]
-    | .type f => mkAppN (mkConst ``RWrapper.type) #[toExpr f]
-  toTypeExpr := mkConst ``RWrapper
-
-mutual
-partial
-def TypedRExpr.toExpr (e : TypedRExpr) : Expr  :=
-    let nodeExpr := e.node.toExpr
-    let typeExpr := ToExpr.toExpr e.type
-    mkAppN (mkConst ``TypedRExpr.mk) #[nodeExpr, typeExpr]
-
-partial
-def TypedRExprNode.toExpr : TypedRExprNode → Expr
-    | .lit n =>
-        mkAppN (mkConst ``TypedRExprNode.lit) #[toExpr n]
-    | .bvar index name =>
-        mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index, toExpr name]
-    | .fvar name =>
-        mkAppN (mkConst ``TypedRExprNode.fvar) #[toExpr name]
-    | .mvar name =>
-        mkAppN (mkConst ``TypedRExprNode.mvar) #[toExpr name]
-    | .const name =>
-        mkAppN (mkConst ``TypedRExprNode.const) #[toExpr name]
-    | .lam name t body =>
-        mkAppN (mkConst ``TypedRExprNode.lam) #[toExpr name, toExpr t, body.toExpr]
-    | .deplam name kind body =>
-        mkAppN (mkConst ``TypedRExprNode.deplam) #[toExpr name, toExpr kind, body.toExpr]
-    | .app e1 e2 =>
-        mkAppN (mkConst ``TypedRExprNode.app) #[e1.toExpr, e2.toExpr]
-    | .depapp e1 e2 =>
-        mkAppN (mkConst ``TypedRExprNode.depapp) #[e1.toExpr, toExpr e2]
-end
-
-instance : ToExpr TypedRExpr where
-  toExpr := TypedRExpr.toExpr
-  toTypeExpr := mkConst ``TypedRExpr
-
-instance : ToExpr TypedRExprNode where
-  toExpr := TypedRExprNode.toExpr
-  toTypeExpr := mkConst ``TypedRExprNode
 
 unsafe def elabTypedRExpr (stx : Syntax) : RElabM Expr := do
   let rexpr ← elabToTypedRExpr stx
   return toExpr rexpr
 
--- elab "[RiseTE|" e:rise_expr "]" : term => do
---   let p ← liftMacroM <| expandMacros e
---   liftToTermElabM <| elabTypedRExpr p
+elab "[RiseTE|" e:rise_expr "]" : term => unsafe do
+  let p ← liftMacroM <| expandMacros e
+  liftToTermElabM <| elabTypedRExpr p
 
 -- #eval IO.println <| toString [RiseTE| fun a : int → int => a 10000].node
 -- #check [RiseTE| fun a : int → int → int => a 10000 2]
 -- #check [RiseTE| 3]
--- #check [RiseTE| 3]
+--
+def abc := [RiseTE| 3]
+
+#eval [RiseTE| fun x => $abc]
+
 -- #check [RiseTE| 3u32]
 -- #check [RiseTE| 3.0f32]
 -- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 3.0f32]

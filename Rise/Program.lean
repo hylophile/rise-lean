@@ -331,8 +331,17 @@ fun a b =>
   take 5 x
 ]
 
+def x : TypedRExpr := [RiseC| split 128]
+#pp [RiseC| fun n : nat => $x]
+-- TODO: can remove @1 stuff (in types and exprs)
+-- ~/tub/masters/shine/src/main/scala/apps/mm,gemmTensor,*,(run tvmgemm)
+-- eqsat in nums and/or structural
+-- definition inlining
+
+
 -- from shine/src/test/scala/apps/scal.scala
 #pp [RiseC|
+
 fun n : nat => fun input : n·f32 => fun alpha : f32 =>
   input |>
   split (4 * 128 * 128) |>
@@ -346,8 +355,8 @@ fun n : nat => fun input : n·f32 => fun alpha : f32 =>
   join
 ]
 
-#eval [RiseC|
-fun n : nat => fun input : n·f32 => fun alpha : f32 =>
+#pp [RiseC|
+fun n : nat => fun input : n·f32 =>
   input |>
   split (4 * 128 * 128)
 ]
