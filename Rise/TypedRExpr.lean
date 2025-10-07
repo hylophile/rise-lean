@@ -88,7 +88,7 @@ syntax "?" ident                                            : rise_expr
 syntax "fun" "(" ident+ (":" rise_type)? ")" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
-syntax "fun"     ident+ (":" rise_kind)      "=>" rise_expr : rise_expr
+syntax "fun"     ident+ ":" rise_kind        "=>" rise_expr : rise_expr
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
 syntax:50 rise_expr:50 rise_nat:51             : rise_expr
 syntax:50 rise_expr:50 rise_data:51           : rise_expr
@@ -118,6 +118,12 @@ macro_rules
       `(rise_expr| fun $x => fun $y => fun $xs* => $e)
 
   | `(rise_expr| fun ($x:ident $y:ident $xs:ident* : $k:rise_kind) => $b:rise_expr) =>
+    match xs with
+    | #[] =>
+      `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => $b:rise_expr)
+    | _ =>
+      `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => fun ($xs* : $k:rise_kind) => $b:rise_expr)
+  | `(rise_expr| fun  $x:ident $y:ident $xs:ident* : $k:rise_kind  => $b:rise_expr) =>
     match xs with
     | #[] =>
       `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => $b:rise_expr)
