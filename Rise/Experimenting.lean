@@ -3,13 +3,11 @@ import Rise.Solve
 
 #eval runSygus  "
   (set-logic NRA)
-  (synth-fun p ((q.3 Real)) Real)
-  (synth-fun r ((q.3 Real)) Real)
-  (declare-var q.a Real)
-  (assume (> q.a 0))
-  (constraint (> (p q.a) 0))
-  (constraint (> (r q.a) 0))
-  (constraint (= (+ (p q.a) 4) q.a))
+  (synth-fun p ((q Real)) Real)
+  (declare-var q Real)
+  (assume (> q 0))
+  (constraint (> (p q) 0))
+  (constraint (= (* (p q) 4) q))
   (check-synth)
 "
 
