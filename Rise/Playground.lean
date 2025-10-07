@@ -176,5 +176,30 @@ macro_rules
 --   x |> map (mul alpha)
 -- ]
 
-
-
+-- shine/src/main/scala/apps/gemmTensor
+-- def tiling2D(mTile: Nat, nTile: Nat): Expr =
+--   fun(c =>
+--     c |>
+--     split(mTile) |>
+--     map(fun(x =>
+--       x |>
+--       transpose |>
+--       split(nTile) |>
+--       map(fun(y =>
+--         y |>
+--         transpose)))) |>
+--     join)
+#pp [RiseC|
+  fun mTile nTile : nat =>
+    fun c =>
+      c |>
+      split (mTile) |>
+      map (fun x =>
+        x |>
+        transpose |>
+        split(nTile) |>
+        map (fun y =>
+          y |>
+          transpose)) |>
+      join
+]
