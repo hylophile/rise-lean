@@ -88,6 +88,7 @@ syntax "?" ident                                            : rise_expr
 syntax "fun" "(" ident+ (":" rise_type)? ")" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
+syntax "fun" "{" ident+ (":" rise_kind)  "}" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ ":" rise_kind        "=>" rise_expr : rise_expr
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
 syntax:50 rise_expr:50 rise_nat:51             : rise_expr
@@ -123,6 +124,12 @@ macro_rules
       `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => $b:rise_expr)
     | _ =>
       `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => fun ($xs* : $k:rise_kind) => $b:rise_expr)
+  | `(rise_expr| fun {$x:ident $y:ident $xs:ident* : $k:rise_kind} => $b:rise_expr) =>
+    match xs with
+    | #[] =>
+      `(rise_expr| fun {$x : $k:rise_kind} => fun {$y : $k:rise_kind} => $b:rise_expr)
+    | _ =>
+      `(rise_expr| fun {$x : $k:rise_kind} => fun {$y : $k:rise_kind} => fun {$xs* : $k:rise_kind} => $b:rise_expr)
   | `(rise_expr| fun  $x:ident $y:ident $xs:ident* : $k:rise_kind  => $b:rise_expr) =>
     match xs with
     | #[] =>
@@ -229,6 +236,11 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let k ← elabToRKind k
     let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
     return ⟨.deplam x.getId k b, .pi k .explicit x.getId b.type⟩
+
+  | `(rise_expr| fun { $x:ident : $k:rise_kind } => $b:rise_expr ) => do
+    let k ← elabToRKind k
+    let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
+    return ⟨.deplam x.getId k b, .pi k .implicit x.getId b.type⟩
 
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
       let f ← elabToTypedRExpr f_syn
