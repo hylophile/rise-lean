@@ -154,6 +154,14 @@ def syn2str (stx : Syntax) : Std.Format :=
     choices[0]!.prettyPrint
   | stx => stx.prettyPrint
 
+-- takes an expr with possibly conflicting mvarIds and maps them to fresh mvarIds in the current context.
+def shiftMVars (e : TypedRExpr) : RElabM TypedRExpr := do
+  let mvars := e.type.collectMVarIds
+  let map : Std.HashMap RMVarId RMVarId ← mvars.foldM (init := Std.HashMap.emptyWithCapacity)
+    (fun m a => do
+      let x ← getFreshMVarId
+      pure <| m.insert a x)
+  return e.mapTypeMVars (fun id => map[id]!)
 
 partial def addImplicits (t: RType) : RElabM RType := do
   match t with
@@ -292,7 +300,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           match decl.value? with
           | some v =>
             let v ← evalExpr TypedRExpr (mkConst ``TypedRExpr) v
-            return v
+            shiftMVars v
           | none => throwError "?!?"
         | _=> throwError "???"
       | none => throwError "!!!"
@@ -311,9 +319,9 @@ elab "[RiseTE|" e:rise_expr "]" : term => unsafe do
 -- #check [RiseTE| fun a : int → int → int => a 10000 2]
 -- #check [RiseTE| 3]
 --
-def abc := [RiseTE| 3]
+def abc := [RiseTE| fun x => x]
 
-#eval [RiseTE| fun x => $abc]
+#eval toString [RiseTE| fun x => $abc].type
 
 -- #check [RiseTE| 3u32]
 -- #check [RiseTE| 3.0f32]
