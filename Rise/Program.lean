@@ -15,7 +15,6 @@ syntax "def" ident ":" rise_type                        : rise_decl
 -- syntax "def" ident (":" rise_type)? ":=" rise_expr ";"  : rise_decl
 syntax "import" "core"                                  : rise_decl
 
--- TODO : a rise program could have more than one expr
 declare_syntax_cat              rise_program
 syntax (rise_decl)* rise_expr : rise_program
 
@@ -195,3 +194,7 @@ elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => unsafe do
 
 -- #eval toJson [RiseC| add 0 5]
 -- #pp [RiseC| reduce add 0]
+
+syntax "#pp " term : command
+macro_rules
+| `(#pp $e) => `(#eval IO.print <| toString $e)
