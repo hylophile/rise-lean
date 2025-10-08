@@ -118,6 +118,18 @@ macro_rules
     | _ =>
       `(rise_expr| fun $x => fun $y => fun $xs* => $e)
 
+  | `(rise_expr| fun $x:ident $y:ident $xs:ident* : $k:rise_type => $b:rise_expr) =>
+    match xs with
+    | #[] =>
+      `(rise_expr| fun ($x : $k:rise_type) => fun ($y : $k:rise_type) => $b:rise_expr)
+    | _ =>
+      `(rise_expr| fun ($x : $k:rise_type) => fun ($y : $k:rise_type) => fun ($xs* : $k:rise_type) => $b:rise_expr)
+  | `(rise_expr| fun ($x:ident $y:ident $xs:ident* : $k:rise_type) => $b:rise_expr) =>
+    match xs with
+    | #[] =>
+      `(rise_expr| fun ($x : $k:rise_type) => fun ($y : $k:rise_type) => $b:rise_expr)
+    | _ =>
+      `(rise_expr| fun ($x : $k:rise_type) => fun ($y : $k:rise_type) => fun ($xs* : $k:rise_type) => $b:rise_expr)
   | `(rise_expr| fun ($x:ident $y:ident $xs:ident* : $k:rise_kind) => $b:rise_expr) =>
     match xs with
     | #[] =>
@@ -137,12 +149,6 @@ macro_rules
     | _ =>
       `(rise_expr| fun ($x : $k:rise_kind) => fun ($y : $k:rise_kind) => fun ($xs* : $k:rise_kind) => $b:rise_expr)
 
-  -- | `(rise_expr| fun {$x:ident $y:ident $xs:ident* : $k:rise_kind} => $b:rise_expr) =>
-  --   match xs with
-  --   | #[] =>
-  --     `(rise_expr| fun {$x : $k:rise_kind} => fun {$y : $k:rise_kind} => $b:rise_expr)
-  --   | _ =>
-  --     `(rise_expr| fun {$x : $k:rise_kind} => fun {$y : $k:rise_kind} => fun {$xs* : $k:rise_kind} => $b:rise_expr)
 
   | `(rise_expr| $f:rise_expr >> $g:rise_expr) =>
     let x := mkIdent `x
