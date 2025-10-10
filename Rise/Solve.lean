@@ -4,6 +4,98 @@ import Regex
 
 open IO
 
+
+namespace RNat
+
+
+-- TODO: the .get! calls are sad.
+-- 
+def toSMTTerm : RNat → Option String
+  | .bvar ..       => none
+  | .mvar id name  => some s!"{name}_{id}"
+  | .nat n         => some s!"{n}"
+  | .plus n m      => some s!"(+ {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .minus n m     => some s!"(- {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .mult n m      => some s!"(* {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .div n m      => some s!"(/ {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+  | .pow n m       => some s!"(^ {n.toSMTTerm.get!} {m.toSMTTerm.get!})"
+
+def toSygusTerm (n:RNat) (bvname:String) : String :=
+  match n with
+  | .bvar id name       => s!"{name}.{id}"
+  | .mvar id name  => s!"({name}?{id} {bvname})"
+  | .nat n         => s!"{n}"
+  | .plus n m      => s!"(+ {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .minus n m     => s!"(- {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .mult n m      => s!"(* {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .div n m      => s!"(* {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+  | .pow n m       => s!"(^ {n.toSygusTerm bvname} {m.toSygusTerm bvname})"
+
+def collectMVars : RNat → List (Nat × String)
+  | .bvar ..    => []
+  | .mvar id nm => [(id, nm.toString)]
+  | .nat _      => []
+  | .plus a b
+  | .minus a b
+  | .mult a b
+  | .div a b
+  | .pow a b    => collectMVars a ++ collectMVars b
+  
+def collectBVars : RNat → List (Nat × String)
+  | .mvar ..    => []
+  | .bvar id nm => [(id, nm.toString)]
+  | .nat _      => []
+  | .plus a b
+  | .minus a b
+  | .mult a b
+  | .div a b
+  | .pow a b    => collectBVars a ++ collectBVars b
+
+def toSMTLib (lhs rhs : RNat) : String :=
+  let mvars := (lhs.collectMVars ++ rhs.collectMVars).eraseDups
+  let decls : String := mvars.map (fun (id,nm) => s!"(declare-const {nm}_{id} Int)") |> String.intercalate "\n"
+  let assertion := s!"(assert (= {lhs.toSMTTerm.get!} {rhs.toSMTTerm.get!}))"
+  s!"(set-option :model.v2 true)\n{decls}\n{assertion}\n(check-sat)\n(get-model)"
+
+def hasBVar : RNat → Bool
+| .bvar ..   => true
+| .mvar ..   => false
+| .nat ..    => false
+| .plus n m  
+| .minus n m 
+| .mult n m  
+| .div n m  
+| .pow n m   => hasBVar n || hasBVar m
+
+def toSygus (lhs rhs : RNat) : String :=
+  let mvars := (lhs.collectMVars ++ rhs.collectMVars).eraseDups
+  let bvars := (lhs.collectBVars ++ rhs.collectBVars).eraseDups
+  let bvarnames := bvars.map (fun (id,nm) => s!"{nm}.{id}")
+  let bvardecls : String := bvarnames.map (s!"(declare-var {·} Real)")
+    |> String.intercalate "\n"
+  let bvarargs := bvarnames.map (s!"({·} Real)")
+    |> String.intercalate " "
+  let natconstraints := ";todo"
+  let mvarfuns : String := mvars.map (fun (id,nm) => s!"(synth-fun {nm}?{id} ({bvarargs}) Real)")
+    |> String.intercalate "\n"
+  let n := bvarnames[0]!
+  let constraint := s!"(constraint (= {lhs.toSygusTerm n} {rhs.toSygusTerm n}))"
+  s!"
+    (set-logic NRA)
+    {mvarfuns}
+    {bvardecls}
+    {natconstraints}
+    {constraint}
+    (check-synth)
+  "
+
+
+
+
+end RNat
+
+
+
 private unsafe def runZ3 (input : String) : Except Error (String × String) :=
   unsafeIO do
     let child ← do
@@ -27,7 +119,7 @@ unsafe def runSygus (input : String) : Except Error (String × String) :=
     let child ← do
       let (stdin, child) ← (← IO.Process.spawn {
         cmd := "cvc5",
-        args := #["--lang", "sygus2"],
+        args := #["--lang", "sygus2", "--tlimit", "5000"],
         -- args := #["--output-lang", "ast"]
         stdin := .piped,
         stdout := .piped,
@@ -39,9 +131,9 @@ unsafe def runSygus (input : String) : Except Error (String × String) :=
     let stderr ← child.stderr.readToEnd
     return (stdout, stderr)
 
-private def s := "
-(set-option :model.v2 true) (declare-const x_44 Int) (assert (= (+ 5 x_44) 7)) (check-sat) (get-model)
-"
+-- private def s := "
+-- (set-option :model.v2 true) (declare-const x_44 Int) (assert (= (+ 5 x_44) 7)) (check-sat) (get-model)
+-- "
 
 -- #eval runZ3 s
 
@@ -105,7 +197,7 @@ private def getMVarId (s : String) : Except String RMVarId :=
   
 private def Option.toUnificationResult : Option Substitution → String → UnificationResult
   | .some x, _ => .ok x
-  | .none, _ => .error <| .unsolved s
+  | .none, s => .error <| .unsolved s
 
 private def parseSygus (s: String) : UnificationResult :=
   let re := re! r"-fun (\w+[\.\?]\d+) .* Real (.*)\)\n"
@@ -114,9 +206,9 @@ private def parseSygus (s: String) : UnificationResult :=
   let exprs := matchs.filterMap (fun x => (x.get 2) >>= (some ·.toString)) |>.map parseRNatSExpr
   
   if names.size != exprs.size then
-    .error <| .unsolved "parseSygus"
+    .error <| .unsolved s!"parseSygus: size panic\n{s}"
   else
-    names.zipWith f exprs |>.toList |>.mapM id |>.toUnificationResult "parseSygus"
+    names.zipWith f exprs |>.toList |>.mapM id |>.toUnificationResult s!"parseSygus: parsing?\n{s}"
     where
       f : Except String RMVarId → Except String RNat → Option (RMVarId × SubstEnum)
       | .ok id, .ok e => some (id, .nat e)
