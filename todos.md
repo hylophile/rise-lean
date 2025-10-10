@@ -1,3 +1,8 @@
+- [ ] syntax for add/mult (+/\*) in expressions.
+- [ ] natcontraints! (getting ite in gemv)
+
+---
+
 - [ ] could try eqsat, probably need different substitution data structure. how to substitute there anyways?
 - [ ] foreign func
 - [ ] natType?
