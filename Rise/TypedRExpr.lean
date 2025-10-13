@@ -250,9 +250,13 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
 
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
       let f ← elabToTypedRExpr f_syn
+      -- dbg_trace ("before f",f.type)
       let f := {f with type := (← addImplicits f.type)}
+      -- dbg_trace ("after f",f.type)
       let e ← elabToTypedRExpr e_syn
+      -- dbg_trace ("before e",e.type)
       let e := {e with type := (← addImplicits e.type)}
+      -- dbg_trace ("after e",e.type)
       match f.type with
       | .fn blt brt =>
         match blt.unify e.type with
@@ -272,6 +276,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let n <- elabToRNat n
     let f <- elabToTypedRExpr f_syn
     let f := {f with type := (← addImplicits f.type)}
+    -- dbg_trace ("nat", f, n)
     match f.type with
     | .pi .nat .explicit _ b =>
       let bt := b.rnatbvar2rnat n

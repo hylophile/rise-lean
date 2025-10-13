@@ -23,6 +23,8 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
   | [] => do
       let expr ← elabToTypedRExpr expr
       let expr ← applyUnifyResultsRecursivelyUntilStable expr
+      -- dbg_trace "-------------------"
+      -- dbg_trace (<- get).unifyResult
       return toExpr expr
 
   | decl :: rest =>

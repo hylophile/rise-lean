@@ -16,7 +16,7 @@ def tiling2D := [RiseC|
       join
 ]
 
-#eval Lean.toJson tiling2D
+#pp tiling2D
 
 #pp tiling2D.type
 

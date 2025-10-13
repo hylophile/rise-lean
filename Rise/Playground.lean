@@ -40,10 +40,10 @@ open Lean
 -- --   $x
 -- -- ]
 
--- #pp [RiseC|
---   def x : 7·f32
---   take 5 x
--- ]
+#pp [RiseC|
+  def x : 7·f32
+  take 5 x
+]
 
 -- #pp [RiseC|
 --   gather

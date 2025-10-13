@@ -460,10 +460,25 @@ def RType.getRKind : RType → RKind
   | _ => .type -- not sure if correct
   -- never .nat? is my model wrong?
 
+def RNat.shiftBVars (rn : RNat) (n : Nat) : RNat :=
+  match rn with
+  | .bvar bn un => .bvar (bn + n) un
+  | .mvar .. => rn
+  | .nat .. => rn
+  | .plus p q => .plus (p.shiftBVars n) (q.shiftBVars n)
+  | .minus p q => .minus (p.shiftBVars n) (q.shiftBVars n)
+  | .mult p q => .mult (p.shiftBVars n) (q.shiftBVars n)
+  | .div p q => .div (p.shiftBVars n) (q.shiftBVars n)
+  | .pow p q => .pow (p.shiftBVars n) (q.shiftBVars n)
+
 
 def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
   match rn with
-  | .bvar bn un => if bn == n then .mvar m un else rn
+  | .bvar bn un => if bn == n then .mvar m un
+    else if bn > n then
+    .bvar (bn-1) un
+    else rn
+    
   | .mvar .. => rn
   | .nat .. => rn
   | .plus p q => .plus (p.bvar2mvar n m) (q.bvar2mvar n m)
@@ -490,7 +505,7 @@ def RType.bvar2mvar (t : RType) (mid : RMVarId) : RType :=
 
 def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
   match rn with
-  | .bvar bn .. => if bn == n then rnat else rn
+  | .bvar bn .. => if bn == n then rnat.shiftBVars n else rn
   | .mvar .. => rn
   | .nat .. => rn
   | .plus p q => .plus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)

@@ -420,7 +420,7 @@ instance : Repr UnificationResult where
 def UnificationResult.merge : UnificationResult → UnificationResult → UnificationResult
   | .ok l, .ok r => .ok <| l ++ r
   | .error e, .ok _ | .ok _, .error e => .error e
-  | .error e1, .error e2 => .error <| .unsolved s!"{e1}; {e2}"
+  | .error e1, .error e2 => .error <| .unsolved s!"{e1}\n{e2}"
 
 def RNat.toSExpr : RNat → String
   | .bvar idx name => s!"(bvar {name}@{idx})"

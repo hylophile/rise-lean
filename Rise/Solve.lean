@@ -208,7 +208,7 @@ private def parseSygus (s: String) : UnificationResult :=
   if names.size != exprs.size then
     .error <| .unsolved s!"parseSygus: size panic\n{s}"
   else
-    names.zipWith f exprs |>.toList |>.mapM id |>.toUnificationResult s!"parseSygus: parsing?\n{s}"
+    names.zipWith f exprs |>.toList |>.mapM id |>.toUnificationResult s!"parseSygus: failed parsing\n{s}"
     where
       f : Except String RMVarId → Except String RNat → Option (RMVarId × SubstEnum)
       | .ok id, .ok e => some (id, .nat e)
@@ -234,10 +234,13 @@ private unsafe def solveWithZ3 (l r : RNat) : UnificationResult :=
   | _ => .error <| .unsolved "z3"
 
 private unsafe def solveWithSygus (l r : RNat) : UnificationResult :=
-  let s := RNat.toSygus l r
-  match runSygus s with
-  | .ok (s,_) =>
-    parseSygus s
+  let input := RNat.toSygus l r
+  match runSygus input with
+  | .ok (output,_) =>
+    match parseSygus output with
+    | .ok x => .ok x
+    | e => let x : UnificationResult := .error <| .unsolved s!"input was:\n{input}"
+        e.merge x
   | _ => .error <| .unsolved "sygus"
 
 unsafe def solve (l r : RNat) : UnificationResult :=

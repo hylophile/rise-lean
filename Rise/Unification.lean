@@ -36,8 +36,10 @@ unsafe def unifyOneRNat (s t : RNat) : UnificationResult :=
   --   unifyRNat [(n1, n2), (m1, m2)]
 
   | _, _ => do
-    let x := solve s t --(RNat.toSMTLib s t)
-    x
+    dbg_trace s!"{s} = {t}"
+    .ok []
+    -- let x := solve s t --(RNat.toSMTLib s t)
+    -- x
     -- dbg_trace x
     -- .error <| .structural (.nat s) (.nat t)
 
