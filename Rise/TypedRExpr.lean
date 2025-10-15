@@ -182,11 +182,11 @@ macro_rules
   | `(rise_expr| $x:rise_expr.2) =>
     `(rise_expr| (snd $x:rise_expr))
 
-def syn2str (stx : Syntax) : Std.Format :=
-  match stx with
-  | .node _ `choice choices =>
-    choices[0]!.prettyPrint
-  | stx => stx.prettyPrint
+-- def syn2str (stx : Syntax) : Std.Format :=
+--   match stx with
+--   | .node _ `choice choices =>
+--     choices[0]!.prettyPrint
+--   | stx => stx.prettyPrint
 
 -- takes an expr with possibly conflicting mvarIds and maps them to fresh mvarIds in the current context.
 def shiftMVars (e : TypedRExpr) : RElabM TypedRExpr := do
@@ -285,13 +285,14 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           -- let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
           -- let x := runEgg RNat.toSMTLib 
           -- dbg_trace x
-          addSubst sub
+          addSubst f_syn sub
           return ⟨.app f e, brt.apply sub⟩
+          -- catch e => throwErrorAt f_syn e
         | .error x =>
-          logErrorAt f_syn s!"\ncannot unify application of '{syn2str f_syn}' to '{syn2str e_syn}':\n{blt} != {e.type}\n{x}"
-          -- logErrorAt e_syn s!"\ncannot unify application of '{syn2str f_syn}' to '{syn2str e_syn}':\n{blt} != {e.type}"
+          logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}\n{x}"
+          -- logErrorAt e_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
           throwError "unification failed"
-      | _ => throwErrorAt f_syn s!"expected a function type for '{syn2str f_syn}', but found: {toString f.type}"
+      | _ => throwErrorAt f_syn s!"expected a function type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | `(rise_expr| $f_syn:rise_expr ($n:rise_nat : nat)) => do
     let n <- elabToRNat n
@@ -302,7 +303,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     | .pi .nat .explicit _ b =>
       let bt := b.rnatbvar2rnat n
       return ⟨.depapp f <| .nat n, bt⟩
-    | _ => throwErrorAt f_syn s!"expected a pi type for '{syn2str f_syn}', but found: {toString f.type}"
+    | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | `(rise_expr| $f_syn:rise_expr ($d:rise_data : data)) => do
     let d ← elabToRData d
@@ -312,7 +313,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     | .pi .data .explicit _ b =>
       let bt := b.rdatabvar2rdata d
       return ⟨.depapp f <| .data d, bt⟩
-    | _ => throwErrorAt f_syn s!"expected a pi type for '{syn2str f_syn}', but found: {toString f.type}"
+    | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
     
   | stx =>
     match stx with

@@ -47,7 +47,7 @@ def findMVar? (id : RMVarId) : RElabM <| Option MetaVarDeclaration := do
   let rstate : RState ← get
   return rstate.mvars.find? id
 
-unsafe def addSubst (subst : Substitution) : RElabM Unit := do
+unsafe def addSubst (stx:Syntax) (subst : Substitution) : RElabM Unit := do
   let unifyResults : Substitution := (← get).unifyResult
   subst.forM (λ x@(mv, se) =>
     match unifyResults.find? (λ (mvv, _) => mvv == mv) with
@@ -58,10 +58,15 @@ unsafe def addSubst (subst : Substitution) : RElabM Unit := do
           -- dbg_trace ("!!!adding\n", toString s, "\n",dt1, dt2,"\n\n")
           -- dbg_trace ("because", x,"\n\n!!")
           -- let x ← addSubst s
-          addSubst s
+          addSubst stx s
           -- modify (λ r => {r with unifyResult := x }) --s ++ r.unifyResult})
-        | .error x => throwError "unify error while addSubst ({x})"
-      | _,_ => throwError "handle nats!"
+        | .error x => throwErrorAt stx "unify error while addSubst ({x})"
+      | .nat n1, .nat n2 =>
+        match unifyOneRNat n1 n2 with
+        | .ok s => do
+          addSubst stx s
+        | .error x => throwErrorAt stx "unify error while addSubst ({x})"
+      | _,_ => throwError "weird addSubst error"
     | none => modify (λ r => {r with unifyResult := x :: r.unifyResult})
   )
   
