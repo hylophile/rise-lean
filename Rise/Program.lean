@@ -200,3 +200,8 @@ elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => unsafe do
 syntax "#pp " term : command
 macro_rules
 | `(#pp $e) => `(#eval IO.print <| toString $e)
+
+
+def yy := [RiseC| fun n m : nat => fun mat : n·m·f32 => 3]
+def zz := [RiseC| fun p : nat => fun q : nat => $yy (p : nat) (q:nat)] -- add (q:nat), then get problem because p@2 doesn't become p@1
+#pp zz.type

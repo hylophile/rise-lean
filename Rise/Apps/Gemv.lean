@@ -68,16 +68,17 @@ def gemvBlastN := [RiseC|
 ]
 #pp gemvBlastN.type
 
--- bad stuff is happening here, in both cases of 1. implicit and 2. explicit parameters n and m for $gemvBlastN. investigate.
--- def gemvBlastT := [RiseC|
---   fun (p q : nat) =>
---   fun mat : p·q·f32 =>
---   fun xs : p·f32 =>
---   fun ys : q·f32 =>
---   fun alpha beta =>
---   $gemvBlastN (transpose mat) xs ys alpha beta
--- ]
--- #pp gemvBlastT.type
+-- bad stuff is happening here, in case of implicit parameters n and m for $gemvBlastN. investigate.
+def gemvBlastT := [RiseC|
+  fun (p q : nat) =>
+  fun mat : p·q·f32 =>
+  fun xs : p·f32 =>
+  fun ys : q·f32 =>
+  fun alpha beta =>
+  -- $gemvBlastN (p : nat) (q : nat) (transpose mat) xs ys alpha beta
+  $gemvBlastN   (transpose mat) xs ys alpha beta
+]
+#pp gemvBlastT.type
 
 def gemvFused := [RiseC|
   fun (n m : nat) =>

@@ -505,7 +505,10 @@ def RType.bvar2mvar (t : RType) (mid : RMVarId) : RType :=
 
 def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
   match rn with
-  | .bvar bn .. => if bn == n then rnat.shiftBVars n else rn
+  | .bvar bn un => if bn == n then rnat.shiftBVars n
+    else if bn > n then
+    .bvar (bn-1) un
+    else rn
   | .mvar .. => rn
   | .nat .. => rn
   | .plus p q => .plus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
