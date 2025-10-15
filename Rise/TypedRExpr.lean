@@ -92,8 +92,8 @@ syntax "fun" "{" ident+ (":" rise_kind)  "}" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ ":" rise_kind        "=>" rise_expr : rise_expr
 syntax:10 rise_expr:10 "+" rise_expr:11                     : rise_expr
 syntax:20 rise_expr:20 "*" rise_expr:21                     : rise_expr
-syntax ident ".1" : rise_expr
-syntax ident ".2" : rise_expr
+syntax rise_expr ".1" : rise_expr
+syntax rise_expr ".2" : rise_expr
 
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
 syntax:50 rise_expr:50 "(" rise_nat ":" "nat" ")"             : rise_expr
@@ -101,6 +101,7 @@ syntax:50 rise_expr:50 "(" rise_data ":" "data" ")"           : rise_expr
 -- syntax:50 rise_expr:50 rise_nat:51             : rise_expr
 -- syntax:50 rise_expr:50 rise_data:51           : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
+syntax:40 rise_expr:40 "<|" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 ">>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<<" rise_expr:41                    : rise_expr
 syntax:60 "(" rise_expr ")"                                 : rise_expr
@@ -165,6 +166,8 @@ macro_rules
     `(rise_expr| $g >> $f)
   | `(rise_expr| $e:rise_expr |> $f:rise_expr) => do
     `(rise_expr| $f:rise_expr $e:rise_expr)
+  | `(rise_expr| $f:rise_expr <| $e:rise_expr) => do
+    `(rise_expr| $f:rise_expr $e:rise_expr)
   | `(rise_expr| ($e:rise_expr)) => do
     `(rise_expr| $e)
 
@@ -174,10 +177,10 @@ macro_rules
     `(rise_expr| (add $a:rise_expr $b:rise_expr))
   | `(rise_expr| $a:rise_expr * $b:rise_expr) =>
     `(rise_expr| (mul $a:rise_expr $b:rise_expr))
-  | `(rise_expr| $x:ident.1) =>
-    `(rise_expr| (fst $x:ident))
-  | `(rise_expr| $x:ident.2) =>
-    `(rise_expr| (snd $x:ident))
+  | `(rise_expr| $x:rise_expr.1) =>
+    `(rise_expr| (fst $x:rise_expr))
+  | `(rise_expr| $x:rise_expr.2) =>
+    `(rise_expr| (snd $x:rise_expr))
 
 def syn2str (stx : Syntax) : Std.Format :=
   match stx with
