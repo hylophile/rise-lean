@@ -90,9 +90,16 @@ syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
 syntax "fun" "{" ident+ (":" rise_kind)  "}" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ ":" rise_kind        "=>" rise_expr : rise_expr
+syntax:10 rise_expr:10 "+" rise_expr:11                     : rise_expr
+syntax:20 rise_expr:20 "*" rise_expr:21                     : rise_expr
+syntax ident ".1" : rise_expr
+syntax ident ".2" : rise_expr
+
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
-syntax:50 rise_expr:50 rise_nat:51             : rise_expr
-syntax:50 rise_expr:50 rise_data:51           : rise_expr
+syntax:50 rise_expr:50 "(" rise_nat ":" "nat" ")"             : rise_expr
+syntax:50 rise_expr:50 "(" rise_data ":" "data" ")"           : rise_expr
+-- syntax:50 rise_expr:50 rise_nat:51             : rise_expr
+-- syntax:50 rise_expr:50 rise_data:51           : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 ">>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<<" rise_expr:41                    : rise_expr
@@ -160,6 +167,17 @@ macro_rules
     `(rise_expr| $f:rise_expr $e:rise_expr)
   | `(rise_expr| ($e:rise_expr)) => do
     `(rise_expr| $e)
+
+set_option hygiene false in
+macro_rules
+  | `(rise_expr| $a:rise_expr + $b:rise_expr) =>
+    `(rise_expr| (add $a:rise_expr $b:rise_expr))
+  | `(rise_expr| $a:rise_expr * $b:rise_expr) =>
+    `(rise_expr| (mul $a:rise_expr $b:rise_expr))
+  | `(rise_expr| $x:ident.1) =>
+    `(rise_expr| (fst $x:ident))
+  | `(rise_expr| $x:ident.2) =>
+    `(rise_expr| (snd $x:ident))
 
 def syn2str (stx : Syntax) : Std.Format :=
   match stx with
@@ -272,7 +290,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           throwError "unification failed"
       | _ => throwErrorAt f_syn s!"expected a function type for '{syn2str f_syn}', but found: {toString f.type}"
 
-  | `(rise_expr| $f_syn:rise_expr $n:rise_nat) => do
+  | `(rise_expr| $f_syn:rise_expr ($n:rise_nat : nat)) => do
     let n <- elabToRNat n
     let f <- elabToTypedRExpr f_syn
     let f := {f with type := (← addImplicits f.type)}
@@ -283,7 +301,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       return ⟨.depapp f <| .nat n, bt⟩
     | _ => throwErrorAt f_syn s!"expected a pi type for '{syn2str f_syn}', but found: {toString f.type}"
 
-  | `(rise_expr| $f_syn:rise_expr $d:rise_data) => do
+  | `(rise_expr| $f_syn:rise_expr ($d:rise_data : data)) => do
     let d ← elabToRData d
     let f <- elabToTypedRExpr f_syn
     let f := {f with type := (← addImplicits f.type)}
@@ -295,22 +313,22 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     
   | stx =>
     match stx with
-    | .node _ `choice choices => do
-      -- dbg_trace choices
-      let results ← choices.mapM (fun c =>
-        try
-          Except.ok <$> elabToTypedRExpr c
-        catch e => do
-          return Except.error e)
-      match results.partition (·.isOk) with
-      | (#[.ok res], _) => return res
-      | (#[], errs) => do
-        errs.forM (fun err => match err with
-        | .error e => logErrorAt stx e.toMessageData
-        | _ => throwError "unreachable"
-        ) 
-        throwErrorAt stx "Only found errors under all interpretations"
-      | _ => throwError "Multiple interpretations possible. Haven't seen this case yet though"
+    -- | .node _ `choice choices => do
+    --   -- dbg_trace choices
+    --   let results ← choices.mapM (fun c =>
+    --     try
+    --       Except.ok <$> elabToTypedRExpr c
+    --     catch e => do
+    --       return Except.error e)
+    --   match results.partition (·.isOk) with
+    --   | (#[.ok res], _) => return res
+    --   | (#[], errs) => do
+    --     errs.forM (fun err => match err with
+    --     | .error e => logErrorAt stx e.toMessageData
+    --     | _ => throwError "unreachable"
+    --     ) 
+    --     throwErrorAt stx "Only found errors under all interpretations"
+    --   | _ => throwError "Multiple interpretations possible. Haven't seen this case yet though"
     | .node _ `rise_expr.pseudo.antiquot xs
     | .node _ `rise_decl.pseudo.antiquot xs =>
       match xs[2]? with
@@ -370,7 +388,7 @@ def abc := [RiseTE| fun x => x]
 
 -- #check [RiseTE| fun x => x]
 
--- #check [RiseTE| fun(x : nat) => 3]
+-- #check [RiseTE| fun(x : nat) => 3+5]
 -- #check [RiseTE| fun(x : data) => 3]
 
 -- -- -- trying to use x at term level. it's not legal,

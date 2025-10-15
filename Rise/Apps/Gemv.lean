@@ -41,7 +41,6 @@ def gemvHighLevel := [RiseC|
 ]
 #pp gemvHighLevel.type
 
-
 def gemvFused := [RiseC|
   fun (n m : nat) =>
   fun mat : m·n·f32 =>
@@ -51,16 +50,16 @@ def gemvFused := [RiseC|
     zip mat ys
     |> map -- mapWorkGroup
       (fun t =>
-        zip xs (fst t)
-        |> split n
+        zip xs t.1
+        |> split (n : nat)
         |> map
-          (reduceSeq (fun a x => add (mul (fst x) (snd x)) a) 0.0f32)
+          (reduceSeq (fun a x => (x.1 * x.2) + a) 0.0f32)
         |> map
-          (fun y => add (mul alpha y) (mul (snd t) beta))
+          (fun y => (alpha * y) + (t.2 * beta))
       )
     |> join
 ]
-#pp gemvFused.type
+#pp gemvFused
 
 -- #pp [RiseC|
 --   fun (n m : nat) =>
