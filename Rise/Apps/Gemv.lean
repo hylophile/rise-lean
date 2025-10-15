@@ -39,7 +39,34 @@ def gemvHighLevel := [RiseC|
     |>
     map (fun x => add (fst x) (snd x))
 ]
-#pp gemvHighLevel.type
+-- #pp gemvHighLevel.type
+
+
+-- fuel runs out here. probably a bug?
+-- #pp [RiseC| fun x => add x (x.2.1)]
+#pp [RiseC| (generate (fun dummy : idx[64] => 0.0f32))]
+
+def gemvBlastN := [RiseC|
+  fun (n m : nat) =>
+  fun mat : m·n·f32 =>
+  fun xs : n·f32 =>
+  fun ys : m·f32 =>
+  fun alpha beta =>
+    join << map (fun matChunk =>
+      (fun y => map (fun x => x.1 * alpha + x.2 * beta) <| zip y (map snd matChunk))
+      <<
+      reduceSeq (fun acc next  =>
+        map (fun x =>
+          reduceSeq (fun acc2 next2 => acc2 + next2.1 * next2.2)
+                    x.1
+                    <| zip x.2 (map id next.2)
+        ) <| zip acc next.1
+      )
+      (map id (generate (fun dummy : idx[64] => 0.0f32)))
+      <| zip (transpose << map (split (64 : nat) << fst) <| matChunk) (split (64 : nat) xs)
+      ) << split (64 : nat) <| zip mat ys
+]
+#pp gemvBlastN.type
 
 def gemvFused := [RiseC|
   fun (n m : nat) =>
@@ -52,55 +79,13 @@ def gemvFused := [RiseC|
       (fun t =>
         zip xs t.1
         |> split (n : nat)
-        |> map
+        |> map -- toLocalFun mapLocal oclReduceSeq
           (reduceSeq (fun a x => (x.1 * x.2) + a) 0.0f32)
         |> map
           (fun y => (alpha * y) + (t.2 * beta))
       )
     |> join
 ]
-#pp gemvFused
+#pp gemvFused.type
 
--- #pp [RiseC|
---   fun (n m : nat) =>
---   fun mat : m·n·f32 =>
---   fun xs : n·f32 =>
---   fun ys : m·f32 =>
---   fun alpha beta =>
---     -- zip mat ys
---     -- |> map -- mapWorkGroup
---       (fun t =>
---         zip xs (fst t)
---         |> split n
---         |> map
---           (reduceSeq (fun a x => add (mul (fst x) (snd x)) a) 0.0f32)
---         |> map
---           (fun y => add (mul alpha y) (mul (snd t) beta))
---       )
---     -- |> join
--- ]
-
--- #pp [RiseC|
---   fun (n m : nat) =>
---   fun mat : m·n·f32 =>
---   fun xs : n·f32 =>
---   fun ys : m·f32 =>
---   fun alpha beta =>
---     -- zip mat ys
---     -- |> map -- mapWorkGroup
---       (fun t : n·f32 × f32 =>
---         zip xs (fst t)
---         |> split n
---         -- |> map
---         --   (reduceSeq (fun a x => add (mul (fst x) (snd x)) a) 0.0f32)
---         -- |> map
---         --   (fun y => add (mul alpha y) (mul (snd t) beta))
---       )
---     -- |> join
--- ]
-
--- #pp [RiseC|
--- fun a : nat =>
--- fun b : nat =>
--- fun xs : b·f32 =>
--- split a xs]
+-- gemvFusedAMD needs reorderWithStride, which has nat2nat fun
