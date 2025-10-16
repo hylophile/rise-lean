@@ -1,4 +1,5 @@
 - maybe we actually disallow should existence of mvars after type-checking............
+- fragment, matrixLayout kinds
 - [ ] add shiftbvars for rdata!
 - [ ] natcontraints! (getting ite in gemv)
   - mhhhhhhhhhhhhhhhhhhhhhhhh
