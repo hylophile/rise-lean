@@ -190,7 +190,7 @@ macro_rules
 
 -- takes an expr with possibly conflicting mvarIds and maps them to fresh mvarIds in the current context.
 def shiftMVars (e : TypedRExpr) : RElabM TypedRExpr := do
-  let mvars := e.type.collectMVarIds
+  let mvars := e.collectMVarIds
   let map : Std.HashMap RMVarId RMVarId ← mvars.foldM (init := Std.HashMap.emptyWithCapacity)
     (fun m a => do
       let x ← getFreshMVarId

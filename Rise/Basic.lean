@@ -523,7 +523,7 @@ def RNat.collectMVarIds (t : RNat) : Std.HashSet RMVarId :=
   | .minus a b  
   | .mult a b   
   | .div a b    
-  | .pow a b    => (a.collectMVarIds).insertMany (b.collectMVarIds)
+  | .pow a b    => a.collectMVarIds ∪ b.collectMVarIds
 
 
 def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
@@ -532,18 +532,34 @@ def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
   | .mvar id _     => {id}
   | .scalar ..     => {}
   | .natType       => {}
-  | .array n d     => (n.collectMVarIds).insertMany (d.collectMVarIds)
-  | .pair d1 d2    => (d1.collectMVarIds).insertMany (d2.collectMVarIds) 
+  | .array n d     => n.collectMVarIds ∪ d.collectMVarIds
+  | .pair d1 d2    => d1.collectMVarIds ∪ d2.collectMVarIds 
   | .index n       => (n.collectMVarIds)
-  | .vector n d    => (n.collectMVarIds).insertMany (d.collectMVarIds)
+  | .vector n d    => n.collectMVarIds ∪ d.collectMVarIds
 
 
 def RType.collectMVarIds (t : RType) : Std.HashSet RMVarId :=
   match t with
   | .data dt => dt.collectMVarIds
-  | .fn a b => (a.collectMVarIds).insertMany (b.collectMVarIds)
+  | .fn a b => a.collectMVarIds ∪ b.collectMVarIds
   | .pi _ _ _ b => (b.collectMVarIds)
 
+partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
+  let t_mvars := e.type.collectMVarIds
+  let n_mvars := match e.node with
+    | .bvar ..
+    | .fvar ..
+    | .const ..
+    | .mvar .. -- yes, really.
+    | .lit .. => {}
+    | .app fn arg => fn.collectMVarIds ∪ arg.collectMVarIds
+    | .depapp fn arg => match arg with
+      | .nat v => v.collectMVarIds ∪ fn.collectMVarIds
+      | .data v => v.collectMVarIds ∪ fn.collectMVarIds
+      | .type v => v.collectMVarIds ∪ fn.collectMVarIds
+    | .lam _ t b => t.collectMVarIds ∪ b.collectMVarIds
+    | .deplam _ _ b => b.collectMVarIds
+  t_mvars ∪ n_mvars
 
 namespace Ex
 

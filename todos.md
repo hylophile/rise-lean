@@ -1,4 +1,4 @@
-- weird shenanigans in gemvBlastT
+- maybe we actually disallow should existence of mvars after type-checking............
 - [ ] add shiftbvars for rdata!
 - [ ] natcontraints! (getting ite in gemv)
   - mhhhhhhhhhhhhhhhhhhhhhhhh
