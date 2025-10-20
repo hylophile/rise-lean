@@ -102,8 +102,8 @@ syntax:50 rise_expr:50 "(" rise_data ":" "data" ")"           : rise_expr
 -- syntax:50 rise_expr:50 rise_data:51           : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<|" rise_expr:41                    : rise_expr
-syntax:40 rise_expr:40 ">>" rise_expr:41                    : rise_expr
-syntax:40 rise_expr:40 "<<" rise_expr:41                    : rise_expr
+syntax:41 rise_expr:41 ">>" rise_expr:42                    : rise_expr
+syntax:41 rise_expr:41 "<<" rise_expr:42                    : rise_expr
 syntax:60 "(" rise_expr ")"                                 : rise_expr
 
 set_option pp.raw true
