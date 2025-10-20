@@ -35,6 +35,7 @@ syntax    ident                        : rise_nat
 syntax:10 rise_nat:10 "+" rise_nat:11  : rise_nat
 syntax:10 rise_nat:10 "-" rise_nat:11  : rise_nat
 syntax:20 rise_nat:20 "*" rise_nat:21  : rise_nat
+syntax:20 rise_nat:20 "/" rise_nat:21  : rise_nat
 syntax:30 rise_nat    "^" rise_nat     : rise_nat
 syntax    "(" rise_nat ")"             : rise_nat
 
@@ -71,6 +72,11 @@ partial def elabToRNat : Syntax → RElabM RNat
     let n ← elabToRNat n
     let m ← elabToRNat m
     return RNat.mult n m
+
+  | `(rise_nat| $n:rise_nat / $m:rise_nat) => do
+    let n ← elabToRNat n
+    let m ← elabToRNat m
+    return RNat.div n m
 
   | `(rise_nat| $n:rise_nat ^ $m:rise_nat) => do
     let n ← elabToRNat n
