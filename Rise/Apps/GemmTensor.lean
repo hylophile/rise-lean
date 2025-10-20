@@ -29,7 +29,7 @@ def simpleGemm := [RiseC|
         zip (transpose aRowsC.1 |> split (kTileFrag : nat))
             (transpose bColumnsTCT.1 |> split (kTileFrag : nat))
         |> reduceSeq (fun cTile abTiles =>
-          -- 
+          -- todo: tensormma
           )
         )
       )
