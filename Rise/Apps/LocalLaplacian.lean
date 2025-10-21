@@ -104,17 +104,14 @@ def upsample2D := [RiseC|
               (1 : nat) (0 : nat)
   >> $slide2D (2 : nat) (1 : nat)
   >> map (map (fun nbh =>
-                generate (fun yi : idx[2] =>
-                    generate (fun xi : idx[2] =>
-                      nbh
-                      |> map ($dot (select (equal yi <| lidx (0 : nat) (2 : nat))
-                                           upsampleWeights1 upsampleWeights2))
-                      >> $dot (select (equal xi <| lidx (0 : nat) (2 : nat))
-                                      upsampleWeights1 upsampleWeights2)
-                    )
-                )
-              )
-         )
+      generate (fun yi : idx[2] =>
+          generate (fun xi : idx[2] =>
+            let wy := (select (equal xi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
+            let wx := (select (equal yi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
+            nbh
+            |> map ($dot wx)
+            >> $dot wy
+          ))))
   >> map (transpose >> map join)
   >> join
   >> drop (1 : nat)

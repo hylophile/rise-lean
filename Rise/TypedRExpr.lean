@@ -90,6 +90,7 @@ syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
 syntax "fun" "{" ident+ (":" rise_kind)  "}" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ ":" rise_kind        "=>" rise_expr : rise_expr
+syntax "let" ident ":=" rise_expr "in" rise_expr : rise_expr
 syntax:10 rise_expr:10 "+" rise_expr:11                     : rise_expr
 syntax:20 rise_expr:20 "*" rise_expr:21                     : rise_expr
 syntax rise_expr ".1" : rise_expr
@@ -110,6 +111,8 @@ set_option pp.raw true
 -- set_option pp.raw.maxDepth 10
 
 macro_rules
+  | `(rise_expr| let $x:ident := $v:rise_expr in $b:rise_expr) =>
+    `(rise_expr| ((fun $x:ident => $b) $v))
   | `(rise_expr| fun $x:ident => $b:rise_expr) =>
     `(rise_expr| fun ($x:ident) => $b:rise_expr)
 
@@ -282,10 +285,12 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | .fn blt brt =>
         match blt.unify e.type with
         | .ok sub =>
+          -- dbg_trace "---"
           -- let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
           -- let x := runEgg RNat.toSMTLib 
           -- dbg_trace x
           addSubst f_syn sub
+          -- dbg_trace (<- get).unifyResult
           return ⟨.app f e, brt.apply sub⟩
           -- catch e => throwErrorAt f_syn e
         | .error x =>
