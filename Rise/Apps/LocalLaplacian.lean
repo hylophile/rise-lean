@@ -21,10 +21,12 @@ def slide2D := [RiseC|
     $slide2D4 (sz : nat) (st : nat) (sz : nat) (st : nat)
 ]
 
--- why?
 def dropLast := [RiseC|
- fun n m : nat =>
-  take (m : nat)
+ fun m : nat =>
+ fun {n : nat} =>
+ fun {d : data} =>
+ fun xs : (n+m)·d =>
+  take (n : nat) xs
 ]
 #pp dropLast.type
 
@@ -110,12 +112,12 @@ def upsample2D := [RiseC|
             let wx := (select (equal yi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
             nbh
             |> map ($dot wx)
-            >> $dot wy
+               >> $dot wy
           ))))
   >> map (transpose >> map join)
   >> join
   >> drop (1 : nat)
-  >> take (2 + 2*(h/2) - h : nat) -- is dropLast different from take?
-  >> map (drop (1 : nat) >> take (2 + 2*(w/2) - w : nat))
+  >> $dropLast (2 + 2*(h/2) - h : nat) -- is dropLast different from take? (yes!)
+  >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
 ]
 #pp upsample2D.type
