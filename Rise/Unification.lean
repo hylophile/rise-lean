@@ -1,4 +1,5 @@
 import Rise.Basic
+import Rise.RElabM
 import Rise.Solve
 import Lean
 
@@ -9,71 +10,69 @@ import Lean
 
 
 mutual
-unsafe def unifyOneRNat (s t : RNat) : UnificationResult :=
+unsafe def unifyOneRNat (s t : RNat) : RElabM UnificationResult :=
   match s, t with
-  | .nat n, .nat m =>
-    if n == m then return [] else .error <| .structural (.nat s) (.nat t)
+  | .nat n, .nat m => do
+    if n == m then return .ok [] else return .error <| .structural (.nat s) (.nat t)
 
   | .bvar x _, .bvar y _ =>
-    if x == y then .ok [] else .error <| .structural (.nat s) (.nat t)
+    if x == y then return .ok [] else return .error <| .structural (.nat s) (.nat t)
 
   | .mvar x _, .mvar y _ =>
-    if x == y then .ok [] else .ok [(x, .nat t)]
+    if x == y then return .ok [] else return .ok [(x, .nat t)]
 
   | .mvar x _, term | term, .mvar x _ =>
     if term.has x then
-      .error <| .structural (.nat s) (.nat t)
+      return .error <| .structural (.nat s) (.nat t)
     else
-      .ok [(x, .nat term)]
-
-  -- | .plus n1 m1, .plus n2 m2 =>
-  --   unifyRNat [(n1, n2), (m1, m2)]
-
-  -- | .minus n1 m1, .minus n2 m2 =>
-  --   unifyRNat [(n1, n2), (m1, m2)]
-
-  -- | .mult n1 m1, .mult n2 m2 =>
-  --   unifyRNat [(n1, n2), (m1, m2)]
+      return .ok [(x, .nat term)]
 
   | _, _ => do
     dbg_trace s!"{s} = {t}"
-    .ok []
+    return .ok []
     -- let x := solve s t --(RNat.toSMTLib s t)
     -- x
     -- dbg_trace x
     -- .error <| .structural (.nat s) (.nat t)
 
-unsafe def unifyRNat (equations : List (RNat × RNat)) : UnificationResult :=
+unsafe def unifyRNat (equations : List (RNat × RNat)) : RElabM UnificationResult :=
   match equations with
-  | [] => .ok []
+  | [] => return .ok []
   | (x, y) :: rest => do
-    let tailSubst <- unifyRNat rest
-    let x' := x.apply tailSubst
-    let y' := y.apply tailSubst
-    let headSubst <- unifyOneRNat x' y'
-    .ok <| headSubst ++ tailSubst
+    let tailSubst ← unifyRNat rest
+    match tailSubst with
+    | .ok tailSubst =>
+      let x' := x.apply tailSubst
+      let y' := y.apply tailSubst
+
+      let headSubst ← unifyOneRNat x' y'
+      match headSubst with
+      | .ok headSubst =>
+        return .ok <| headSubst ++ tailSubst
+      | e => return e
+    | e => return e
 end
 
 -- TODO think about corresponding structural rules
 -- TODO relate eqsat and unifi
 
 mutual
-unsafe def unifyOneRData (s t : RData) : UnificationResult :=
+unsafe def unifyOneRData (s t : RData) : RElabM UnificationResult :=
   match s, t with
   | .mvar x _, .mvar y _ =>
-    if x == y then .ok [] else .ok [(x, .data t)]
+    if x == y then return .ok [] else return .ok [(x, .data t)]
 
   | .mvar x _, term | term, .mvar x _ =>
     if term.has x then
-      .error <| .structural (.data s) (.data t)
+      return .error <| .structural (.data s) (.data t)
     else
-      .ok [(x, .data term)]
+      return .ok [(x, .data term)]
 
   | .bvar n1 _, .bvar n2 _ =>
-    if n1 == n2 then .ok [] else .error <| .structural (.data s) (.data t)
+    if n1 == n2 then return .ok [] else return .error <| .structural (.data s) (.data t)
 
-  | .array k1 d1, .array k2 d2 =>
-    (unifyRNat [(k1, k2)])  |>.merge (unifyRData [(d1, d2)])
+  | .array k1 d1, .array k2 d2 => do
+    return (← unifyRNat [(k1, k2)])  |>.merge (← unifyRData [(d1, d2)])
 
   | .pair l1 r1, .pair l2 r2 =>
     unifyRData [(l1, l2), (r1, r2)]
@@ -81,30 +80,35 @@ unsafe def unifyOneRData (s t : RData) : UnificationResult :=
   | .index k1, .index k2 =>
     unifyOneRNat k1 k2
 
-  | .scalar x, .scalar y => if x == y then .ok [] else .error <| .structural (.data s) (.data t)
+  | .scalar x, .scalar y => if x == y then return .ok [] else return .error <| .structural (.data s) (.data t)
 
-  | .natType, .natType => .ok []
+  | .natType, .natType => return .ok []
 
-  | .vector k1 d1, .vector k2 d2 =>
-    (unifyRNat [(k1, k2)])  |>.merge (unifyRData [(d1, d2)])
+  | .vector k1 d1, .vector k2 d2 => do
+    return (← unifyRNat [(k1, k2)])  |>.merge (← unifyRData [(d1, d2)])
 
-  | _, _ => .error <| .structural (.data s) (.data t)
+  | _, _ => return .error <| .structural (.data s) (.data t)
 
-unsafe def unifyRData (equations : List (RData × RData)) : UnificationResult :=
+unsafe def unifyRData (equations : List (RData × RData)) : RElabM UnificationResult :=
   match equations with
-  | [] => .ok []
+  | [] => return .ok []
   | (x, y) :: t => do
     let t2 <- unifyRData t
-    let t1 <- unifyOneRData (x.apply t2) (y.apply t2)
-    .ok <| t1 ++ t2
+    match t2 with
+    | .ok t2 =>
+      let t1 <- unifyOneRData (x.apply t2) (y.apply t2)
+      match t1 with
+      | .ok t1 => return .ok <| t1 ++ t2
+      | e => return e
+    | e => return e
 end
 
-partial def RData.unify (l r : RData) : UnificationResult :=
+partial def RData.unify (l r : RData) : RElabM UnificationResult :=
   let result := unify l r
   result
 
 mutual
-unsafe def unifyOneRType (s t : RType) : UnificationResult :=
+unsafe def unifyOneRType (s t : RType) : RElabM UnificationResult :=
   match s, t with
   | .data dt1, .data dt2 =>
     unifyRData [(dt1, dt2)]
@@ -113,25 +117,32 @@ unsafe def unifyOneRType (s t : RType) : UnificationResult :=
     if bk1 == bk2 && pc1 == pc2 && un1 == un2 then
       unifyRType [(body1, body2)]
     else
-      .error <| .structuralType s t
+      return .error <| .structuralType s t
 
   | .fn binderType1 body1, .fn binderType2 body2 =>
     unifyRType [(binderType1, binderType2), (body1, body2)]
 
-  | _, _ => .error <| .structuralType s t
+  | _, _ => return .error <| .structuralType s t
 
-unsafe def unifyRType (equations : List (RType × RType)) : UnificationResult :=
+unsafe def unifyRType (equations : List (RType × RType)) : RElabM UnificationResult :=
   match equations with
-  | [] => .ok []
+  | [] => return .ok []
   | (x, y) :: rest => do
-    let tailSubst <- unifyRType rest
-    let x' := x.apply tailSubst
-    let y' := y.apply tailSubst
-    let headSubst <- unifyOneRType x' y'
-    .ok <| headSubst ++ tailSubst
+    let tailSubst ← unifyRType rest
+    match tailSubst with
+    | .ok tailSubst =>
+      let x' := x.apply tailSubst
+      let y' := y.apply tailSubst
+
+      let headSubst ← unifyOneRType x' y'
+      match headSubst with
+      | .ok headSubst =>
+        return .ok <| headSubst ++ tailSubst
+      | e => return e
+    | e => return e
 end
 
-unsafe def RType.unify (l r : RType) : UnificationResult :=
+unsafe def RType.unify (l r : RType) : RElabM UnificationResult :=
   unifyRType [(l, r)]
 
 -- def Substitution.toString (s : Substitution) : String :=
@@ -145,19 +156,19 @@ unsafe def unify := RType.unify
 
 
 -- technically, the "_, _" case doesn't check for enough. we would want better checking here, but we trust the algorithm.
-private unsafe def unifies (l r : RType) : Bool :=
-  match l.unify r, r.unify l with
-  | .ok s1, .ok s2 =>
-    -- dbg_trace s1
-    -- dbg_trace s2
-    -- dbg_trace (l.apply s1, r.apply s1)
-    -- dbg_trace (l.apply s2, r.apply s2)
-    -- dbg_trace (l.apply s1 == r.apply s1)
-    -- dbg_trace (l.apply s2 == r.apply s2)
-    l.apply s1 == r.apply s1 && l.apply s2 == r.apply s2
-  | _, _ =>
-    -- dbg_trace (l.unify r, r.unify l)
-    false
+-- private unsafe def unifies (l r : RType) : Bool :=
+--   match l.unify r, r.unify l with
+--   | .ok s1, .ok s2 =>
+--     -- dbg_trace s1
+--     -- dbg_trace s2
+--     -- dbg_trace (l.apply s1, r.apply s1)
+--     -- dbg_trace (l.apply s2, r.apply s2)
+--     -- dbg_trace (l.apply s1 == r.apply s1)
+--     -- dbg_trace (l.apply s2 == r.apply s2)
+--     l.apply s1 == r.apply s1 && l.apply s2 == r.apply s2
+--   | _, _ =>
+--     -- dbg_trace (l.unify r, r.unify l)
+--     false
 
 -- /--
 --   Utility elaborator for Rise Types - adds metavariables to context.
@@ -220,3 +231,51 @@ private unsafe def unifies (l r : RType) : Bool :=
 
 
 -- #eval (unify [RTw a     | idx[a]                ] [RTw a     | idx[5]               ])
+
+unsafe def addSubst (stx : Lean.Syntax) (subst : Substitution) : RElabM Unit := do
+  let unifyResults : Substitution := (← get).unifyResult
+  subst.forM (λ x@(mv, se) =>
+    match unifyResults.find? (λ (mvv, _) => mvv == mv) with
+    | some (_, see) => match se, see with
+      | .data dt1, .data dt2 => do
+        match ← unifyOneRData dt1 dt2 with
+        | .ok s => do
+          -- dbg_trace ("!!!adding\n", toString s, "\n",dt1, dt2,"\n\n")
+          -- dbg_trace ("because", x,"\n\n!!")
+          -- let x ← addSubst s
+          addSubst stx s
+          -- modify (λ r => {r with unifyResult := x }) --s ++ r.unifyResult})
+        | .error x => throwErrorAt stx "unify error while addSubst ({x})"
+      | .nat n1, .nat n2 => do
+        match ← unifyOneRNat n1 n2 with
+        | .ok s => do
+          addSubst stx s
+        | .error x => throwErrorAt stx "unify error while addSubst ({x})"
+      | _,_ => throwError "weird addSubst error"
+    | none => modify (λ r => {r with unifyResult := x :: r.unifyResult})
+  )
+  
+  -- modify (λ r => {r with unifyResult := s ++ r.unifyResult})
+
+def applyUnifyResults (t : RType) : RElabM RType := do
+  let unifyResults : Substitution := (← get).unifyResult
+  return t.apply unifyResults
+
+def applyUnifyResultsUntilStable (x : RType) (fuel : Nat := 100) : RElabM RType := do
+  let unifyResults : Substitution := (← get).unifyResult
+  let rec loop (current : RType) (remaining : Nat) : RElabM RType :=
+    if remaining = 0 then throwError "fuel ran out"
+    else
+      let next := current.apply unifyResults
+      if next == current then return current
+      else loop next (remaining - 1)
+  loop x fuel
+
+partial def applyUnifyResultsRecursivelyUntilStable (e : TypedRExpr) : RElabM TypedRExpr := do
+  let newt := (← applyUnifyResultsUntilStable e.type) 
+  match e.node with
+  | .app e1 e2 => return ⟨.app (← applyUnifyResultsRecursivelyUntilStable e1) (← applyUnifyResultsRecursivelyUntilStable e2), newt⟩
+  | .lam un t b => return ⟨.lam un (← applyUnifyResultsUntilStable t) (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
+  | .deplam un k b => return ⟨.deplam un k (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
+  | _ => return ⟨e.node, newt⟩
+

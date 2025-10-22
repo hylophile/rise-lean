@@ -1,5 +1,4 @@
 import Rise.Basic
-import Rise.Unification
 import Lean
 open Lean Elab.Command
 
@@ -13,6 +12,7 @@ structure RContext where
 
 structure RState where
   unifyResult : Substitution := []
+  rnatEqualities : List (RNat × RNat) := []
   nextMVarId : RMVarId := 0
   mvars : Lean.PersistentHashMap RMVarId MetaVarDeclaration := {}
 
@@ -46,54 +46,6 @@ def addMVar (id : RMVarId) (userName : Lean.Name) (kind : RKind) (type : Option 
 def findMVar? (id : RMVarId) : RElabM <| Option MetaVarDeclaration := do
   let rstate : RState ← get
   return rstate.mvars.find? id
-
-unsafe def addSubst (stx:Syntax) (subst : Substitution) : RElabM Unit := do
-  let unifyResults : Substitution := (← get).unifyResult
-  subst.forM (λ x@(mv, se) =>
-    match unifyResults.find? (λ (mvv, _) => mvv == mv) with
-    | some (_, see) => match se, see with
-      | .data dt1, .data dt2 =>
-        match unifyOneRData dt1 dt2 with
-        | .ok s => do
-          -- dbg_trace ("!!!adding\n", toString s, "\n",dt1, dt2,"\n\n")
-          -- dbg_trace ("because", x,"\n\n!!")
-          -- let x ← addSubst s
-          addSubst stx s
-          -- modify (λ r => {r with unifyResult := x }) --s ++ r.unifyResult})
-        | .error x => throwErrorAt stx "unify error while addSubst ({x})"
-      | .nat n1, .nat n2 =>
-        match unifyOneRNat n1 n2 with
-        | .ok s => do
-          addSubst stx s
-        | .error x => throwErrorAt stx "unify error while addSubst ({x})"
-      | _,_ => throwError "weird addSubst error"
-    | none => modify (λ r => {r with unifyResult := x :: r.unifyResult})
-  )
-  
-  -- modify (λ r => {r with unifyResult := s ++ r.unifyResult})
-
-def applyUnifyResults (t : RType) : RElabM RType := do
-  let unifyResults : Substitution := (← get).unifyResult
-  return t.apply unifyResults
-
-def applyUnifyResultsUntilStable (x : RType) (fuel : Nat := 100) : RElabM RType := do
-  let unifyResults : Substitution := (← get).unifyResult
-  let rec loop (current : RType) (remaining : Nat) : RElabM RType :=
-    if remaining = 0 then throwError "fuel ran out"
-    else
-      let next := current.apply unifyResults
-      if next == current then return current
-      else loop next (remaining - 1)
-  loop x fuel
-
-partial def applyUnifyResultsRecursivelyUntilStable (e : TypedRExpr) : RElabM TypedRExpr := do
-  let newt := (← applyUnifyResultsUntilStable e.type) 
-  match e.node with
-  | .app e1 e2 => return ⟨.app (← applyUnifyResultsRecursivelyUntilStable e1) (← applyUnifyResultsRecursivelyUntilStable e2), newt⟩
-  | .lam un t b => return ⟨.lam un (← applyUnifyResultsUntilStable t) (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
-  | .deplam un k b => return ⟨.deplam un k (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
-  | _ => return ⟨e.node, newt⟩
-
 
 def withNewLocalTerm (arg : TCtxElem) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with ltctx := ctx.ltctx.push arg })

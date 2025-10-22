@@ -1,5 +1,6 @@
 import Rise.Basic
 import Rise.RElabM
+import Rise.Unification
 import Rise.Type
 import Lean
 open Lean Elab Meta
@@ -282,8 +283,8 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       let e := {e with type := (← addImplicits e.type)}
       -- dbg_trace ("after e",e.type)
       match f.type with
-      | .fn blt brt =>
-        match blt.unify e.type with
+      | .fn blt brt => do
+        match ← blt.unify e.type with
         | .ok sub =>
           -- dbg_trace "---"
           -- let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
