@@ -32,8 +32,8 @@ print(solve(eqdiv, n))
 eqdiv = Equality(n, 5 / m)
 print(
     solve(
-        eqdiv,
-        n,
+        (eqdiv, eqdiv),
+        (n, m),
         rational=True,
     )
 )

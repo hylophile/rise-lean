@@ -251,7 +251,7 @@ instance : ToString RNat where
   toString :=
     let rec go : RNat → String
       | .bvar idx name => s!"{name}@{idx}"
-      | .mvar id name => s!"?{name}{natToSubscript id}"
+      | .mvar id name => s!"{name}?{id}"
       | .nat n => s!"{n}"
       | .plus n m => s!"({go n}+{go m})"
       | .minus n m => s!"({go n}-{go m})"
@@ -286,7 +286,7 @@ instance : ToString RScalar where
 
 def RData.toString : RData → String
   | .bvar idx name => s!"{name}@{idx}"
-  | .mvar id name  => s!"?{name}{natToSubscript id}"
+  | .mvar id name  => s!"{name}?{id}"
   | .array n d     => s!"{n}·{d.toString}"
   | .pair d1 d2    => s!"({d1.toString} × {d2.toString})"
   | .index n       => s!"idx[{n}]"

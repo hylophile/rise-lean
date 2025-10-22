@@ -370,9 +370,9 @@ elab "[RiseTE|" e:rise_expr "]" : term => unsafe do
 -- #check [RiseTE| fun a : int → int → int => a 10000 2]
 -- #check [RiseTE| 3]
 --
-def abc := [RiseTE| fun x => x]
+-- def abc := [RiseTE| fun x => x]
 
-#eval toString [RiseTE| fun x => $abc].type
+-- #eval toString [RiseTE| fun x => $abc].type
 
 -- #check [RiseTE| 3u32]
 -- #check [RiseTE| 3.0f32]

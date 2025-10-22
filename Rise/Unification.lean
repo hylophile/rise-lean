@@ -28,7 +28,8 @@ unsafe def unifyOneRNat (s t : RNat) : RElabM UnificationResult :=
       return .ok [(x, .nat term)]
 
   | _, _ => do
-    dbg_trace s!"{s} = {t}"
+    -- dbg_trace s!"{s} = {t}"
+    addRNatEquality (s,t)
     return .ok []
     -- let x := solve s t --(RNat.toSMTLib s t)
     -- x
@@ -264,6 +265,16 @@ def applyUnifyResults (t : RType) : RElabM RType := do
 def applyUnifyResultsUntilStable (x : RType) (fuel : Nat := 100) : RElabM RType := do
   let unifyResults : Substitution := (← get).unifyResult
   let rec loop (current : RType) (remaining : Nat) : RElabM RType :=
+    if remaining = 0 then throwError "fuel ran out"
+    else
+      let next := current.apply unifyResults
+      if next == current then return current
+      else loop next (remaining - 1)
+  loop x fuel
+
+def applyUnifyResultsUntilStableRNat (x : RNat) (fuel : Nat := 100) : RElabM RNat := do
+  let unifyResults : Substitution := (← get).unifyResult
+  let rec loop (current : RNat) (remaining : Nat) : RElabM RNat :=
     if remaining = 0 then throwError "fuel ran out"
     else
       let next := current.apply unifyResults

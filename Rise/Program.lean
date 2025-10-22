@@ -1,5 +1,6 @@
 import Rise.Type
 import Rise.TypedRExpr
+import Rise.SymPy
 import Lean
 
 open Lean Elab Meta
@@ -24,7 +25,15 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
       let expr ← elabToTypedRExpr expr
       let expr ← applyUnifyResultsRecursivelyUntilStable expr
       -- dbg_trace "-------------------"
-      -- dbg_trace (<- get).unifyResult
+      let eqs := (<- get).rnatEqualities
+      let stableEqs <- eqs.mapM (fun (l,r) => do
+        let l <- applyUnifyResultsUntilStableRNat l
+        let r <- applyUnifyResultsUntilStableRNat r
+        return (l,r)
+      )
+      -- dbg_trace (eqs, stableEqs)
+      dbg_trace listToSymPyProgram stableEqs
+
       return toExpr expr
 
   | decl :: rest =>
@@ -202,6 +211,6 @@ macro_rules
 | `(#pp $e) => `(#eval IO.print <| toString $e)
 
 
-def yy := [RiseC| fun n m : nat => fun mat : n·m·f32 => 3]
-def zz := [RiseC| fun p : nat => fun q : nat => $yy (p : nat) (q:nat)] -- add (q:nat), then get problem because p@2 doesn't become p@1
-#pp zz.type
+-- def yy := [RiseC| fun n m : nat => fun mat : n·m·f32 => 3]
+-- def zz := [RiseC| fun p : nat => fun q : nat => $yy (p : nat) (q:nat)] -- add (q:nat), then get problem because p@2 doesn't become p@1
+-- #pp zz.type

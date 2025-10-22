@@ -43,6 +43,11 @@ def addMVar (id : RMVarId) (userName : Lean.Name) (kind : RKind) (type : Option 
   set { rstate with mvars := rstate.mvars.insert id { userName, kind, type } }
   return ()
 
+def addRNatEquality  (eq : RNat × RNat) : RElabM Unit := do
+  let rstate : RState ← get
+  set { rstate with rnatEqualities := eq :: rstate.rnatEqualities }
+  return ()
+
 def findMVar? (id : RMVarId) : RElabM <| Option MetaVarDeclaration := do
   let rstate : RState ← get
   return rstate.mvars.find? id
