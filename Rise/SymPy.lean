@@ -1,4 +1,5 @@
 import Rise.Basic
+import Rise.SymPyParse
 import Lean
 
 def mvarToString : Nat → String → String
@@ -39,20 +40,20 @@ private def RNat.toSympyString : RNat → String :=
       | .pow n m => s!"({go n}^{go m})"
     go
 
-def collectMVars (eqs : List (RNat × RNat)) : List String :=
+private def collectMVars (eqs : List (RNat × RNat)) : List String :=
   eqs.map (fun (l,r) => l.collectMVars ++ r.collectMVars) |> List.flatten
 
-def collectBVars (eqs : List (RNat × RNat)) : List String :=
+private def collectBVars (eqs : List (RNat × RNat)) : List String :=
   eqs.map (fun (l,r) => l.collectBVars ++ r.collectBVars) |> List.flatten
 
-def listToSymPyProgram (eqs : List (RNat × RNat)) : String :=
+private def listToSymPyProgram (eqs : List (RNat × RNat)) : String :=
   let mvars := (collectMVars eqs).eraseDups
   let bvars := (collectBVars eqs).eraseDups
   let vars := mvars ++ bvars
   let varidents := vars |> String.intercalate ", "
   let varnames := vars |> String.intercalate " "
   let eqms := eqs.mapIdx (fun idx (l,r) =>
-      let eqstr := s!"eq{idx} = Equality({l.toSympyString}, {r.toSympyString})"
+      let eqstr := s!"eq{idx} = sp.Equality({l.toSympyString}, {r.toSympyString})"
       let mvars := (l.collectMVars ++ r.collectMVars).eraseDups
       let mvarsstr := mvars |> String.intercalate ", "
       (eqstr, mvarsstr, idx, mvars.length)
@@ -61,34 +62,15 @@ def listToSymPyProgram (eqs : List (RNat × RNat)) : String :=
   let eqsolves := eqms.map (fun (_,_,idx,_) => s!"eq{idx}") |> String.intercalate ", "
   let mvarsolves := mvars |> String.intercalate ", "
   s!"
-from sympy import Eq, Equality, symbols
-from sympy.solvers import solve
-{varidents} = symbols(\"{varnames}\", integer=True, positive=True)
+import sympy as sp
+{varidents} = sp.symbols(\"{varnames}\", integer=True, positive=True)
 {eqdefs}
-res = solve(({eqsolves}), ({mvarsolves}))
-print(res) 
-  "
-
-def pairToSymPyProgram (lhs rhs : RNat) : String :=
-  let mvars := (lhs.collectMVars ++ rhs.collectMVars).eraseDups
-  let bvars := (lhs.collectBVars ++ rhs.collectBVars).eraseDups
-  let vars := mvars ++ bvars
-  let varidents := vars |> String.intercalate ", "
-  let varnames := vars |> String.intercalate " "
-  if mvars.length < 1 then "" else
-  s!"
-from sympy import Eq, Equality, symbols
-from sympy.solvers import solve
-{varidents} = symbols(\"{varnames}\", integer=True, positive=True)
-eq1 = Equality({lhs.toSympyString}, {rhs.toSympyString})
-res = solve(eq1, {mvars[0]!})
-print(res) 
+res = sp.solvers.solve(({eqsolves},), ({mvarsolves},))
+print(res)
   "
 
 private def l1 : RNat := .plus (.nat 5) (.mvar 55 `x)
 private def r1 : RNat := .bvar 23 `z
-
-#eval IO.print <| pairToSymPyProgram l1 r1
 
 open IO
 private unsafe def runSymPy (input : String) : Except Error (String × String) :=
@@ -108,5 +90,20 @@ private unsafe def runSymPy (input : String) : Except Error (String × String) :
     let stderr ← child.stderr.readToEnd
     return (stdout, stderr)
 
-#eval IO.print <|listToSymPyProgram [(l1, r1)]
-#eval runSymPy <| listToSymPyProgram [(l1, r1)]
+private def pairToSubstitution (ps : List (RNat × RNat)) : Option Substitution :=
+  ps |>.mapM (fun (x,v) => match x with
+    | .mvar id _ => some (id, .nat v)
+    | _ => none)
+
+unsafe def solveWithSymPy (eqs: List (RNat × RNat)) : RElabM Substitution :=
+  if eqs.length == 0 then return [] else
+  match eqs |> listToSymPyProgram |> runSymPy with
+  | .ok (stdout,_stderr) => do
+    let res := (← elabSymPySolveOutput stdout) |> pairToSubstitution
+    match res with
+    | some res => return res
+    | none => throwError "failure"
+  | .error e => throwError e.toString
+
+-- #eval IO.print <|listToSymPyProgram [(l1, r1)]
+-- #eval runSymPy <| listToSymPyProgram [(l1, r1)]

@@ -32,7 +32,10 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
         return (l,r)
       )
       -- dbg_trace (eqs, stableEqs)
-      dbg_trace listToSymPyProgram stableEqs
+      let subst ← solveWithSymPy stableEqs
+      -- dbg_trace subst
+      addSubst (Syntax.missing) subst
+      let expr ← applyUnifyResultsRecursivelyUntilStable expr
 
       return toExpr expr
 

@@ -1,17 +1,13 @@
+- we need to simplify at least top-level types (with sympy i guess)
 - locallaplacian: do we need / and /^ ?
 - how do we want to deal with side conditions generated from usage? e.g. the statement "n must divide 4". should we error with a message saying that this assumption needs to be added? then we need syntax for those assumptions.
-- it seems that we need to collect nat equalities until we reach top level so that we have all the necessary assumptions
-- maybe we want a let..in ?
-
-<!-- - == bool operators -->
-<!-- - syntax for literal index? -->
 
 ---
 
-- maybe we actually disallow should existence of mvars after type-checking............
+- we should actually disallow should existence of mvars after type-checking............
 - fragment, matrixLayout kinds
 - [ ] add shiftbvars for rdata!
-- [ ] natcontraints! (getting ite in gemv)
+      obsolete - [ ] natcontraints! (getting ite in gemv)
   - mhhhhhhhhhhhhhhhhhhhhhhhh
 
   ```
@@ -44,3 +40,5 @@
 - [x] syntax for .1 .2 (fst/snd)
 - [ ] makeArray 🤯
 - request: option to type-annotate rexprs which we then check against in the end
+- [x] it seems that we need to collect nat equalities until we reach top level so that we have all the necessary assumptions
+- [x] maybe we want a let..in ?
