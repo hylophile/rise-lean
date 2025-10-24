@@ -4,12 +4,20 @@ import Rise.Program
 -- src/main/scala/rise/core/DSL/HighLevelConstructs.scala 
 def padClamp2D := [RiseC|
   fun lOuter rOuter lInner rInner : nat =>
+  fun {n m : nat} =>
+  fun {d : data} =>
+  fun xs : n·m·d =>
+    xs |>
     map (padClamp (lInner : nat) (rInner : nat)) >> padClamp (lOuter : nat) (rOuter : nat)
 ]
 #pp padClamp2D.type
 
 def slide2D4 := [RiseC|
   fun szOuter stOuter szInner stInner : nat =>
+  fun {n m : nat} =>
+  fun {d : data} =>
+  fun xs : n·m·d =>
+    xs |>
     map (slide (szInner : nat) (stInner : nat))
     >> slide (szOuter : nat) (stOuter : nat)
     >> map transpose
@@ -22,11 +30,11 @@ def slide2D := [RiseC|
 ]
 
 def dropLast := [RiseC|
- fun m : nat =>
- fun {n : nat} =>
- fun {d : data} =>
- fun xs : (n+m)·d =>
-  take (n : nat) xs
+  fun m : nat =>
+  fun {n : nat} =>
+  fun {d : data} =>
+  fun xs : (n+m)·d =>
+    take (n : nat) xs
 ]
 #pp dropLast.type
 
@@ -120,4 +128,7 @@ def upsample2D := [RiseC|
   >> $dropLast (2 + 2*(h/2) - h : nat) -- is dropLast different from take? (yes!)
   >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
 ]
-#pp upsample2D.type
+#pp upsample2D
+
+
+
