@@ -175,8 +175,8 @@ macro_rules
 
   -- vvv interesting
   -- iterate
-  def iterate : {n m k : nat} →
-  {t : data} → ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
+  def iterate : {n m k : nat} → {t : data} → ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
+  def oclIterate : {n m : nat} → (k : nat) → {t : data} → ((l : nat) → (l*n)·t → l·t) → (m*(n^k))·t → m·t
 
 
 
