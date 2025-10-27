@@ -13,6 +13,7 @@ syntax:10 sympy_expr:10 "+" sympy_expr:11  : sympy_expr
 syntax:10 sympy_expr:10 "-" sympy_expr:11  : sympy_expr
 syntax:20 sympy_expr:20 "*" sympy_expr:21  : sympy_expr
 syntax:20 sympy_expr:20 "/" sympy_expr:21  : sympy_expr
+syntax:30 sympy_expr:30 "**" sympy_expr:31  : sympy_expr
 syntax    "(" sympy_expr ")"             : sympy_expr
 
 declare_syntax_cat sympy_pair
@@ -56,6 +57,10 @@ private partial def elabSymPyExpr : Syntax → RElabM RNat
     let l ← elabSymPyExpr l
     let r ← elabSymPyExpr r
     return RNat.div l r
+  | `(sympy_expr| $l:sympy_expr ** $r:sympy_expr) => do
+    let l ← elabSymPyExpr l
+    let r ← elabSymPyExpr r
+    return RNat.pow l r
 
   | _ => throwUnsupportedSyntax
 
