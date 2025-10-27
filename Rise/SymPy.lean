@@ -97,12 +97,16 @@ private def pairToSubstitution (ps : List (RNat × RNat)) : Option Substitution 
 
 unsafe def solveWithSymPy (eqs: List (RNat × RNat)) : RElabM Substitution :=
   if eqs.length == 0 then return [] else
-  match eqs |> listToSymPyProgram |> runSymPy with
+  let sympyInput := eqs |> listToSymPyProgram
+  match sympyInput |> runSymPy with
   | .ok (stdout,_stderr) => do
-    let res := (← elabSymPySolveOutput stdout) |> pairToSubstitution
+    let res ← elabSymPySolveOutput stdout
     match res with
-    | some res => return res
-    | none => throwError "failure"
+    | .ok res =>
+      match res |> pairToSubstitution with
+      | some res => return res
+      | none => throwError "failure"
+    | .error err => throwError s!"solving with sympy failed:\n{err}\ninput was:\n{sympyInput}"
   | .error e => throwError e.toString
 
 -- #eval IO.print <|listToSymPyProgram [(l1, r1)]

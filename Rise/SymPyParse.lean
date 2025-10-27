@@ -72,17 +72,20 @@ private def elabSymPyMap : Syntax → RElabM (List (RNat × RNat))
     return ps.toList
   | _ => throwUnsupportedSyntax
 
-private def parseSymPyMap (s : String) : TermElabM Syntax := do
+private def parseSymPyMap (s : String) : TermElabM (Except String Syntax) := do
   let env ← getEnv
   let stxExcept := Parser.runParserCategory env `sympy_map s
   match stxExcept with
-  | .ok stx => pure stx
-  | .error err => throwError "parse error: {err}\n{s}"
+  | .ok stx => return .ok stx
+  | .error err => return .error s!"sympy parse error: {err}\ninput: '{s}'"
 
-def elabSymPySolveOutput (s : String) : RElabM (List (RNat × RNat)) := do
+def elabSymPySolveOutput (s : String) : RElabM (Except String (List (RNat × RNat))) := do
     let stx ← parseSymPyMap s
-    let stx ← liftMacroM <| expandMacros stx
-    let rnat ← elabSymPyMap stx
-    return rnat
+    match stx with
+    | .ok stx =>
+      let stx ← liftMacroM <| expandMacros stx
+      let rnats ← elabSymPyMap stx
+      return .ok rnats
+    | .error err => return .error err
 
 -- #eval liftToTermElabM <| elabSymPySolveOutput "{m_n_12: b_h_1 + 3, m_n_6: b_w_0 - 3, m_n_60: b_h_1/2 + 2, m_n_61: b_w_0/2 + 2}"
