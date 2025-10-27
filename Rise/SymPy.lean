@@ -37,7 +37,7 @@ private def RNat.toSympyString : RNat → String :=
       | .minus n m => s!"({go n}-{go m})"
       | .mult n m => s!"({go n}*{go m})"
       | .div n m => s!"({go n}/{go m})"
-      | .pow n m => s!"({go n}^{go m})"
+      | .pow n m => s!"({go n}**{go m})"
     go
 
 private def collectMVars (eqs : List (RNat × RNat)) : List String :=
@@ -65,8 +65,10 @@ private def listToSymPyProgram (eqs : List (RNat × RNat)) : String :=
 import sympy as sp
 {varidents} = sp.symbols(\"{varnames}\", integer=True, positive=True)
 {eqdefs}
-res = sp.solvers.solve(({eqsolves},), ({mvarsolves},))
-print(res)
+res = sp.solvers.solve(({eqsolves},), ({mvarsolves},), dict=True)
+if len(res) != 1:
+  raise ValueError('did not find unique solution!')
+print(res[0])
   "
 
 private def l1 : RNat := .plus (.nat 5) (.mvar 55 `x)
