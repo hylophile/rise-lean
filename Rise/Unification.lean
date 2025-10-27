@@ -114,8 +114,8 @@ unsafe def unifyOneRType (s t : RType) : RElabM UnificationResult :=
   | .data dt1, .data dt2 =>
     unifyRData [(dt1, dt2)]
 
-  | .pi bk1 pc1 un1 body1, .pi bk2 pc2 un2 body2 =>
-    if bk1 == bk2 && pc1 == pc2 && un1 == un2 then
+  | .pi bk1 pc1 _ body1, .pi bk2 pc2 _ body2 =>
+    if bk1 == bk2 && pc1 == pc2 then
       unifyRType [(body1, body2)]
     else
       return .error <| .structuralType s t
