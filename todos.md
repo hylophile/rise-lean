@@ -1,7 +1,8 @@
 - we need to simplify at least top-level types (with sympy i guess)
 - locallaplacian: do we need / and /^ ?
 - how do we want to deal with side conditions generated from usage? e.g. the statement "n must divide 4". should we error with a message saying that this assumption needs to be added? then we need syntax for those assumptions.
-
+- maligemm kepler_best in sgemm.scala
+- reorderwithstride; nat2nat; reorder; 
 ---
 
 - we should actually disallow should existence of mvars after type-checking............
@@ -30,6 +31,7 @@
 
 ---
 
+- type ascription: (x : f32)... anywhere
 - [ ] could try eqsat, probably need different substitution data structure. how to substitute there anyways?
 - [ ] foreign func
 - [ ] natType?

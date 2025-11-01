@@ -423,8 +423,8 @@ def UnificationResult.merge : UnificationResult → UnificationResult → Unific
   | .error e1, .error e2 => .error <| .unsolved s!"{e1}\n{e2}"
 
 def RNat.toSExpr : RNat → String
-  | .bvar idx name => s!"(bvar {name}@{idx})"
-  | .mvar id name => s!"(mvar {name}_{id})"
+  | .bvar idx name => s!"(term_bvar {name}_{idx})"
+  | .mvar id name => s!"(term_mvar {name}_{id})"
   | .nat n => s!"{n}"
   | .plus n m => s!"(+ {n.toSExpr} {m.toSExpr})"
   | .minus n m => s!"(- {n.toSExpr} {m.toSExpr})"
@@ -433,8 +433,8 @@ def RNat.toSExpr : RNat → String
   | .pow n m => s!"(^ {n.toSExpr} {m.toSExpr})"
 
 def RData.toSExpr : RData → String
-  | .bvar idx name => s!"(bvar {name}@{idx})"
-  | .mvar id name  => s!"(mvar {name}{natToSubscript id})"
+  | .bvar idx name => s!"(type_bvar {name}_{idx})"
+  | .mvar id name  => s!"(type_mvar {name}_{id})"
   | .array n d     => s!"(array {n.toSExpr} {d.toSExpr})"
   | .pair d1 d2    => s!"(pair {d1.toSExpr} {d2.toSExpr})"
   | .index n       => s!"(index {n.toSExpr})"
@@ -445,7 +445,7 @@ def RData.toSExpr : RData → String
 def RType.toSExpr : RType → String
   | .data dt => RData.toSExpr dt
   | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSExpr})"
-  | .fn binderType body => s!"(→ {binderType.toSExpr} {body.toSExpr})"
+  | .fn binderType body => s!"(-> {binderType.toSExpr} {body.toSExpr})"
 
 
 -- def RNat.toSMTLib : RNat → String

@@ -1,7 +1,7 @@
 import Rise.Program
--- src/main/scala/apps/localLaplacian.scala 
+-- src/main/scala/apps/localLaplacian.scala
 
--- src/main/scala/rise/core/DSL/HighLevelConstructs.scala 
+-- src/main/scala/rise/core/DSL/HighLevelConstructs.scala
 def padClamp2D := [RiseC|
   fun lOuter rOuter lInner rInner : nat =>
   fun {n m : nat} =>
@@ -30,6 +30,7 @@ def slide2D := [RiseC|
 ]
 
 def dropLast := [RiseC|
+  -- fun (m : nat) {n : nat} {d : data} (xs : (n+m)·d) =>
   fun m : nat =>
   fun {n : nat} =>
   fun {d : data} =>
@@ -83,22 +84,20 @@ def dot := [RiseC|
 -- 2*(4-6/^2)
 -- 8-6
 -- 2
--- 
+--
 def downSample2D := [RiseC|
   def downSampleWeights : 4·f32
 
   fun h w : nat =>
   fun input : h+3·w+3·f32 =>
   input |>
-  $padClamp2D 
+  $padClamp2D
       (1 : nat) (2 + 2*(1 + h/2 - h/2) : nat) -- 1 - h % 2 -- see comment above
       (1 : nat) (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2
   >> map (slide (4 : nat) (2 : nat))
   >> slide (4 : nat) (2 : nat)
   >> map transpose
   >> map (map (map ($dot downSampleWeights) >> $dot downSampleWeights))
-
-
 ]
 #pp downSample2D.type
 
@@ -129,6 +128,3 @@ def upsample2D := [RiseC|
   >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
 ]
 #pp upsample2D
-
-
-

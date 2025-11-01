@@ -287,9 +287,9 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         match ← blt.unify e.type with
         | .ok sub =>
           -- dbg_trace "---"
-          -- let x := runEgg s!"(~ {blt.toSExpr} {e.type.toSExpr})"
+          let x := runEgg s!"{blt.toSExpr}={e.type.toSExpr}"
           -- let x := runEgg RNat.toSMTLib 
-          -- dbg_trace x
+          dbg_trace x
           addSubst f_syn sub
           -- dbg_trace (<- get).unifyResult
           return ⟨.app f e, brt.apply sub⟩

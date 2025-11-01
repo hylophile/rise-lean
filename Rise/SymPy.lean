@@ -17,7 +17,7 @@ private def RNat.collectMVars : RNat → List String
   | .mult a b
   | .div a b
   | .pow a b    => collectMVars a ++ collectMVars b
-  
+
 private def RNat.collectBVars : RNat → List String
   | .mvar ..    => []
   | .bvar id nm => [bvarToString id nm.toString]
@@ -100,6 +100,7 @@ private def pairToSubstitution (ps : List (RNat × RNat)) : Option Substitution 
 unsafe def solveWithSymPy (eqs: List (RNat × RNat)) : RElabM Substitution :=
   if eqs.length == 0 then return [] else
   let sympyInput := eqs |> listToSymPyProgram
+  -- dbg_trace sympyInput
   match sympyInput |> runSymPy with
   | .ok (stdout,_stderr) => do
     let res ← elabSymPySolveOutput stdout
