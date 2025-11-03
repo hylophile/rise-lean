@@ -168,63 +168,36 @@ impl Analysis<RiseType> for UnifyAnalysis {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Debug, Clone, Copy)]
-struct MCost {
-    mvars: usize,
-    rest: usize,
-}
+// #[derive(PartialEq, Eq, PartialOrd, Debug, Clone, Copy)]
+// struct MCost {
+//     mvars: usize,
+//     rest: usize,
+// }
 
-impl Ord for MCost {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        use std::cmp::Ordering::*;
-        match self.mvars.cmp(other.mvars) {
-            Less => todo!(),
-            Equal => todo!(),
-            Greater => todo!(),
-        }
-    }
-}
+// impl Ord for MCost {
+//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+//         use std::cmp::Ordering::*;
+//         match self.mvars.cmp(&other.mvars) {
+//             Less => todo!(),
+//             Equal => todo!(),
+//             Greater => todo!(),
+//         }
+//     }
+// }
 
-struct UnifyCostFn;
-impl CostFunction<RiseType> for UnifyCostFn {
-    type Cost = MCost;
-    fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
-    where
-        C: FnMut(Id) -> Self::Cost,
-    {
-        match enode {
-            RiseType::Array(_)
-            | RiseType::Pair(_)
-            | RiseType::Index(_)
-            | RiseType::Fn(_)
-            | RiseType::Num(_)
-            | RiseType::Add(_)
-            | RiseType::Mul(_)
-            | RiseType::Div(_)
-            | RiseType::Sub(_)
-            | RiseType::TypeBVar(_)
-            | RiseType::TermBVar(_)
-            | RiseType::Symbol(_) => enode.fold(MCost { mvars: 0, rest: 1 }, |sum, id| {
-                let MCost { mvars, rest } = costs(id);
-                MCost {
-                    mvars: sum.mvars.saturating_add(mvars),
-                    rest: sum.rest.saturating_add(rest),
-                }
-            }),
-            RiseType::TermMVar(_) | RiseType::TypeMVar(_) => {
-                MCost { mvars: 1, rest: 0 }
-                // enode.fold(MCost { mvars: 1, rest: 0 }, |sum, id| {
-                //     let MCost { mvars, rest } = costs(id);
-                //     MCost {
-                //         mvars: sum.mvars.saturating_add(mvars),
-                //         rest: sum.rest.saturating_add(rest),
-                //     }
-                // })
-            }
-        }
-        // enode.fold(1, |sum, id| sum.saturating_add(costs(id)))
-    }
-}
+// struct UnifyCostFn;
+// impl CostFunction<RiseType> for UnifyCostFn {
+//     type Cost = usize;
+//     fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
+//     where
+//         C: FnMut(Id) -> Self::Cost,
+//     {
+//         match enode {
+//             RiseType::TermMVar(_) | RiseType::TypeMVar(_) => return 100,
+//             _ => 1 + (enode.fold(0, |sum: usize, id| sum.saturating_add(costs(id))) / 10),
+//         }
+//     }
+// }
 
 fn is_mvar(l: &RiseType) -> bool {
     match l {
@@ -270,29 +243,63 @@ pub fn unify(s1: &str, s2: &str) -> Result<HashMap<String, String>, String> {
     let _ = runner.egraph.analysis.value.clone()?;
 
     let mut map = HashMap::new();
-    let extractor = Extractor::new(&runner.egraph, UnifyCostFn {});
-    // let extractor = Extractor::new(&runner.egraph, AstSize);
-    // dbg!(runner.egraph.dump());
+    let mut reprs = HashMap::new();
+    // find reprs
     for class in runner.egraph.classes() {
-        if class.nodes.len() == 1 {
-            continue;
-        };
-        if class.nodes.iter().any(|x| is_mvar(x)) {
-            let (_cost, x) = extractor.find_best(class.id);
-            class.nodes.iter().for_each(|n| {
-                if is_mvar(n) {
-                    dbg!(_cost, &x);
-                    if let Some(p) = pretty_mvar(&runner.egraph, n) {
-                        // dbg!(_cost, &x, &p);
-                        let x = x.pretty(1000);
-                        if x != p {
-                            map.insert(p, x);
-                        }
-                    }
+        let (mvars, rest): (Vec<&RiseType>, Vec<&RiseType>) =
+            class.nodes.iter().partition(|n| is_mvar(*n));
+        match rest.len() {
+            0 => {
+                reprs.insert(class.id, *mvars.iter().min().unwrap());
+                continue;
+            }
+            1.. => {
+                // let repr = *rest.get(0).unwrap();
+                let repr = *rest.iter().min().unwrap();
+                if repr.children().iter().any(|i| *i == class.id) {
+                    reprs.insert(class.id, *mvars.iter().min().unwrap());
+                    continue;
+                } else {
+                    reprs.insert(class.id, repr);
+                    continue;
                 }
-            });
+            }
         }
+        // if class.nodes.iter().any(|x| is_mvar(x)) {
+        //     let (_cost, x) = extractor.find_best(class.id);
+        //     class.nodes.iter().for_each(|n| {
+        //         if is_mvar(n) {
+        //             dbg!(_cost, &x);
+        //             if let Some(p) = pretty_mvar(&runner.egraph, n) {
+        //                 // dbg!(_cost, &x, &p);
+        //                 let x = x.pretty(1000);
+        //                 if x != p {
+        //                     map.insert(p, x);
+        //                 }
+        //             }
+        //         }
+        //     });
+        // }
     }
+    for class in runner.egraph.classes() {
+        class.nodes.iter().filter(|n| is_mvar(*n)).for_each(|n| {
+            let repr = reprs
+                .get(&class.id)
+                .unwrap()
+                .build_recexpr(|id| (*reprs.get(&id).unwrap()).clone());
+            if let Some(p) = pretty_mvar(&runner.egraph, n) {
+                let repr = repr.pretty(1000);
+                if repr != p {
+                    map.insert(p, repr);
+                }
+            }
+        });
+    }
+    // dbg!(reprs);
+    // panic!();
+    // panic!();
+    // panic!();
+    panic!();
     Ok(map)
 }
 

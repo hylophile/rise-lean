@@ -1,10 +1,5 @@
 import Lean.Data.Json
 
-
-@[extern "run_egg_c"]
-opaque runEgg (input : String) : String
-
-
 --
 -- Kind
 --   κ ::= nat | data (Natural Number Kind, Datatype Kind)

@@ -22,6 +22,8 @@ lean_lib Rise where
 lean_exe rise_lean where
   root := `Main
   supportInterpreter := true
+  -- needs := #[`egg_for_lean]
+  -- needs := #[ ← pkg.target ``egg_for_lean ]  -- fetches PartialBuildKey
 
 target importTarget pkg : System.FilePath :=
   pkg.afterBuildCacheAsync do
@@ -36,7 +38,9 @@ extern_lib ffi pkg := do
   let libFile := pkg.sharedLibDir / nameToStaticLib "ffi"
   buildStaticLib libFile #[job]
 
+
 extern_lib egg_for_lean pkg := do
+
   pkg.afterBuildCacheAsync do
     let name      := nameToSharedLib "egg_for_lean"
     let srcPath   := pkg.dir / "Egg" / "Rust" / "target" / "release" / name
@@ -46,9 +50,12 @@ extern_lib egg_for_lean pkg := do
     let _ ← buildAction (← getTrace) traceFile do
       proc {
         cmd := "cargo",
+        -- args := #["build", "--release"]
         args := #["rustc", "--release", "--", "-C", "relocation-model=pic"],
         cwd := pkg.dir / "Egg" / "Rust"
       }
       IO.FS.createDirAll pkg.sharedLibDir
       IO.FS.writeBinFile tgtPath (← IO.FS.readBinFile srcPath)
+    dbg_trace srcPath
+    dbg_trace tgtPath
     return pure tgtPath

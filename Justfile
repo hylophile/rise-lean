@@ -1,3 +1,7 @@
+build file:
+    rm -f .lake/build/lib/lean/$(echo {{file}} | cut -d. -f1)*
+    lake build {{file}}
+
 watch *terms:
     watchexec --stop-timeout 0 --clear --quiet --exts lean "just infoview {{terms}}"
 

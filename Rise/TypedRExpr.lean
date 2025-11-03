@@ -1,4 +1,5 @@
 import Rise.Basic
+import Rise.Egg
 import Rise.RElabM
 import Rise.Unification
 import Rise.Type
