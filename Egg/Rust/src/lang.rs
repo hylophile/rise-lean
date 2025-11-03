@@ -219,14 +219,25 @@ fn pretty_mvar(egraph: &EGraph<RiseType, UnifyAnalysis>, l: &RiseType) -> Option
     }
 }
 
-pub fn unify(s1: &str, s2: &str) -> Result<HashMap<String, String>, String> {
+fn unify2(s1: &str, s2: &str) -> Result<HashMap<String, String>, String> {
+    unify(&format!("{s1}={s2}"))
+}
+
+pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
+    let goals: Vec<(&str, &str)> = input
+        .split(';')
+        .map(|x| x.split_once('=').ok_or(format!("invalid input: {input}")))
+        .collect::<Result<Vec<(&str, &str)>, String>>()?;
+
     // setup
-    let a: RecExpr<RiseType> = s1.parse().unwrap();
-    let b: RecExpr<RiseType> = s2.parse().unwrap();
     let mut eg: EGraph<RiseType, UnifyAnalysis> = EGraph::new(UnifyAnalysis::default());
-    let id_a = eg.add_expr(&a);
-    let id_b = eg.add_expr(&b);
-    eg.union(id_a, id_b);
+    for (s1, s2) in goals {
+        let a: RecExpr<RiseType> = s1.parse().unwrap();
+        let b: RecExpr<RiseType> = s2.parse().unwrap();
+        let id_a = eg.add_expr(&a);
+        let id_b = eg.add_expr(&b);
+        eg.union(id_a, id_b);
+    }
 
     // run
     let runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
@@ -296,10 +307,6 @@ pub fn unify(s1: &str, s2: &str) -> Result<HashMap<String, String>, String> {
         });
     }
     // dbg!(reprs);
-    // panic!();
-    // panic!();
-    // panic!();
-    panic!();
     Ok(map)
 }
 
@@ -317,7 +324,7 @@ macro_rules! map {
 
 #[test]
 fn t_rrr() {
-    let r = unify(
+    let r = unify2(
         "(-> (type_mvar a) (type_mvar b))",
         "(-> (type_mvar c) (type_mvar c))",
     )
@@ -333,37 +340,37 @@ fn t_rrr() {
 
 // #[test]
 // fn t_gjewt() {
-//     let r = unify("(array (+ (type_mvar n1) 2) int)", "(array (+ 2 (type_mvar n2)) int)").unwrap();
+//     let r = unify2("(array (+ (type_mvar n1) 2) int)", "(array (+ 2 (type_mvar n2)) int)").unwrap();
 //     assert_eq!(r, map![]);
 // }
 
 // #[test]
 // fn t_vhspy() {
-//     let r = unify("(array (+ (type_mvar n1) 2) int)", "(array (+ 3 (type_mvar n2)) int)").unwrap();
+//     let r = unify2("(array (+ (type_mvar n1) 2) int)", "(array (+ 3 (type_mvar n2)) int)").unwrap();
 //     assert_eq!(r, map![]);
 // }
 
 // #[test]
 // fn t_c1mju() {
-//     let r = unify("(array (type_mvar n1) int)", "(array (type_mvar n2) int)").unwrap();
+//     let r = unify2("(array (type_mvar n1) int)", "(array (type_mvar n2) int)").unwrap();
 //     assert_eq!(r, map![]);
 // }
 
 #[test]
 fn t_9k0px() {
-    let r = unify("(-> int (type_mvar b))", "(-> f32 (type_mvar c))");
+    let r = unify2("(-> int (type_mvar b))", "(-> f32 (type_mvar c))");
     assert!(r.is_err());
 }
 
 #[test]
 fn t_lq6oe() {
-    let r = unify("(-> int (type_mvar b))", "(-> bool (type_mvar c))");
+    let r = unify2("(-> int (type_mvar b))", "(-> bool (type_mvar c))");
     assert!(r.is_err());
 }
 
 #[test]
 fn t_lr6oe() {
-    let r = unify(
+    let r = unify2(
         "(-> (pair (type_mvar a) (type_mvar b)) (type_mvar a))",
         "(-> (type_mvar c) f32)",
     )
@@ -379,13 +386,13 @@ fn t_lr6oe() {
 
 #[test]
 fn t_ifca8() {
-    let r = unify("(-> int (type_mvar b))", "(-> int (type_mvar c))").unwrap();
+    let r = unify2("(-> int (type_mvar b))", "(-> int (type_mvar c))").unwrap();
     assert_eq!(r, map![("(type_mvar c)", "(type_mvar b)")]);
 }
 
 #[test]
 fn t_bhru() {
-    let r = unify(
+    let r = unify2(
         "(-> (type_mvar a) (type_mvar b))",
         "(-> (type_mvar b) (type_mvar a))",
     )
@@ -395,7 +402,7 @@ fn t_bhru() {
 
 #[test]
 fn t_kxpva() {
-    let r = unify(
+    let r = unify2(
         "(-> (pair (type_mvar a) (type_mvar b)) (type_mvar c))",
         "(-> (type_mvar c)                 (type_mvar d))",
     )
@@ -411,7 +418,7 @@ fn t_kxpva() {
 
 #[test]
 fn t_dwz7() {
-    let r = unify("(pair (type_mvar a) (type_mvar b))", "(type_mvar c)").unwrap();
+    let r = unify2("(pair (type_mvar a) (type_mvar b))", "(type_mvar c)").unwrap();
     assert_eq!(
         r,
         map![("(type_mvar c)", "(pair (type_mvar a) (type_mvar b))")]
@@ -420,7 +427,7 @@ fn t_dwz7() {
 
 #[test]
 fn t_didhl() {
-    let r = unify(
+    let r = unify2(
         "(-> (type_mvar a) (-> (type_mvar b) (type_mvar b)))",
         "(-> (type_mvar c) (-> (type_mvar a) (type_mvar a)))",
     )
@@ -436,7 +443,7 @@ fn t_didhl() {
 
 #[test]
 fn t_q05of() {
-    let r = unify(
+    let r = unify2(
         "(-> (type_mvar a) (type_mvar b))",
         "(-> (type_mvar a) (type_mvar c))",
     )
@@ -445,18 +452,36 @@ fn t_q05of() {
 }
 #[test]
 fn t_qr5of() {
-    let r = unify("(term_mvar a)", "(+ 1 0)").unwrap();
+    let r = unify2("(term_mvar a)", "(+ 1 0)").unwrap();
     assert_eq!(r, map![("(term_mvar a)", "1")]);
 }
 #[test]
 fn t_qllof() {
-    let r = unify("(term_mvar a)", "(+ 1 (term_mvar a))").unwrap();
+    let r = unify2("(term_mvar a)", "(+ 1 (term_mvar a))").unwrap();
     assert_eq!(r, map![("(term_mvar a)", "1")]);
+}
+
+#[test]
+fn t_blub() {
+    let r = unify2(
+        "(array (term_mvar n_1) (array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) (type_mvar t_8)))",
+        "(array (term_mvar n_10) (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32))")
+    .unwrap();
+
+    assert_eq!(r, map![("(term_mvar a)", "1")]);
+    // !(term_mvar n_10)=(term_mvar n_1);(type_mvar t_8)=f32
+}
+
+#[test]
+fn t_a() {
+    let goals = "(array (term_mvar n_65) (array (term_mvar m_66) f32))=(array (+ (/ (term_bvar h_1) 2) 3) (array (+ (/ (term_bvar w_0) 2) 3) f32));(array (term_mvar n_1) (array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) (type_mvar t_8)))=(array (term_mvar n_10) (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_0);(array (+ (term_mvar n_10) (- (+ 2 (* 2 (/ (term_bvar h_1) 2))) (term_bvar h_1))) (type_mvar d_11))=(array (term_mvar m_13) (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_9);(array (+ 1 (term_mvar m_13)) (type_mvar t_14))=(array (* (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) 2) (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_12);(array (term_mvar n_16) (array (term_mvar m_17) (type_mvar t_18)))=(array (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) (array 2 (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32)));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_15);(array (term_mvar n_20) (array (term_mvar n_30) (array (term_mvar m_31) (array (term_mvar m_28) (type_mvar t_29)))))=(array (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) (array (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) (array 2 (array 2 f32))));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_19);(array (term_mvar n_34) (array (term_mvar n_37) (array 2 (array 2 f32))))=(array (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) (array (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) (array 2 (array 2 (type_mvar d_67)))));(array (term_mvar n_65) (array (term_mvar m_66) (type_mvar d_67)))=(type_mvar [anonymous]_33);(array (term_mvar n_60) (array (term_mvar m_61) (type_mvar d_62)))=(array (+ (+ 1 (term_mvar n_65)) 0) (array (+ (+ 1 (term_mvar m_66)) 0) (type_mvar d_67)));(array (term_mvar n_65) (array (term_mvar m_66) (type_mvar d_67)))=(type_mvar [anonymous]_57);(-> (type_mvar s_35) (type_mvar t_36))=(-> (array (term_mvar n_37) (array 2 (array 2 f32))) (array (term_mvar n_37) (array 2 (array 2 f32))));(-> (type_mvar s_38) (type_mvar t_39))=(-> (array 2 (array 2 f32)) (array 2 (array 2 f32)));(-> (index (term_mvar n_41)) (type_mvar t_42))=(-> (index 2) (array 2 f32));(-> (index (term_mvar n_43)) (type_mvar t_44))=(-> (index 2) f32);(array (term_mvar n_49) f32)=(array 2 f32);(array 2 f32)=(array 2 f32);(type_mvar t_55)=(array 2 f32);bool=bool;(index 2)=(index 2);(type_mvar t_56)=(index 2);(array (term_mvar n_52) f32)=(array 2 f32);(array 2 f32)=(array 2 f32);(type_mvar t_53)=(array 2 f32);bool=bool;(index 2)=(index 2);(type_mvar t_54)=(index 2);(array (term_mvar n_49) (array (term_mvar n_52) f32))=(type_mvar [anonymous]_40);(array (term_mvar n_48) f32)=(array (term_mvar n_49) f32);(array (term_mvar n_49) (array (term_mvar n_52) f32))=(type_mvar [anonymous]_47);(-> (type_mvar s_50) (type_mvar t_51))=(-> (array (term_mvar n_52) f32) f32);(array (term_mvar n_52) f32)=(type_mvar [anonymous]_46);(array (term_mvar n_48) f32)=(type_mvar [anonymous]_45);(-> (type_mvar s_21) (type_mvar t_22))=(-> (array (term_mvar n_30) (array (term_mvar m_31) (array (term_mvar m_28) (type_mvar t_29)))) (array (term_mvar m_31) (array (* (term_mvar n_30) (term_mvar m_28)) (type_mvar t_29))));(array (term_mvar n_24) (array (term_mvar n_27) (array (term_mvar m_28) (type_mvar t_29))))=(array (term_mvar m_31) (array (term_mvar n_30) (type_mvar t_32)));(array (term_mvar n_30) (array (term_mvar m_31) (type_mvar t_32)))=(type_mvar [anonymous]_23);(-> (type_mvar s_25) (type_mvar t_26))=(-> (array (term_mvar n_27) (array (term_mvar m_28) (type_mvar t_29))) (array (* (term_mvar n_27) (term_mvar m_28)) (type_mvar t_29)));(-> (type_mvar s_2) (type_mvar t_3))=(-> (array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) (type_mvar t_8)) (array (term_mvar n_5) (type_mvar t_8)));(array (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0))) (type_mvar d_6))=(array (term_mvar m_7) (type_mvar t_8));(array (+ 1 (term_mvar m_7)) (type_mvar t_8))=(type_mvar [anonymous]_4)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
 }
 
 // fn main() {
 //     // simple_tests();
-//     let _r = unify(
+//     let _r = unify2(
 //         "(-> (type_mvar a) (type_mvar b))",
 //         "(-> (type_mvar c) (type_mvar c))",
 //     );

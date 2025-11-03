@@ -1,6 +1,7 @@
 import Rise.Type
 import Rise.TypedRExpr
 import Rise.SymPy
+import Rise.EggParse
 import Lean
 
 open Lean Elab Meta
@@ -18,6 +19,15 @@ syntax "import" "core"                                  : rise_decl
 
 declare_syntax_cat              rise_program
 syntax (rise_decl)* rise_expr : rise_program
+def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
+  let keys := (s1.map (·.fst) ++ s2.map (·.fst)).eraseDups
+  let header := "VarId,Subst1,Subst2"
+  let rows := keys.map (fun k =>
+    let v1 := s1.lookup k |>.map toString |>.getD "❌"
+    let v2 := s2.lookup k |>.map toString |>.getD "❌"
+    s!"{k},{v1},{v2}"
+  )
+  String.intercalate "\n" (header :: rows)
 
 unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
@@ -36,6 +46,18 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
       -- dbg_trace subst
       addSubst (Syntax.missing) subst
       let expr ← applyUnifyResultsRecursivelyUntilStable expr
+
+      let goals := (<- get).unifyGoals |> List.map (fun (x,y) => s!"{x.toSExpr}={y.toSExpr}") |>String.intercalate ";"
+      if goals.length > 0 then
+        let res ← match (← elabEggSolveOutput <| runEgg goals) with
+          | .ok x => pure x
+          | .error e => throwError e
+        -- dbg_trace res
+        let unifyResults : Substitution := (← get).unifyResult
+        -- dbg_trace unifyResults
+        dbg_trace (compareSubstitutionsCSV unifyResults res)
+
+      
 
       return toExpr expr
 

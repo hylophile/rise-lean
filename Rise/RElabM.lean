@@ -13,6 +13,7 @@ structure RContext where
 structure RState where
   unifyResult : Substitution := []
   rnatEqualities : List (RNat × RNat) := []
+  unifyGoals : List (RType × RType) := []
   nextMVarId : RMVarId := 0
   mvars : Lean.PersistentHashMap RMVarId MetaVarDeclaration := {}
 
@@ -46,6 +47,11 @@ def addMVar (id : RMVarId) (userName : Lean.Name) (kind : RKind) (type : Option 
 def addRNatEquality  (eq : RNat × RNat) : RElabM Unit := do
   let rstate : RState ← get
   set { rstate with rnatEqualities := eq :: rstate.rnatEqualities }
+  return ()
+
+def addUnifyGoal  (eq : RType × RType) : RElabM Unit := do
+  let rstate : RState ← get
+  set { rstate with unifyGoals := eq :: rstate.unifyGoals }
   return ()
 
 def findMVar? (id : RMVarId) : RElabM <| Option MetaVarDeclaration := do

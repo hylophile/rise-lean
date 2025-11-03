@@ -19,8 +19,10 @@ pub extern "C" fn run_egg(input: *const c_char) -> *const c_char {
     let input = c_str_to_string(input);
     let output = run(&input);
     match output {
-        Ok(s) => string_to_c_str(format!("!{input}!{s}")),
-        Err(s) => string_to_c_str(format!("?{s}")),
+        Ok(s) => string_to_c_str(format!("{s}")),
+        Err(s) => string_to_c_str(format!("{s}")),
+        // Ok(s) => string_to_c_str(format!("!{input}!{s}")),
+        // Err(s) => string_to_c_str(format!("?{s}")),
     }
 
     // next steps:
@@ -34,15 +36,13 @@ pub extern "C" fn run_egg(input: *const c_char) -> *const c_char {
 }
 
 fn run(input: &str) -> Result<String, String> {
-    let (s1, s2) = input
-        .split_once('=')
-        .ok_or(format!("invalid input: {input}"))?;
+    // .map(|x| x.split_once('=').ok_or(format!("invalid input: {input}"))?);
 
-    let res = lang::unify(s1, s2)?
+    let res = lang::unify(input)?
         .iter()
         .map(|(k, v)| format!("{}={}", k, v))
         .collect::<Vec<_>>()
-        .join(";");
+        .join(",");
     let res = Ok(res);
     res
 }
