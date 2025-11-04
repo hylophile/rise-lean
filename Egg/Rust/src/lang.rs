@@ -46,12 +46,15 @@ fn rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         rewrite!(s(); "(+ ?a 0)" => "?a"),
         rewrite!(s(); "(* ?a 0)" => "0"),
         rewrite!(s(); "(* ?a 1)" => "?a"),
+        rewrite!(s(); "(/ ?a (/ ?b ?c))" => "(* ?a (/ ?c ?b))"),
+        rewrite!(s(); "(/ (/ ?a ?b) ?c)" => "(/ ?a (* ?b ?c))"),
 
         // multi_rewrite!(s(); "?v = (+ ?a ?b) = ?a" => "?a = 888"),
         // todo: how do we detect positive/negative inf?
 
         // multi_rewrite!(s(); "?v = (+ ?a ?b) = (+ ?c ?d)" => "?a = ?c, ?b = ?d"),
         // multi_rewrite!(s(); "?v = (* ?a ?b) = (* ?c ?d)" => "?a = ?c, ?b = ?d"),
+        multi_rewrite!(s(); "?v = (* ?a ?b) = ?c" => "?a = (/ ?c ?b), ?b = (/ ?c ?a)"),
         multi_rewrite!(s(); "?v = (-> ?a ?b) = (-> ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (array ?a ?b) = (array ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (vector ?a ?b) = (vector ?c ?d)" => "?a = ?c, ?b = ?d"),
@@ -222,7 +225,7 @@ impl Analysis<RiseType> for UnifyAnalysis {
 
     fn modify(egraph: &mut EGraph<RiseType, Self>, id: Id) {
         let data = egraph[id].data.const_prop.clone();
-        if let Some((c, pat)) = data {
+        if let Some((c, _pat)) = data {
             // if egraph.are_explanations_enabled() {
             //     egraph.union_instantiations(
             //         &pat,
@@ -235,7 +238,7 @@ impl Analysis<RiseType> for UnifyAnalysis {
             egraph.union(id, added);
             // }
             // to not prune, comment this out
-            egraph[id].nodes.retain(|n| n.is_leaf());
+            // egraph[id].nodes.retain(|n| n.is_leaf());
 
             #[cfg(debug_assertions)]
             egraph[id].assert_unique_leaves();
@@ -263,8 +266,30 @@ fn pretty_mvar(egraph: &EGraph<RiseType, UnifyAnalysis>, l: &RiseType) -> Option
     }
 }
 
+#[cfg(test)]
 fn unify2(s1: &str, s2: &str) -> Result<HashMap<String, String>, String> {
     unify(&format!("{s1}={s2}"))
+}
+
+struct SillyCostFn;
+impl CostFunction<RiseType> for SillyCostFn {
+    type Cost = i32;
+    fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost,
+    {
+        let op_cost = match enode {
+            RiseType::TermMVar(_) => 100,
+            // RiseType::Num(_) => todo!(),
+            // RiseType::Add(_) => todo!(),
+            // RiseType::Mul(_) => todo!(),
+            // RiseType::Div(_) => todo!(),
+            // RiseType::Sub(_) => todo!(),
+            // RiseType::TermBVar(id) => todo!(),
+            _ => 1,
+        };
+        enode.fold(op_cost, |sum, id| sum + costs(id))
+    }
 }
 
 pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
@@ -322,20 +347,49 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         }
     }
     for class in runner.egraph.classes() {
-        class.nodes.iter().filter(|n| is_mvar(*n)).for_each(|n| {
-            let repr = reprs
-                .get(&class.id)
-                .unwrap()
-                .build_recexpr(|id| (*reprs.get(&id).unwrap()).clone());
-            if let Some(p) = pretty_mvar(&runner.egraph, n) {
-                let repr = repr.pretty(1000);
-                if repr != p {
-                    map.insert(p, repr);
+        class
+            .nodes
+            .iter()
+            .filter(|n| is_mvar(*n))
+            .for_each(|n| match n {
+                RiseType::Array(_)
+                | RiseType::Vector(_)
+                | RiseType::Pair(_)
+                | RiseType::Index(_)
+                | RiseType::Fn(_)
+                | RiseType::TypeMVar(_)
+                | RiseType::TypeBVar(_)
+                | RiseType::Symbol(_) => {
+                    let repr = reprs
+                        .get(&class.id)
+                        .unwrap()
+                        .build_recexpr(|id| (*reprs.get(&id).unwrap()).clone());
+                    if let Some(p) = pretty_mvar(&runner.egraph, n) {
+                        let repr = repr.pretty(1000);
+                        if repr != p {
+                            map.insert(p, repr);
+                        }
+                    }
                 }
-            }
-        });
+
+                RiseType::Num(_)
+                | RiseType::Add(_)
+                | RiseType::Mul(_)
+                | RiseType::Div(_)
+                | RiseType::Sub(_)
+                | RiseType::TermMVar(_)
+                | RiseType::TermBVar(_) => {
+                    let ex = Extractor::new(&runner.egraph, SillyCostFn {});
+                    let (_, v) = ex.find_best(class.id);
+                    if let Some(p) = pretty_mvar(&runner.egraph, n) {
+                        let repr = v.pretty(1000);
+                        if repr != p {
+                            map.insert(p, repr);
+                        }
+                    }
+                }
+            });
     }
-    // dbg!(reprs);
     Ok(map)
 }
 
@@ -536,6 +590,13 @@ fn t_scalt() {
     assert_eq!(r, map![]);
 }
 
+#[test]
+fn t_cle() {
+    let x = clean_divide(64, 4);
+    assert_eq!(x, Some(16));
+    let x = clean_divide(64, 3);
+    assert_eq!(x, None);
+}
 // fn main() {
 //     // simple_tests();
 //     let _r = unify2(
