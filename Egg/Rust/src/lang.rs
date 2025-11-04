@@ -77,18 +77,18 @@ fn rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
 
 #[derive(Debug, Clone)]
 struct UnifyAnalysis {
-    value: Result<(), String>,
+    found_err: Result<(), String>,
 }
 
 impl Default for UnifyAnalysis {
     fn default() -> Self {
-        Self { value: Ok(()) }
+        Self { found_err: Ok(()) }
     }
 }
 
 fn check_no_self_loops(
     egraph: &EGraph<RiseType, UnifyAnalysis>,
-    class: &EClass<RiseType, Variant>,
+    class: &EClass<RiseType, InnerAnalysis>,
 ) -> Result<(), String> {
     let id = class.id;
     for enode in &class.nodes {
@@ -106,6 +106,12 @@ fn check_no_self_loops(
         }
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct InnerAnalysis {
+    variant: Variant,
+    const_prop: Option<(i32, PatternAst<RiseType>)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,16 +141,54 @@ fn get_variant(i: &RiseType) -> Variant {
     }
 }
 
-impl Analysis<RiseType> for UnifyAnalysis {
-    type Data = Variant;
+fn clean_divide(x: i32, y: i32) -> Option<i32> {
+    if x % y == 0 {
+        Some(x / y)
+    } else {
+        None
+    }
+}
 
-    fn make(_egraph: &mut EGraph<RiseType, Self>, enode: &RiseType) -> Self::Data {
-        get_variant(enode)
+fn make_const_prop(
+    egraph: &mut EGraph<RiseType, UnifyAnalysis>,
+    enode: &RiseType,
+) -> Option<(i32, PatternAst<RiseType>)> {
+    let x = |i: &Id| egraph[*i].data.const_prop.as_ref().map(|d| d.0);
+    Some(match enode {
+        RiseType::Num(c) => (*c, format!("{}", c).parse().unwrap()),
+        RiseType::Add([a, b]) => (
+            x(a)? + x(b)?,
+            format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
+        ),
+        RiseType::Sub([a, b]) => (
+            x(a)? - x(b)?,
+            format!("(- {} {})", x(a)?, x(b)?).parse().unwrap(),
+        ),
+        RiseType::Mul([a, b]) => (
+            x(a)? * x(b)?,
+            format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
+        ),
+        RiseType::Div([a, b]) if x(b) != Some(0) => (
+            clean_divide(x(a)?, x(b)?)?,
+            format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
+        ),
+        _ => return None,
+    })
+}
+
+impl Analysis<RiseType> for UnifyAnalysis {
+    type Data = InnerAnalysis;
+
+    fn make(egraph: &mut EGraph<RiseType, Self>, enode: &RiseType) -> Self::Data {
+        InnerAnalysis {
+            variant: get_variant(enode),
+            const_prop: make_const_prop(egraph, enode),
+        }
     }
 
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
         use Variant::*;
-        let (new_val, a_changed, b_changed) = match (a.clone(), b.clone()) {
+        let (new_val, a_changed, b_changed) = match (a.variant.clone(), b.variant.clone()) {
             (v @ Term, Term) | (v @ TermMVar, TermMVar) | (v @ TypeMVar, TypeMVar) => {
                 (v, false, false)
             }
@@ -159,51 +203,45 @@ impl Analysis<RiseType> for UnifyAnalysis {
                 if s1 == s2 {
                     (TypeName(s1.clone()), false, false)
                 } else {
-                    self.value = Err(format!("merge conflict: {a:?} {b:?}"));
+                    self.found_err = Err(format!("merge conflict: {a:?} {b:?}"));
                     (TypeName(s1.clone()), false, false)
                 }
             }
 
             (_, v) => {
-                self.value = Err(format!("merge conflict: {a:?} {b:?}"));
+                self.found_err = Err(format!("merge conflict: {a:?} {b:?}"));
                 (v, false, false)
             }
         };
-        *a = new_val;
+        *a = InnerAnalysis {
+            variant: new_val,
+            const_prop: a.const_prop.clone(),
+        };
         DidMerge(a_changed, b_changed)
     }
+
+    fn modify(egraph: &mut EGraph<RiseType, Self>, id: Id) {
+        let data = egraph[id].data.const_prop.clone();
+        if let Some((c, pat)) = data {
+            // if egraph.are_explanations_enabled() {
+            //     egraph.union_instantiations(
+            //         &pat,
+            //         &format!("{}", c).parse().unwrap(),
+            //         &Default::default(),
+            //         "constant_fold".to_string(),
+            //     );
+            // } else {
+            let added = egraph.add(RiseType::Num(c));
+            egraph.union(id, added);
+            // }
+            // to not prune, comment this out
+            egraph[id].nodes.retain(|n| n.is_leaf());
+
+            #[cfg(debug_assertions)]
+            egraph[id].assert_unique_leaves();
+        }
+    }
 }
-
-// #[derive(PartialEq, Eq, PartialOrd, Debug, Clone, Copy)]
-// struct MCost {
-//     mvars: usize,
-//     rest: usize,
-// }
-
-// impl Ord for MCost {
-//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-//         use std::cmp::Ordering::*;
-//         match self.mvars.cmp(&other.mvars) {
-//             Less => todo!(),
-//             Equal => todo!(),
-//             Greater => todo!(),
-//         }
-//     }
-// }
-
-// struct UnifyCostFn;
-// impl CostFunction<RiseType> for UnifyCostFn {
-//     type Cost = usize;
-//     fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
-//     where
-//         C: FnMut(Id) -> Self::Cost,
-//     {
-//         match enode {
-//             RiseType::TermMVar(_) | RiseType::TypeMVar(_) => return 100,
-//             _ => 1 + (enode.fold(0, |sum: usize, id| sum.saturating_add(costs(id))) / 10),
-//         }
-//     }
-// }
 
 fn is_mvar(l: &RiseType) -> bool {
     match l {
@@ -257,7 +295,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         check_no_self_loops(&runner.egraph, class)?
     }
 
-    let _ = runner.egraph.analysis.value.clone()?;
+    let _ = runner.egraph.analysis.found_err.clone()?;
 
     let mut map = HashMap::new();
     let mut reprs = HashMap::new();
@@ -282,21 +320,6 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
                 }
             }
         }
-        // if class.nodes.iter().any(|x| is_mvar(x)) {
-        //     let (_cost, x) = extractor.find_best(class.id);
-        //     class.nodes.iter().for_each(|n| {
-        //         if is_mvar(n) {
-        //             dbg!(_cost, &x);
-        //             if let Some(p) = pretty_mvar(&runner.egraph, n) {
-        //                 // dbg!(_cost, &x, &p);
-        //                 let x = x.pretty(1000);
-        //                 if x != p {
-        //                     map.insert(p, x);
-        //                 }
-        //             }
-        //         }
-        //     });
-        // }
     }
     for class in runner.egraph.classes() {
         class.nodes.iter().filter(|n| is_mvar(*n)).for_each(|n| {
@@ -504,6 +527,15 @@ fn t_scalintel() {
     let r = unify(goals).unwrap();
     assert_eq!(r, map![]);
 }
+
+#[test]
+fn t_scalt() {
+    let goals="(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar m_3) (array (* (* 4 128) 128) (type_mvar t_4)));(array (* (term_mvar m_3) (* (* 4 128) 128)) (type_mvar t_4))=(array (term_bvar n_0) f32)
+";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+
 // fn main() {
 //     // simple_tests();
 //     let _r = unify2(
