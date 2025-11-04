@@ -207,6 +207,11 @@ def RData.apply (t : RData) (subst : Substitution) : RData :=
 def RType.apply (t : RType) (subst : Substitution) : RType :=
   subst.foldr (fun (id, replacement) acc => acc.subst id replacement) t
 
+def SubstEnum.apply (se : SubstEnum) (subst : Substitution) : SubstEnum :=
+  match se with
+  | .data s => data <| subst.foldr (fun (id, replacement) acc => acc.subst id replacement) s
+  | .nat s => nat <| subst.foldr (fun (id, replacement) acc => acc.subst id replacement) s
+
 
 ------------------------------------------------
 --

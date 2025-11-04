@@ -12,6 +12,7 @@ structure RContext where
 
 structure RState where
   unifyResult : Substitution := []
+  unifyResultMap : Std.HashMap RMVarId SubstEnum := {}
   rnatEqualities : List (RNat × RNat) := []
   unifyGoals : List (RType × RType) := []
   nextMVarId : RMVarId := 0

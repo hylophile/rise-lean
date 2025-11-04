@@ -14,12 +14,27 @@ syntax "term_bvar" : egg_op
 syntax "type_mvar" : egg_op
 syntax "type_bvar" : egg_op
 syntax "array" : egg_op
+syntax "vector" : egg_op
 syntax "pair" : egg_op
 syntax "index" : egg_op
 
 declare_syntax_cat egg_expr
 syntax num : egg_expr
 syntax ident : egg_expr
+syntax "bool" : egg_expr
+syntax "int" : egg_expr
+syntax "i8" : egg_expr
+syntax "i16" : egg_expr
+syntax "i32" : egg_expr
+syntax "i64" : egg_expr
+syntax "u8" : egg_expr
+syntax "u16" : egg_expr
+syntax "u32" : egg_expr
+syntax "u64" : egg_expr
+syntax "f16" : egg_expr
+syntax "f32" : egg_expr
+syntax "f64" : egg_expr
+syntax "natType" : egg_expr
 syntax "(" egg_op egg_expr ")" : egg_expr
 syntax "(" egg_op egg_expr egg_expr ")" : egg_expr
 
@@ -116,6 +131,14 @@ private partial def elabEggExpr : Syntax → RElabM SubstEnum
       | .nat _ => throwError "type error"
       | .data x => pure x
     return .data <| RData.array e1 e2
+  | `(egg_expr| (vector $e1:egg_expr $e2:egg_expr)) => do
+    let e1 ← match (← elabEggExpr e1) with
+      | .nat x => pure x
+      | .data _ => throwError "type error"
+    let e2 ← match (← elabEggExpr e2) with
+      | .nat _ => throwError "type error"
+      | .data x => pure x
+    return .data <| RData.vector e1 e2
   | `(egg_expr| (pair $e1:egg_expr $e2:egg_expr)) => do
     let e1 ← match (← elabEggExpr e1) with
       | .nat _ => throwError "type error"
@@ -168,7 +191,7 @@ def elabEggSolveOutput (s : String) : RElabM (Except String Substitution) := do
     | .error err => return .error err
 
 
- #eval liftToTermElabM <| elabEggSolveOutput "(type_mvar s_4)=(pair f32 f32),(type_mvar s_8)=f32,(type_mvar t_5)=f32,(term_mvar n_0)=(term_bvar n_0),(type_mvar d_6)=f32,(type_mvar t_9)=f32,(term_mvar n_7)=(term_bvar n_0),(type_mvar t_1)=f32,(type_mvar t_2)=f32,(term_mvar n_3)=(term_bvar n_0)"
+ -- #eval liftToTermElabM <| elabEggSolveOutput "(type_mvar s_4)=(pair f32 f32),(type_mvar s_8)=f32,(type_mvar t_5)=f32,(term_mvar n_0)=(term_bvar n_0),(type_mvar d_6)=f32,(type_mvar t_9)=f32,(term_mvar n_7)=(term_bvar n_0),(type_mvar t_1)=f32,(type_mvar t_2)=f32,(term_mvar n_3)=(term_bvar n_0)"
 
  -- #eval liftToTermElabM <| elabEggSolveOutput "(type_mvar d_6)=f32,(type_mvar s_8)=f32,(type_mvar t_2)=f32,(term_mvar n_7)=(term_bvar n_0),(type_mvar t_9)=f32,(type_mvar t_1)=f32,(type_mvar s_4)=(pair f32 f32),(type_mvar t_5)=f32,(term_mvar n_0)=(term_bvar n_0),(term_mvar n_3)=(term_bvar n_0)"
 

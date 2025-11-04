@@ -256,7 +256,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     addMVar id Lean.Name.anonymous RKind.data
     let t :=  RType.data (.mvar id Lean.Name.anonymous)
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
-    let t ← applyUnifyResultsUntilStable t
+    -- let t ← applyUnifyResultsUntilStable t
     return ⟨.lam x.getId t b, .fn t b.type⟩
 
   | `(rise_expr| fun ( $x:ident : $t:rise_type ) => $b:rise_expr ) => do
@@ -294,7 +294,8 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           -- dbg_trace x
           addSubst f_syn sub
           -- dbg_trace (<- get).unifyResult
-          return ⟨.app f e, brt.apply sub⟩
+          -- return ⟨.app f e, brt.apply sub⟩
+          return ⟨.app f e, brt⟩
           -- catch e => throwErrorAt f_syn e
         | .error x =>
           logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}\n{x}"

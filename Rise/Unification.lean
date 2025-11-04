@@ -258,6 +258,30 @@ unsafe def addSubst (stx : Lean.Syntax) (subst : Substitution) : RElabM Unit := 
   
   -- modify (λ r => {r with unifyResult := s ++ r.unifyResult})
 
+
+def stabilizeUnifyResultsAux (x : SubstEnum) (s : Substitution) : RElabM SubstEnum :=
+  let fuel := 100
+  let rec loop (current : SubstEnum) (remaining : Nat) : RElabM SubstEnum :=
+    if remaining = 0 then throwError "fuel ran out"
+    else
+      let next := current.apply s
+      if next == current then return current
+      else loop next (remaining - 1)
+  loop x fuel
+
+def stabilizeUnifyResults : RElabM Unit := do
+  let unifyResult : Substitution := (← get).unifyResult
+  -- let unifyResultMap : Std.HashMap RMVarId SubstEnum := (← get).unifyResultMap
+  -- let map : Std.HashMap RMVarId SubstEnum := unifyResult.foldl (init := {}) (fun m (k, v) => m.insert k v)
+  let new ← unifyResult.mapM (fun (k,v) => do
+    let v ← stabilizeUnifyResultsAux v unifyResult
+    return (k, v)
+  )
+  modify (λ r => {r with unifyResult := new})
+  return ()
+
+
+
 def applyUnifyResults (t : RType) : RElabM RType := do
   let unifyResults : Substitution := (← get).unifyResult
   return t.apply unifyResults

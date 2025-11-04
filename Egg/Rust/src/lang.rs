@@ -5,6 +5,7 @@ use std::time::Duration;
 define_language! {
     pub enum RiseType {
         "array" = Array([Id; 2]),
+        "vector" = Vector([Id; 2]),
         "pair" = Pair([Id; 2]),
         "index" = Index(Id),
         "->" = Fn([Id; 2]),
@@ -49,9 +50,13 @@ fn rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         // multi_rewrite!(s(); "?v = (+ ?a ?b) = ?a" => "?a = 888"),
         // todo: how do we detect positive/negative inf?
 
+        // multi_rewrite!(s(); "?v = (+ ?a ?b) = (+ ?c ?d)" => "?a = ?c, ?b = ?d"),
+        // multi_rewrite!(s(); "?v = (* ?a ?b) = (* ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (-> ?a ?b) = (-> ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (array ?a ?b) = (array ?c ?d)" => "?a = ?c, ?b = ?d"),
+        multi_rewrite!(s(); "?v = (vector ?a ?b) = (vector ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (pair ?a ?b) = (pair ?c ?d)" => "?a = ?c, ?b = ?d"),
+        multi_rewrite!(s(); "?v = (index ?a) = (index ?c)" => "?a = ?c"),
 
         // multi_rewrite!(s(); "?v = (~ (array ?n1 ?d1) (array ?n2 ?d2))"             => "?v = (~ ?n1 ?n2) = (~ ?d1 ?d2)"),
         // multi_rewrite!(s(); "?v = (~ (array ?t1 ?t2) (type_mvar )?c))"                   => "?w = (array ?t1 ?t2) = (type_mvar )?c)"),
@@ -123,6 +128,7 @@ fn get_variant(i: &RiseType) -> Variant {
         RiseType::Symbol(s) => Variant::TypeName(s.to_string()),
         RiseType::TypeBVar(_) => Variant::TypeName("bvar".to_string()),
         RiseType::Array(_) => Variant::TypeName("array".to_string()),
+        RiseType::Vector(_) => Variant::TypeName("array".to_string()),
         RiseType::Pair(_) => Variant::TypeName("pair".to_string()),
         RiseType::Index(_) => Variant::TypeName("index".to_string()),
         RiseType::Fn(_) => Variant::TypeName("fn".to_string()),
@@ -479,6 +485,25 @@ fn t_a() {
     assert_eq!(r, map![]);
 }
 
+#[test]
+fn t_downsample() {
+    let goals="(array (term_mvar n_31) (array (term_mvar m_32) f32))=(array (+ (term_bvar h_1) 3) (array (+ (term_bvar w_0) 3) f32));(array (term_mvar n_1) (array (term_mvar n_4) (array 4 (array 4 f32))))=(array (+ 1 (term_mvar n_21)) (array (+ 1 (term_mvar n_27)) (array 4 (array 4 (type_mvar d_33)))));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_0);(array (term_mvar n_14) (array (term_mvar n_17) (array (term_mvar m_18) (type_mvar t_19))))=(array (+ 1 (term_mvar n_21)) (array 4 (array (+ 1 (term_mvar n_27)) (array 4 (type_mvar d_33)))));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_13);(array (+ (* 2 (term_mvar n_21)) 4) (type_mvar t_22))=(array (+ (+ 1 (term_mvar n_31)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar h_1) 2)) (/ (term_bvar h_1) 2))))) (array (+ 1 (term_mvar n_27)) (array 4 (type_mvar d_33))));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_20);(array (term_mvar n_24) (array (+ (* 2 (term_mvar n_27)) 4) (type_mvar t_28)))=(array (+ (+ 1 (term_mvar n_31)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar h_1) 2)) (/ (term_bvar h_1) 2))))) (array (+ (+ 1 (term_mvar m_32)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar w_0) 2)) (/ (term_bvar w_0) 2))))) (type_mvar d_33)));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_23);(-> (type_mvar s_25) (type_mvar t_26))=(-> (array (+ (* 2 (term_mvar n_27)) 4) (type_mvar t_28)) (array (+ 1 (term_mvar n_27)) (array 4 (type_mvar t_28))));(-> (type_mvar s_15) (type_mvar t_16))=(-> (array (term_mvar n_17) (array (term_mvar m_18) (type_mvar t_19))) (array (term_mvar m_18) (array (term_mvar n_17) (type_mvar t_19))));(-> (type_mvar s_2) (type_mvar t_3))=(-> (array (term_mvar n_4) (array 4 (array 4 f32))) (array (term_mvar n_4) f32));(-> (type_mvar s_5) (type_mvar t_6))=(-> (array 4 (array 4 f32)) f32);(array 4 f32)=(array (term_mvar n_9) f32);(array (term_mvar n_9) (array 4 f32))=(type_mvar anonymous_7);(-> (type_mvar s_10) (type_mvar t_11))=(-> (array 4 f32) f32);(array (term_mvar n_12) f32)=(array 4 f32);(array (term_mvar n_8) f32)=(array 4 f32)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+#[test]
+fn t_droplast() {
+    let goals ="(array (+ (term_bvar n_1) (term_mvar m_0)) (type_mvar t_1))=(array (+ (term_bvar n_1) (term_bvar m_2)) (type_bvar d_0))";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+
+#[test]
+fn t_scalintel() {
+    let goals ="(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar n_3) (type_mvar t_5));(array (term_mvar n_3) (type_mvar s_4))=(array (term_mvar m_30) (array (* (* 4 128) 128) (type_mvar t_31)));(array (* (term_mvar m_30) (* (* 4 128) 128)) (type_mvar t_31))=(array (term_bvar n_0) f32);(-> (type_mvar s_4) (type_mvar t_5))=(-> (type_mvar anonymous_6) (array (* (term_mvar m_8) (term_mvar n_7)) (type_mvar t_9)));(array (term_mvar m_8) (vector (term_mvar n_7) (type_mvar t_9)))=(array (* (term_mvar n_11) (term_mvar m_12)) (type_mvar t_13));(type_mvar anonymous_10)=(type_mvar anonymous_6);(array (term_mvar n_11) (array (term_mvar m_12) (type_mvar t_13)))=(array (term_mvar n_15) (type_mvar t_17));(type_mvar anonymous_14)=(type_mvar anonymous_10);(array (term_mvar n_15) (type_mvar s_16))=(array (term_mvar m_26) (array 128 (type_mvar t_27)));(type_mvar anonymous_25)=(type_mvar anonymous_14);(array (* (term_mvar m_26) 128) (type_mvar t_27))=(array (term_mvar m_28) (vector 4 (type_mvar t_29)));(array (* (term_mvar m_28) 4) (type_mvar t_29))=(type_mvar anonymous_25);(-> (type_mvar s_16) (type_mvar t_17))=(-> (array (term_mvar n_18) (type_mvar s_19)) (array (term_mvar n_18) (type_mvar t_20)));(-> (type_mvar s_19) (type_mvar t_20))=(-> (type_mvar anonymous_21) (type_mvar t_22));(type_mvar t_22)=(vector (term_mvar n_23) (type_mvar t_24));(type_mvar t_24)=f32;(type_mvar t_22)=(type_mvar anonymous_21)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
 // fn main() {
 //     // simple_tests();
 //     let _r = unify2(

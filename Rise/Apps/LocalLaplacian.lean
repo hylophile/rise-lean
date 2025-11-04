@@ -127,4 +127,4 @@ def upsample2D := [RiseC|
   >> $dropLast (2 + 2*(h/2) - h : nat) -- is dropLast different from take? (yes!)
   >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
 ]
-#pp upsample2D
+#pp upsample2D.type
