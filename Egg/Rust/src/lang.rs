@@ -44,17 +44,19 @@ fn rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         // rewrite!("commute-unify"; "(~ ?a ?b)" => "(~ ?b ?a)"),
 
         rewrite!(s(); "(+ ?a 0)" => "?a"),
+        rewrite!(s(); "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
         rewrite!(s(); "(* ?a 0)" => "0"),
         rewrite!(s(); "(* ?a 1)" => "?a"),
         rewrite!(s(); "(/ ?a (/ ?b ?c))" => "(* ?a (/ ?c ?b))"),
         rewrite!(s(); "(/ (/ ?a ?b) ?c)" => "(/ ?a (* ?b ?c))"),
+        // vvv explosive rule
+        multi_rewrite!(s(); "?v = (* (term_mvar ?a) ?b) = ?c" => "?b = (/ ?c (term_mvar ?a))"),
 
         // multi_rewrite!(s(); "?v = (+ ?a ?b) = ?a" => "?a = 888"),
         // todo: how do we detect positive/negative inf?
 
         // multi_rewrite!(s(); "?v = (+ ?a ?b) = (+ ?c ?d)" => "?a = ?c, ?b = ?d"),
         // multi_rewrite!(s(); "?v = (* ?a ?b) = (* ?c ?d)" => "?a = ?c, ?b = ?d"),
-        multi_rewrite!(s(); "?v = (* ?a ?b) = ?c" => "?a = (/ ?c ?b), ?b = (/ ?c ?a)"),
         multi_rewrite!(s(); "?v = (-> ?a ?b) = (-> ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (array ?a ?b) = (array ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (vector ?a ?b) = (vector ?c ?d)" => "?a = ?c, ?b = ?d"),
@@ -311,10 +313,13 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
     // run
     let runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
         .with_egraph(eg)
-        .with_time_limit(Duration::from_secs(1))
+        .with_node_limit(100)
+        // .with_iter_limit(2)
+        .with_time_limit(Duration::from_millis(1000))
         .run(&rules());
     #[cfg(test)]
     runner.egraph.dot().to_svg("target/foo.svg").unwrap();
+    // dbg!(runner.egraph.dump());
 
     for class in runner.egraph.classes() {
         check_no_self_loops(&runner.egraph, class)?
@@ -324,6 +329,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
 
     let mut map = HashMap::new();
     let mut reprs = HashMap::new();
+    // return Ok(map);
     // find reprs
     for class in runner.egraph.classes() {
         let (mvars, rest): (Vec<&RiseType>, Vec<&RiseType>) =
@@ -334,19 +340,27 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
                 continue;
             }
             1.. => {
-                // let repr = *rest.get(0).unwrap();
-                let repr = *rest.iter().min().unwrap();
-                if repr.children().iter().any(|i| *i == class.id) {
-                    reprs.insert(class.id, *mvars.iter().min().unwrap());
-                    continue;
-                } else {
-                    reprs.insert(class.id, repr);
-                    continue;
-                }
-            }
+                let repr = *rest.get(0).unwrap();
+                reprs.insert(class.id, repr);
+                // let repr = *rest.iter().min().unwrap();
+                // if repr.children().iter().any(|i| *i == class.id) {
+                // reprs.insert(class.id, *mvars.iter().min().unwrap());
+                //     continue;
+                // } else {
+                //     reprs.insert(class.id, repr);
+                //     continue;
+                // }
+            } // 2.. => {
+              //     panic!("idk");
+              // }
         }
     }
+    #[cfg(test)]
+    dbg!("reprs done");
     for class in runner.egraph.classes() {
+        #[cfg(test)]
+        dbg!(format!("id {}", class.id));
+
         class
             .nodes
             .iter()
@@ -360,10 +374,21 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
                 | RiseType::TypeMVar(_)
                 | RiseType::TypeBVar(_)
                 | RiseType::Symbol(_) => {
-                    let repr = reprs
-                        .get(&class.id)
-                        .unwrap()
-                        .build_recexpr(|id| (*reprs.get(&id).unwrap()).clone());
+                    #[cfg(test)]
+                    dbg!(format!("try type id {}", class.id));
+                    let repr = reprs.get(&class.id).unwrap().build_recexpr(|id| {
+                        let k = get_variant(runner.egraph[id].nodes.first().unwrap());
+                        match k {
+                            Variant::Term | Variant::TermMVar => {
+                                let ex = Extractor::new(&runner.egraph, SillyCostFn {});
+                                let v = ex.find_best_node(class.id);
+                                v.clone()
+                            }
+                            _ => (*reprs.get(&id).unwrap()).clone(),
+                        }
+                    });
+                    #[cfg(test)]
+                    dbg!(format!("found type id {}", class.id));
                     if let Some(p) = pretty_mvar(&runner.egraph, n) {
                         let repr = repr.pretty(1000);
                         if repr != p {
@@ -379,8 +404,12 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
                 | RiseType::Sub(_)
                 | RiseType::TermMVar(_)
                 | RiseType::TermBVar(_) => {
+                    #[cfg(test)]
+                    dbg!(format!("try term id {}", class.id));
                     let ex = Extractor::new(&runner.egraph, SillyCostFn {});
                     let (_, v) = ex.find_best(class.id);
+                    #[cfg(test)]
+                    dbg!(format!("found term id {}", class.id));
                     if let Some(p) = pretty_mvar(&runner.egraph, n) {
                         let repr = v.pretty(1000);
                         if repr != p {
@@ -556,8 +585,8 @@ fn t_blub() {
 }
 
 #[test]
-fn t_a() {
-    let goals = "(array (term_mvar n_65) (array (term_mvar m_66) f32))=(array (+ (/ (term_bvar h_1) 2) 3) (array (+ (/ (term_bvar w_0) 2) 3) f32));(array (term_mvar n_1) (array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) (type_mvar t_8)))=(array (term_mvar n_10) (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_0);(array (+ (term_mvar n_10) (- (+ 2 (* 2 (/ (term_bvar h_1) 2))) (term_bvar h_1))) (type_mvar d_11))=(array (term_mvar m_13) (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_9);(array (+ 1 (term_mvar m_13)) (type_mvar t_14))=(array (* (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) 2) (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_12);(array (term_mvar n_16) (array (term_mvar m_17) (type_mvar t_18)))=(array (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) (array 2 (array (* (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) 2) f32)));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_15);(array (term_mvar n_20) (array (term_mvar n_30) (array (term_mvar m_31) (array (term_mvar m_28) (type_mvar t_29)))))=(array (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) (array (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) (array 2 (array 2 f32))));(array (term_mvar n_65) (array (term_mvar m_66) f32))=(type_mvar [anonymous]_19);(array (term_mvar n_34) (array (term_mvar n_37) (array 2 (array 2 f32))))=(array (+ 1 (/ (- (+ (+ 1 (term_mvar n_65)) 0) 2) 1)) (array (+ 1 (/ (- (+ (+ 1 (term_mvar m_66)) 0) 2) 1)) (array 2 (array 2 (type_mvar d_67)))));(array (term_mvar n_65) (array (term_mvar m_66) (type_mvar d_67)))=(type_mvar [anonymous]_33);(array (term_mvar n_60) (array (term_mvar m_61) (type_mvar d_62)))=(array (+ (+ 1 (term_mvar n_65)) 0) (array (+ (+ 1 (term_mvar m_66)) 0) (type_mvar d_67)));(array (term_mvar n_65) (array (term_mvar m_66) (type_mvar d_67)))=(type_mvar [anonymous]_57);(-> (type_mvar s_35) (type_mvar t_36))=(-> (array (term_mvar n_37) (array 2 (array 2 f32))) (array (term_mvar n_37) (array 2 (array 2 f32))));(-> (type_mvar s_38) (type_mvar t_39))=(-> (array 2 (array 2 f32)) (array 2 (array 2 f32)));(-> (index (term_mvar n_41)) (type_mvar t_42))=(-> (index 2) (array 2 f32));(-> (index (term_mvar n_43)) (type_mvar t_44))=(-> (index 2) f32);(array (term_mvar n_49) f32)=(array 2 f32);(array 2 f32)=(array 2 f32);(type_mvar t_55)=(array 2 f32);bool=bool;(index 2)=(index 2);(type_mvar t_56)=(index 2);(array (term_mvar n_52) f32)=(array 2 f32);(array 2 f32)=(array 2 f32);(type_mvar t_53)=(array 2 f32);bool=bool;(index 2)=(index 2);(type_mvar t_54)=(index 2);(array (term_mvar n_49) (array (term_mvar n_52) f32))=(type_mvar [anonymous]_40);(array (term_mvar n_48) f32)=(array (term_mvar n_49) f32);(array (term_mvar n_49) (array (term_mvar n_52) f32))=(type_mvar [anonymous]_47);(-> (type_mvar s_50) (type_mvar t_51))=(-> (array (term_mvar n_52) f32) f32);(array (term_mvar n_52) f32)=(type_mvar [anonymous]_46);(array (term_mvar n_48) f32)=(type_mvar [anonymous]_45);(-> (type_mvar s_21) (type_mvar t_22))=(-> (array (term_mvar n_30) (array (term_mvar m_31) (array (term_mvar m_28) (type_mvar t_29)))) (array (term_mvar m_31) (array (* (term_mvar n_30) (term_mvar m_28)) (type_mvar t_29))));(array (term_mvar n_24) (array (term_mvar n_27) (array (term_mvar m_28) (type_mvar t_29))))=(array (term_mvar m_31) (array (term_mvar n_30) (type_mvar t_32)));(array (term_mvar n_30) (array (term_mvar m_31) (type_mvar t_32)))=(type_mvar [anonymous]_23);(-> (type_mvar s_25) (type_mvar t_26))=(-> (array (term_mvar n_27) (array (term_mvar m_28) (type_mvar t_29))) (array (* (term_mvar n_27) (term_mvar m_28)) (type_mvar t_29)));(-> (type_mvar s_2) (type_mvar t_3))=(-> (array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) (type_mvar t_8)) (array (term_mvar n_5) (type_mvar t_8)));(array (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0))) (type_mvar d_6))=(array (term_mvar m_7) (type_mvar t_8));(array (+ 1 (term_mvar m_7)) (type_mvar t_8))=(type_mvar [anonymous]_4)";
+fn t_lapl_upsamp() {
+    let goals="(type_mvar anonymous_0)=(array (+ (/ (term_bvar h_1) 2) 3) (array (+ (/ (term_bvar w_0) 2) 3) f32));(array (term_mvar n_1) (type_mvar s_2))=(array (term_mvar n_10) (type_mvar d_11));(type_mvar anonymous_9)=(type_mvar anonymous_0);(array (+ (term_mvar n_10) (- (+ 2 (* 2 (/ (term_bvar h_1) 2))) (term_bvar h_1))) (type_mvar d_11))=(array (term_mvar m_13) (type_mvar t_14));(type_mvar anonymous_12)=(type_mvar anonymous_9);(array (+ 1 (term_mvar m_13)) (type_mvar t_14))=(array (* (term_mvar n_16) (term_mvar m_17)) (type_mvar t_18));(type_mvar anonymous_15)=(type_mvar anonymous_12);(array (term_mvar n_16) (array (term_mvar m_17) (type_mvar t_18)))=(array (term_mvar n_20) (type_mvar t_22));(type_mvar anonymous_19)=(type_mvar anonymous_15);(array (term_mvar n_20) (type_mvar s_21))=(array (term_mvar n_34) (type_mvar t_36));(type_mvar anonymous_33)=(type_mvar anonymous_19);(array (term_mvar n_34) (type_mvar s_35))=(array (+ 1 (/ (- (term_mvar n_60) 2) 1)) (array (+ 1 (/ (- (term_mvar m_61) 2) 1)) (array 2 (array 2 (type_mvar d_62)))));(type_mvar anonymous_57)=(type_mvar anonymous_33);(array (term_mvar n_60) (array (term_mvar m_61) (type_mvar d_62)))=(array (+ (+ 1 (term_mvar n_65)) 0) (array (+ (+ 1 (term_mvar m_66)) 0) (type_mvar d_67)));(array (term_mvar n_65) (array (term_mvar m_66) (type_mvar d_67)))=(type_mvar anonymous_57);(-> (type_mvar s_35) (type_mvar t_36))=(-> (array (term_mvar n_37) (type_mvar s_38)) (array (term_mvar n_37) (type_mvar t_39)));(-> (type_mvar s_38) (type_mvar t_39))=(-> (type_mvar anonymous_40) (array (term_mvar n_41) (type_mvar t_42)));(-> (index (term_mvar n_41)) (type_mvar t_42))=(-> (index 2) (array (term_mvar n_43) (type_mvar t_44)));(-> (index (term_mvar n_43)) (type_mvar t_44))=(-> (index 2) f32);(type_mvar anonymous_45)=(type_mvar t_55);(type_mvar t_55)=(array 2 f32);(type_mvar t_55)=(array 2 f32);bool=bool;(type_mvar t_56)=(index 2);(type_mvar t_56)=(index 2);(type_mvar anonymous_46)=(type_mvar t_53);(type_mvar t_53)=(array 2 f32);(type_mvar t_53)=(array 2 f32);bool=bool;(type_mvar t_54)=(index 2);(type_mvar t_54)=(index 2);(type_mvar anonymous_47)=(type_mvar anonymous_40);(array (term_mvar n_48) f32)=(array (term_mvar n_49) (type_mvar t_51));(array (term_mvar n_49) (type_mvar s_50))=(type_mvar anonymous_47);(-> (type_mvar s_50) (type_mvar t_51))=(-> (array (term_mvar n_52) f32) f32);(array (term_mvar n_52) f32)=(type_mvar anonymous_46);(array (term_mvar n_48) f32)=(type_mvar anonymous_45);(-> (type_mvar s_21) (type_mvar t_22))=(-> (type_mvar anonymous_23) (array (term_mvar n_24) (type_mvar t_26)));(array (term_mvar n_24) (type_mvar s_25))=(array (term_mvar m_31) (array (term_mvar n_30) (type_mvar t_32)));(array (term_mvar n_30) (array (term_mvar m_31) (type_mvar t_32)))=(type_mvar anonymous_23);(-> (type_mvar s_25) (type_mvar t_26))=(-> (array (term_mvar n_27) (array (term_mvar m_28) (type_mvar t_29))) (array (* (term_mvar n_27) (term_mvar m_28)) (type_mvar t_29)));(-> (type_mvar s_2) (type_mvar t_3))=(-> (type_mvar anonymous_4) (array (term_mvar n_5) (type_mvar d_6)));(array (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0))) (type_mvar d_6))=(array (term_mvar m_7) (type_mvar t_8));(array (+ 1 (term_mvar m_7)) (type_mvar t_8))=(type_mvar anonymous_4)";
     let r = unify(goals).unwrap();
     assert_eq!(r, map![]);
 }
@@ -578,6 +607,19 @@ fn t_droplast() {
 #[test]
 fn t_scalintel() {
     let goals ="(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar n_3) (type_mvar t_5));(array (term_mvar n_3) (type_mvar s_4))=(array (term_mvar m_30) (array (* (* 4 128) 128) (type_mvar t_31)));(array (* (term_mvar m_30) (* (* 4 128) 128)) (type_mvar t_31))=(array (term_bvar n_0) f32);(-> (type_mvar s_4) (type_mvar t_5))=(-> (type_mvar anonymous_6) (array (* (term_mvar m_8) (term_mvar n_7)) (type_mvar t_9)));(array (term_mvar m_8) (vector (term_mvar n_7) (type_mvar t_9)))=(array (* (term_mvar n_11) (term_mvar m_12)) (type_mvar t_13));(type_mvar anonymous_10)=(type_mvar anonymous_6);(array (term_mvar n_11) (array (term_mvar m_12) (type_mvar t_13)))=(array (term_mvar n_15) (type_mvar t_17));(type_mvar anonymous_14)=(type_mvar anonymous_10);(array (term_mvar n_15) (type_mvar s_16))=(array (term_mvar m_26) (array 128 (type_mvar t_27)));(type_mvar anonymous_25)=(type_mvar anonymous_14);(array (* (term_mvar m_26) 128) (type_mvar t_27))=(array (term_mvar m_28) (vector 4 (type_mvar t_29)));(array (* (term_mvar m_28) 4) (type_mvar t_29))=(type_mvar anonymous_25);(-> (type_mvar s_16) (type_mvar t_17))=(-> (array (term_mvar n_18) (type_mvar s_19)) (array (term_mvar n_18) (type_mvar t_20)));(-> (type_mvar s_19) (type_mvar t_20))=(-> (type_mvar anonymous_21) (type_mvar t_22));(type_mvar t_22)=(vector (term_mvar n_23) (type_mvar t_24));(type_mvar t_24)=f32;(type_mvar t_22)=(type_mvar anonymous_21)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+#[test]
+fn t_padclamp2d() {
+    let goals="(type_mvar anonymous_0)=(array (term_bvar n_2) (array (term_bvar m_1) (type_bvar d_0)));(array (term_mvar n_1) (type_mvar t_2))=(array (term_mvar n_3) (type_mvar t_5));(array (term_mvar n_3) (type_mvar s_4))=(type_mvar anonymous_0);(-> (type_mvar s_4) (type_mvar t_5))=(-> (array (term_mvar n_6) (type_mvar t_7)) (array (+ (+ (term_bvar lInner_4) (term_mvar n_6)) (term_bvar rInner_3)) (type_mvar t_7)))";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+
+#[test]
+fn t_slide2d4() {
+    let goals="(type_mvar anonymous_0)=(array (term_bvar n_2) (array (term_bvar m_1) (type_bvar d_0)));(array (term_mvar n_1) (type_mvar s_2))=(array (+ 1 (term_mvar n_8)) (array (term_bvar szOuter_6) (type_mvar t_9)));(type_mvar anonymous_7)=(type_mvar anonymous_0);(array (+ (* (term_bvar stOuter_5) (term_mvar n_8)) (term_bvar szOuter_6)) (type_mvar t_9))=(array (term_mvar n_10) (type_mvar t_12));(array (term_mvar n_10) (type_mvar s_11))=(type_mvar anonymous_7);(-> (type_mvar s_11) (type_mvar t_12))=(-> (array (+ (* (term_bvar stInner_3) (term_mvar n_13)) (term_bvar szInner_4)) (type_mvar t_14)) (array (+ 1 (term_mvar n_13)) (array (term_bvar szInner_4) (type_mvar t_14))));(-> (type_mvar s_2) (type_mvar t_3))=(-> (array (term_mvar n_4) (array (term_mvar m_5) (type_mvar t_6))) (array (term_mvar m_5) (array (term_mvar n_4) (type_mvar t_6))))";
     let r = unify(goals).unwrap();
     assert_eq!(r, map![]);
 }

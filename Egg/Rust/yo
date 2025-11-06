@@ -1,0 +1,11 @@
+"(type_mvar t_3)"        : "(array (type_mvar t_3) (array (type_mvar t_3) (array (type_mvar t_3) (type_bvar d_0))))"
+"(type_mvar t_9)"        : "(array (type_mvar t_9) (array (type_mvar t_9) (type_bvar d_0)))"
+"(type_mvar t_12)"       : "(array (type_mvar t_9) (array (type_mvar t_9) (type_bvar d_0)))"
+"(term_mvar n_10)"       : "(term_bvar n_2)"
+"(type_mvar anonymous_0)": "(array (type_mvar anonymous_0) (array (type_mvar anonymous_0) (type_bvar d_0)))"
+"(type_mvar t_14)"       : "(type_bvar d_0)"
+"(type_mvar anonymous_7)": "(array (type_mvar anonymous_0) (array (type_mvar anonymous_0) (type_bvar d_0)))"
+"(type_mvar t_6)"        : "(array (type_mvar t_6) (type_bvar d_0))"
+"(type_mvar s_2)"        : "(array (type_mvar s_2) (array (type_mvar s_2) (array (type_mvar s_2) (type_bvar d_0))))"
+"(type_mvar s_11)"       : "(array (type_mvar s_11) (type_bvar d_0))"
+"(term_mvar n_4)"        : "(term_bvar szOuter_6)"}

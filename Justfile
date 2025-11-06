@@ -1,5 +1,6 @@
 build file:
     rm -f .lake/build/lib/lean/$(echo {{file}} | cut -d. -f1)*
+    rm -f .lake/build/libegg*
     lake build {{file}}
 
 watch *terms:
