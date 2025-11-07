@@ -10,25 +10,31 @@ def padClamp2D := [RiseC|
     xs |>
     map (padClamp (lInner : nat) (rInner : nat)) >> padClamp (lOuter : nat) (rOuter : nat)
 ]
-#pp padClamp2D.type
+-- #pp padClamp2D.type
 
-def slide2D4 := [RiseC|
-  fun szOuter stOuter szInner stInner : nat =>
-  fun {n m : nat} =>
-  fun {d : data} =>
-  fun xs : n·m·d =>
-    xs |>
-    map (slide (szInner : nat) (stInner : nat))
-    >> slide (szOuter : nat) (stOuter : nat)
-    >> map transpose
-]
-#pp slide2D4.type
--- 
+-- def slide2D4 := [RiseC|
+--   fun szOuter stOuter szInner stInner : nat =>
+--   fun {n m : nat} =>
+--   fun {d : data} =>
+--   fun xs : n·m·d =>
+--     xs |>
+--     map (slide (szInner : nat) (stInner : nat))
+--     >> slide (szOuter : nat) (stOuter : nat)
+--     >> map transpose
+-- ]
+-- #pp slide2D4.type
+
+-- -- def slideex := [RiseC|
+-- --   fun x : 18 · f32 => slide (6 : nat) (6 : nat) x
+-- -- ]
+-- -- #pp slideex.type
+
+
 -- def slide2D := [RiseC|
 --   fun sz st : nat =>
 --     $slide2D4 (sz : nat) (st : nat) (sz : nat) (st : nat)
 -- ]
--- 
+
 -- def dropLast := [RiseC|
 --   -- fun (m : nat) {n : nat} {d : data} (xs : (n+m)·d) =>
 --   fun m : nat =>
@@ -37,18 +43,18 @@ def slide2D4 := [RiseC|
 --   fun xs : (n+m)·d =>
 --     take (n : nat) xs
 -- ]
--- #pp dropLast.type
--- 
--- 
--- def prodMult := [RiseC| fun {d : data} => fun xs : d × d => xs.1 * xs.2]
--- -- #pp prodMult.type
--- 
--- def dot := [RiseC|
---   fun {n : nat} =>
---   fun as bs : n·f32 =>
---      zip as bs |> map $prodMult |> reduce add 0.0f32
--- ]
--- -- #pp dot.type
+-- -- #pp dropLast.type
+
+
+def prodMult := [RiseC| fun {d : data} => fun xs : d × d => xs.1 * xs.2]
+-- #pp prodMult.type
+
+def dot := [RiseC|
+  fun {n : nat} =>
+  fun as bs : n·f32 =>
+     zip as bs |> map $prodMult |> reduce add 0.0f32
+]
+-- #pp dot.type
 -- 
 -- -- /**
 -- --   * Division operator in Natural set (ie int div like Scala): `1/2=0`.
@@ -85,21 +91,21 @@ def slide2D4 := [RiseC|
 -- -- 8-6
 -- -- 2
 -- --
--- def downSample2D := [RiseC|
---   def downSampleWeights : 4·f32
--- 
---   fun h w : nat =>
---   fun input : h+3·w+3·f32 =>
---   input |>
---   $padClamp2D
---       (1 : nat) (2 + 2*(1 + h/2 - h/2) : nat) -- 1 - h % 2 -- see comment above
---       (1 : nat) (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2
---   >> map (slide (4 : nat) (2 : nat))
---   >> slide (4 : nat) (2 : nat)
---   >> map transpose
---   >> map (map (map ($dot downSampleWeights) >> $dot downSampleWeights))
--- ]
--- #pp downSample2D.type
+def downSample2D := [RiseC|
+  def downSampleWeights : 4·f32
+
+  fun h w : nat =>
+  fun input : h+3·w+3·f32 =>
+  input |>
+  $padClamp2D
+      (1 : nat) (2 + 2*(1 + h/2 - h/2) : nat) -- 1 - h % 2 -- see comment above
+      (1 : nat) (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2
+  >> map (slide (4 : nat) (2 : nat))
+  >> slide (4 : nat) (2 : nat)
+  >> map transpose
+  >> map (map (map ($dot downSampleWeights) >> $dot downSampleWeights))
+]
+#pp downSample2D.type
 -- 
 -- def upsample2D := [RiseC|
 --   def upsampleWeights1 : 2·f32

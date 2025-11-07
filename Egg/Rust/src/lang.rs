@@ -36,48 +36,50 @@ fn s() -> String {
     rand_string
 }
 
-#[rustfmt::skip]
-fn rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
+fn dt_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
     vec![
-        rewrite!("commute-add"; "(+ ?a ?b)" => "(+ ?b ?a)"),
-        rewrite!("commute-mul"; "(* ?a ?b)" => "(* ?b ?a)"),
-        // rewrite!("commute-unify"; "(~ ?a ?b)" => "(~ ?b ?a)"),
-
-        rewrite!(s(); "(+ ?a 0)" => "?a"),
-        rewrite!(s(); "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
-        rewrite!(s(); "(* ?a 0)" => "0"),
-        rewrite!(s(); "(* ?a 1)" => "?a"),
-        rewrite!(s(); "(/ ?a (/ ?b ?c))" => "(* ?a (/ ?c ?b))"),
-        rewrite!(s(); "(/ (/ ?a ?b) ?c)" => "(/ ?a (* ?b ?c))"),
-        // vvv explosive rule
-        multi_rewrite!(s(); "?v = (* (term_mvar ?a) ?b) = ?c" => "?b = (/ ?c (term_mvar ?a))"),
-
-        // multi_rewrite!(s(); "?v = (+ ?a ?b) = ?a" => "?a = 888"),
-        // todo: how do we detect positive/negative inf?
-
-        // multi_rewrite!(s(); "?v = (+ ?a ?b) = (+ ?c ?d)" => "?a = ?c, ?b = ?d"),
-        // multi_rewrite!(s(); "?v = (* ?a ?b) = (* ?c ?d)" => "?a = ?c, ?b = ?d"),
+        // datatypes
         multi_rewrite!(s(); "?v = (-> ?a ?b) = (-> ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (array ?a ?b) = (array ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (vector ?a ?b) = (vector ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (pair ?a ?b) = (pair ?c ?d)" => "?a = ?c, ?b = ?d"),
         multi_rewrite!(s(); "?v = (index ?a) = (index ?c)" => "?a = ?c"),
-
-        // multi_rewrite!(s(); "?v = (~ (array ?n1 ?d1) (array ?n2 ?d2))"             => "?v = (~ ?n1 ?n2) = (~ ?d1 ?d2)"),
-        // multi_rewrite!(s(); "?v = (~ (array ?t1 ?t2) (type_mvar )?c))"                   => "?w = (array ?t1 ?t2) = (type_mvar )?c)"),
-
-        // multi_rewrite!(s(); "?v = (~ (pair ?n1 ?d1) (pair ?n2 ?d2))"               => "?v = (~ ?n1 ?n2) = (~ ?d1 ?d2)"),
-        // multi_rewrite!(s(); "?v = (~ (pair ?t1 ?t2) (type_mvar )?c))"                    => "?w = (pair ?t1 ?t2) = (type_mvar )?c)"),
-
-        // multi_rewrite!(s(); "?v = (~ (-> ?t1 ?t3) (-> ?t2 ?t4))"                   => "?v = (~ ?t1 ?t2) = (~ ?t3 ?t4)"),
-
-        // multi_rewrite!(s(); "?v = (~ (+ (type_mvar )?n1) ?t3) (+ (type_mvar )?n2) ?t4))"       => "?w = (type_mvar )?n1) = (type_mvar )?n2)"),
-        // multi_rewrite!(s(); "?v = (~ (* (type_mvar )?n1) ?t3) (* (type_mvar )?n2) ?t4))"       => "?w = (type_mvar )?n1) = (type_mvar )?n2)"),
-
-        // multi_rewrite!(s(); "?v = (~ (type_mvar )?a) (type_mvar )?b))"                         => "?w = (type_mvar )?a) = (type_mvar )?b)"),
-        // multi_rewrite!(s(); "?v = (~ int (type_mvar )?b))"                               => "?w = int = (type_mvar )?b)"),
-        // multi_rewrite!(s(); "?v = (~ bool (type_mvar )?b))"                              => "?w = bool = (type_mvar )?b)"),
     ]
+}
+
+#[rustfmt::skip]
+fn nat_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
+    vec![
+        // add
+        rewrite!("add-comm"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+        rewrite!("add-assoc"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
+        // rewrite!("add-assoc2"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
+        rewrite!("add-zero"; "(+ ?a 0)" => "?a"),
+
+        // sub
+        rewrite!("sub-zero"; "(- ?a 0)" => "?a"),
+        rewrite!("sub-self"; "(- ?a ?a)" => "0"),
+
+        // mul
+        rewrite!("mul-comm"; "(* ?a ?b)" => "(* ?b ?a)"),
+        rewrite!("mul-assoc"; "(* ?a (* ?b ?c))" => "(* (* ?a ?b) ?c)"),
+        rewrite!("mul-one"; "(* ?a 1)" => "?a"),
+        rewrite!("mul-zero"; "(* 0 ?a)" => "0"),
+        rewrite!("mul-distrib"; "(* ?a (+ ?b ?c))" => "(+ (* ?a ?b) (* ?a ?c))"),
+
+        // div
+        rewrite!("div-one"; "(/ ?a 1)" => "?a"),
+        rewrite!("div-self"; "(/ ?a ?a)" => "1"),
+        rewrite!(s(); "(/ ?a (/ ?b ?c))" => "(* ?a (/ ?c ?b))"),
+        rewrite!(s(); "(/ (/ ?a ?b) ?c)" => "(/ ?a (* ?b ?c))"),
+        rewrite!(s(); "(/ (+ ?a ?b) ?c)" => "(+ (/ ?a ?c) (/ ?b ?c))"),
+
+        // more
+        multi_rewrite!(s(); "?x = (+ ?a ?b) = ?c" => "?y = ?a = (- ?c ?b)"),
+        multi_rewrite!(s(); "?v = (* ?a ?b) = ?c" => "?y = ?b = (/ ?c ?a)"),
+        multi_rewrite!(s(); "?v = (/ ?a ?b) = ?c" => "?y = ?a = (* ?c ?b)"),
+        multi_rewrite!(s(); "?v = (/ ?a ?b) = ?c" => "?y = ?a = (* ?c ?b)"),
+        ]
 }
 
 #[derive(Debug, Clone)]
@@ -311,115 +313,73 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
     }
 
     // run
-    let runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
-        .with_egraph(eg)
-        .with_node_limit(100)
-        // .with_iter_limit(2)
-        .with_time_limit(Duration::from_millis(1000))
-        .run(&rules());
-    #[cfg(test)]
-    runner.egraph.dot().to_svg("target/foo.svg").unwrap();
+    let runner: Runner<RiseType, UnifyAnalysis> =
+        Runner::default().with_egraph(eg).run(&dt_rules());
+    let runner = Runner::default()
+        .with_egraph(runner.egraph)
+        // .with_node_limit(100)
+        .with_iter_limit(10)
+        // .with_time_limit(Duration::from_millis(100))
+        .run(&nat_rules());
+    let eg = runner.egraph;
+
+    #[cfg(all(test, feature = "dot"))]
+    eg.dot().to_svg("target/foo.svg").unwrap();
     // dbg!(runner.egraph.dump());
 
-    for class in runner.egraph.classes() {
-        check_no_self_loops(&runner.egraph, class)?
+    for class in eg.classes() {
+        check_no_self_loops(&eg, class)?
     }
 
-    let _ = runner.egraph.analysis.found_err.clone()?;
+    let _ = &eg.analysis.found_err.clone()?;
 
     let mut map = HashMap::new();
-    let mut reprs = HashMap::new();
-    // return Ok(map);
-    // find reprs
-    for class in runner.egraph.classes() {
-        let (mvars, rest): (Vec<&RiseType>, Vec<&RiseType>) =
-            class.nodes.iter().partition(|n| is_mvar(*n));
-        match rest.len() {
-            0 => {
-                reprs.insert(class.id, *mvars.iter().min().unwrap());
-                continue;
+    for class in eg.classes() {
+        // find repr
+        //
+        let init = get_repr(&eg, class.id);
+        let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
+        // let repr: RecExpr<RiseType> = eg[class.id].bui
+
+        for mvar in class.nodes.iter().filter(|n| is_mvar(n)) {
+            // assign repr
+            if let Some(p) = pretty_mvar(&eg, mvar) {
+                let repr = repr.pretty(1000);
+                if repr != p {
+                    map.insert(p, repr);
+                }
             }
-            1.. => {
-                let repr = *rest.get(0).unwrap();
-                reprs.insert(class.id, repr);
-                // let repr = *rest.iter().min().unwrap();
-                // if repr.children().iter().any(|i| *i == class.id) {
-                // reprs.insert(class.id, *mvars.iter().min().unwrap());
-                //     continue;
-                // } else {
-                //     reprs.insert(class.id, repr);
-                //     continue;
-                // }
-            } // 2.. => {
-              //     panic!("idk");
-              // }
         }
     }
-    #[cfg(test)]
-    dbg!("reprs done");
-    for class in runner.egraph.classes() {
-        #[cfg(test)]
-        dbg!(format!("id {}", class.id));
-
-        class
-            .nodes
-            .iter()
-            .filter(|n| is_mvar(*n))
-            .for_each(|n| match n {
-                RiseType::Array(_)
-                | RiseType::Vector(_)
-                | RiseType::Pair(_)
-                | RiseType::Index(_)
-                | RiseType::Fn(_)
-                | RiseType::TypeMVar(_)
-                | RiseType::TypeBVar(_)
-                | RiseType::Symbol(_) => {
-                    #[cfg(test)]
-                    dbg!(format!("try type id {}", class.id));
-                    let repr = reprs.get(&class.id).unwrap().build_recexpr(|id| {
-                        let k = get_variant(runner.egraph[id].nodes.first().unwrap());
-                        match k {
-                            Variant::Term | Variant::TermMVar => {
-                                let ex = Extractor::new(&runner.egraph, SillyCostFn {});
-                                let v = ex.find_best_node(class.id);
-                                v.clone()
-                            }
-                            _ => (*reprs.get(&id).unwrap()).clone(),
-                        }
-                    });
-                    #[cfg(test)]
-                    dbg!(format!("found type id {}", class.id));
-                    if let Some(p) = pretty_mvar(&runner.egraph, n) {
-                        let repr = repr.pretty(1000);
-                        if repr != p {
-                            map.insert(p, repr);
-                        }
-                    }
-                }
-
-                RiseType::Num(_)
-                | RiseType::Add(_)
-                | RiseType::Mul(_)
-                | RiseType::Div(_)
-                | RiseType::Sub(_)
-                | RiseType::TermMVar(_)
-                | RiseType::TermBVar(_) => {
-                    #[cfg(test)]
-                    dbg!(format!("try term id {}", class.id));
-                    let ex = Extractor::new(&runner.egraph, SillyCostFn {});
-                    let (_, v) = ex.find_best(class.id);
-                    #[cfg(test)]
-                    dbg!(format!("found term id {}", class.id));
-                    if let Some(p) = pretty_mvar(&runner.egraph, n) {
-                        let repr = v.pretty(1000);
-                        if repr != p {
-                            map.insert(p, repr);
-                        }
-                    }
-                }
-            });
-    }
     Ok(map)
+}
+
+fn get_repr(eg: &EGraph<RiseType, UnifyAnalysis>, id: Id) -> RiseType {
+    let class = eg[id].clone();
+    match get_variant(&class.nodes[0]) {
+        Variant::Term | Variant::TermMVar => {
+            let ex = Extractor::new(&eg, SillyCostFn {});
+            let v = ex.find_best_node(id);
+            v.clone()
+        }
+        _ => {
+            let non_mvars = class
+                .nodes
+                .iter()
+                .filter(|n| !is_mvar(n))
+                .collect::<Vec<_>>();
+            match non_mvars.len() {
+                0 => {
+                    // first mvar
+                    class.nodes[0].clone()
+                }
+                1 => non_mvars[0].clone(),
+                _ => {
+                    panic!("found multiple non_mvars: {non_mvars:?}")
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -618,6 +578,12 @@ fn t_padclamp2d() {
 }
 
 #[test]
+fn t_simpslide2d4() {
+    let goals="(type_mvar anonymous_0)=(array (term_bvar n_2) (array (term_bvar m_1) (type_bvar d_0)));(array (term_mvar n_1) (type_mvar s_2))=(array (+ 1 (term_mvar n_8)) (array (term_bvar szOuter_6) (type_mvar t_9)));(type_mvar anonymous_7)=(type_mvar anonymous_0);(array (+ (* (term_bvar stOuter_5) (term_mvar n_8)) (term_bvar szOuter_6)) (type_mvar t_9))=(array (term_mvar n_10) (type_mvar t_12));(array (term_mvar n_10) (type_mvar s_11))=(type_mvar anonymous_7)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+#[test]
 fn t_slide2d4() {
     let goals="(type_mvar anonymous_0)=(array (term_bvar n_2) (array (term_bvar m_1) (type_bvar d_0)));(array (term_mvar n_1) (type_mvar s_2))=(array (+ 1 (term_mvar n_8)) (array (term_bvar szOuter_6) (type_mvar t_9)));(type_mvar anonymous_7)=(type_mvar anonymous_0);(array (+ (* (term_bvar stOuter_5) (term_mvar n_8)) (term_bvar szOuter_6)) (type_mvar t_9))=(array (term_mvar n_10) (type_mvar t_12));(array (term_mvar n_10) (type_mvar s_11))=(type_mvar anonymous_7);(-> (type_mvar s_11) (type_mvar t_12))=(-> (array (+ (* (term_bvar stInner_3) (term_mvar n_13)) (term_bvar szInner_4)) (type_mvar t_14)) (array (+ 1 (term_mvar n_13)) (array (term_bvar szInner_4) (type_mvar t_14))));(-> (type_mvar s_2) (type_mvar t_3))=(-> (array (term_mvar n_4) (array (term_mvar m_5) (type_mvar t_6))) (array (term_mvar m_5) (array (term_mvar n_4) (type_mvar t_6))))";
     let r = unify(goals).unwrap();
@@ -632,6 +598,18 @@ fn t_scalt() {
     assert_eq!(r, map![]);
 }
 
+#[test]
+fn t_slideex() {
+    let goals = "(array (+ (* 6 (term_mvar n_0)) 6) (type_mvar t_1))=(array 18 f32)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+#[test]
+fn t_wtf() {
+    let goals = "(array (+ 1 (+ (term_bvar n_0) 3)) (type_mvar t_1))=(array (term_mvar n_8) f32)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
 #[test]
 fn t_cle() {
     let x = clean_divide(64, 4);

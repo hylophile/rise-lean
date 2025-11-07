@@ -1,8 +1,13 @@
+- slide2 is urgh
+- extraction is broken, but:
+  - for type eclasses, we know that there will only ever be one interesting node. so we just take that. for term eclasses we use a normal extractor, devaluing mvars.
 - we need to simplify at least top-level types (with sympy i guess)
+- add constant propagation to analysis
 - locallaplacian: do we need / and /^ ?
 - how do we want to deal with side conditions generated from usage? e.g. the statement "n must divide 4". should we error with a message saying that this assumption needs to be added? then we need syntax for those assumptions.
 - maligemm kepler_best in sgemm.scala
-- reorderwithstride; nat2nat; reorder; 
+- reorderwithstride; nat2nat; reorder;
+
 ---
 
 - we should actually disallow should existence of mvars after type-checking............

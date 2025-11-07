@@ -11,26 +11,27 @@ import Lean
 
 mutual
 unsafe def unifyOneRNat (s t : RNat) : RElabM UnificationResult :=
-  match s, t with
-  | .nat n, .nat m => do
-    if n == m then return .ok [] else return .error <| .structural (.nat s) (.nat t)
+  -- match s, t with
+  -- | .nat n, .nat m => do
+  --   if n == m then return .ok [] else return .error <| .structural (.nat s) (.nat t)
 
-  | .bvar x _, .bvar y _ =>
-    if x == y then return .ok [] else return .error <| .structural (.nat s) (.nat t)
+  -- | .bvar x _, .bvar y _ =>
+  --   if x == y then return .ok [] else return .error <| .structural (.nat s) (.nat t)
 
-  | .mvar x _, .mvar y _ =>
-    if x == y then return .ok [] else return .ok [(x, .nat t)]
+  -- | .mvar x _, .mvar y _ =>
+  --   if x == y then return .ok [] else return .ok [(x, .nat t)]
 
-  | .mvar x _, term | term, .mvar x _ =>
-    if term.has x then
-      return .error <| .structural (.nat s) (.nat t)
-    else
-      return .ok [(x, .nat term)]
+  -- | .mvar x _, term | term, .mvar x _ =>
+  --   if term.has x then
+  --     return .error <| .structural (.nat s) (.nat t)
+  --   else
+  --     return .ok [(x, .nat term)]
 
-  | _, _ => do
+  -- | _, _ => do
     -- dbg_trace s!"{s} = {t}"
-    addRNatEquality (s,t)
-    return .ok []
+  do
+  addRNatEquality (s,t)
+  return .ok []
     -- let x := solve s t --(RNat.toSMTLib s t)
     -- x
     -- dbg_trace x
