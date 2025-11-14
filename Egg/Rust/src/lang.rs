@@ -1,6 +1,9 @@
 use egg::*;
 use std::collections::HashMap;
-use std::time::Duration;
+// use std::time::Duration;
+
+type EGraph = egg::EGraph<RiseType, UnifyAnalysis>;
+type EClass = egg::EClass<RiseType, InnerAnalysis>;
 
 define_language! {
     pub enum RiseType {
@@ -47,15 +50,122 @@ fn dt_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
     ]
 }
 
+fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    // let zero = RiseType::Num(0);
+    // note this check is just an example,
+    // checking for the absence of 0 is insufficient since 0 could be merged in later
+    // see https://github.com/egraphs-good/egg/issues/297
+    // move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
+    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
+        Some((n, _)) => n != 0,
+        None => true,
+    }
+}
+fn is_not_const(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
+        Some(_) => false,
+        None => true,
+    }
+}
+fn imm_is_not_zero(var: &'static str) -> impl Fn(&EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    // let zero = RiseType::Num(0);
+    // note this check is just an example,
+    // checking for the absence of 0 is insufficient since 0 could be merged in later
+    // see https://github.com/egraphs-good/egg/issues/297
+    // move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
+    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
+        Some((n, _)) => n != 0,
+        None => true,
+    }
+}
+fn imm_is_not_const(var: &'static str) -> impl Fn(&EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
+        Some(_) => false,
+        None => true,
+    }
+}
+// multi_rewrite!(s(); "?c = (+ ?a ?b)" => "?b = (- ?c ?a)"),
+struct AddInverse;
+impl Applier<RiseType, UnifyAnalysis> for AddInverse {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        _eclass: Id,
+        subst: &Subst,
+        _searcher_ast: Option<&PatternAst<RiseType>>,
+        _rule_name: Symbol,
+    ) -> Vec<Id> {
+        let f = |s| imm_is_not_const(s)(egraph, _eclass, subst);
+        let g = |s| imm_is_not_zero(s)(egraph, _eclass, subst);
+        let a_id = subst["?a".parse().unwrap()];
+        let b_id = subst["?b".parse().unwrap()];
+        let c_id = subst["?c".parse().unwrap()];
+        // if f("?a") && f("?b") && f("?c") {
+        // if f("?c") && f("?b") && !f("?a") && g("?a") {
+        // if true {
+        if f("?b") && f("?c") {
+            let x = egraph.add(RiseType::Sub([c_id, a_id]));
+            let _ = egraph.union(b_id, x);
+            vec![x, b_id]
+        } else {
+            vec![]
+        }
+    }
+}
+
+// "?c = (* ?a ?b)" => "?b = (/ ?c ?a)" if a != 0
+struct DivInverse;
+impl Applier<RiseType, UnifyAnalysis> for DivInverse {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph,
+        _eclass: Id,
+        subst: &Subst,
+        _searcher_ast: Option<&PatternAst<RiseType>>,
+        _rule_name: Symbol,
+    ) -> Vec<Id> {
+        let f = |s| imm_is_not_const(s)(egraph, _eclass, subst);
+        let g = |s| imm_is_not_zero(s)(egraph, _eclass, subst);
+        let a_id = subst["?a".parse().unwrap()];
+        let b_id = subst["?b".parse().unwrap()];
+        let c_id = subst["?c".parse().unwrap()];
+        // if f("?a") && f("?b") && f("?c") {
+        // if g("?a") && g("?b") && g("?c") && f("?c") && f("?b") && !g("?a") {
+        if g("?a") && f("?b") && f("?c") {
+            // if g("?a") && g("?b") && g("?c") {
+            let x = egraph.add(RiseType::Div([c_id, a_id]));
+            let _ = egraph.union(b_id, x);
+            vec![x, b_id]
+        } else {
+            vec![]
+        }
+    }
+}
+
 #[rustfmt::skip]
 fn nat_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
+    // let x =  {
+    //     let searcher = egg::__rewrite!(@parse MultiPattern "?c = (* ?a ?b)");
+    //     let core_applier = egg::__rewrite!(@parse MultiPattern "?b = (/ ?c ?a)");
+    //     let applier = egg::__rewrite!(@applier core_applier; is_not_zero("?a"),);
+    //     egg::Rewrite::new((s()).to_string(),searcher,applier).unwrap()
+    // };
     vec![
         // add
         rewrite!("add-comm"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rewrite!("add-assoc"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
-        // rewrite!("add-assoc2"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
+        rewrite!("add-assoc2"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         rewrite!("add-zero"; "(+ ?a 0)" => "?a"),
 
+        // add-sub
+        rewrite!("add-sub-assoc"; "(+ ?a (- ?b ?c))" => "(- (+ ?a ?b) ?c)"),
+        // adding the second one makes graph inconsistent?
+        rewrite!("add-sub-assoc2"; "(- (+ ?a ?b) ?c)" => "(+ ?a (- ?b ?c))"),
+        
         // sub
         rewrite!("sub-zero"; "(- ?a 0)" => "?a"),
         rewrite!("sub-self"; "(- ?a ?a)" => "0"),
@@ -69,17 +179,32 @@ fn nat_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
 
         // div
         rewrite!("div-one"; "(/ ?a 1)" => "?a"),
-        rewrite!("div-self"; "(/ ?a ?a)" => "1"),
-        rewrite!(s(); "(/ ?a (/ ?b ?c))" => "(* ?a (/ ?c ?b))"),
-        rewrite!(s(); "(/ (/ ?a ?b) ?c)" => "(/ ?a (* ?b ?c))"),
-        rewrite!(s(); "(/ (+ ?a ?b) ?c)" => "(+ (/ ?a ?c) (/ ?b ?c))"),
+        rewrite!("div-self"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
 
-        // more
-        multi_rewrite!(s(); "?x = (+ ?a ?b) = ?c" => "?y = ?a = (- ?c ?b)"),
-        multi_rewrite!(s(); "?v = (* ?a ?b) = ?c" => "?y = ?b = (/ ?c ?a)"),
-        multi_rewrite!(s(); "?v = (/ ?a ?b) = ?c" => "?y = ?a = (* ?c ?b)"),
-        multi_rewrite!(s(); "?v = (/ ?a ?b) = ?c" => "?y = ?a = (* ?c ?b)"),
+        // div-mul
+        rewrite!(s(); "(* ?a (/ ?b ?a))" => "?b" if is_not_zero("?a")),
+        rewrite!(s(); "(/ ?a (/ ?b ?c))" => "(* ?a (/ ?c ?b))" if is_not_zero("?b")),
+        rewrite!(s(); "(/ (/ ?a ?b) ?c)" => "(/ ?a (* ?b ?c))" if is_not_zero("?b") if is_not_zero("?c")),
+        multi_rewrite!(s(); "?c = (/ ?a ?b)" => "?a = (* ?c ?b)"),
+
+        // div-add
+        rewrite!(s(); "(/ (+ ?a ?b) ?c)" => "(+ (/ ?a ?c) (/ ?b ?c))" if is_not_zero("?b") if is_not_zero("?c")),
+
+        // more. expensive
+        multi_rewrite!(s(); "?c = (* ?a ?b)" => DivInverse ),
+        multi_rewrite!(s(); "?c = (+ ?a ?b)" => AddInverse),
+
+        // multi_rewrite!(s(); "?p = (term_mvar ?c) = (+ (term_mvar ?a) ?b)" => "?q = (term_mvar ?a) = (- (term_mvar ?c) (term_mvar ?b))"),
+        // multi_rewrite!(s(); "?p = (term_bvar ?c) = (+ (term_mvar ?a) ?b)" => "?q = (term_mvar ?a) = (- (term_bvar ?c) (term_mvar ?b))"),
         ]
+}
+
+#[rustfmt::skip]
+fn nat_rules_expensive() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
+    vec![
+        multi_rewrite!(s(); "?c = (* ?a ?b)" => DivInverse ),
+        multi_rewrite!(s(); "?c = (+ ?a ?b)" => AddInverse),
+    ]
 }
 
 #[derive(Debug, Clone)]
@@ -93,10 +218,7 @@ impl Default for UnifyAnalysis {
     }
 }
 
-fn check_no_self_loops(
-    egraph: &EGraph<RiseType, UnifyAnalysis>,
-    class: &EClass<RiseType, InnerAnalysis>,
-) -> Result<(), String> {
+fn check_no_self_loops(egraph: &EGraph, class: &EClass) -> Result<(), String> {
     let id = class.id;
     for enode in &class.nodes {
         if get_variant(enode) == Variant::Term {
@@ -156,10 +278,7 @@ fn clean_divide(x: i32, y: i32) -> Option<i32> {
     }
 }
 
-fn make_const_prop(
-    egraph: &mut EGraph<RiseType, UnifyAnalysis>,
-    enode: &RiseType,
-) -> Option<(i32, PatternAst<RiseType>)> {
+fn make_const_prop(egraph: &mut EGraph, enode: &RiseType) -> Option<(i32, PatternAst<RiseType>)> {
     let x = |i: &Id| egraph[*i].data.const_prop.as_ref().map(|d| d.0);
     Some(match enode {
         RiseType::Num(c) => (*c, format!("{}", c).parse().unwrap()),
@@ -168,11 +287,20 @@ fn make_const_prop(
             format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
         ),
         RiseType::Sub([a, b]) => (
+            // {
+            //     let r = x(a)? - x(b)?;
+            //     if r > 0 {
+            //         r
+            //     } else {
+            //         return None;
+            //     }
+            // },
             x(a)? - x(b)?,
             format!("(- {} {})", x(a)?, x(b)?).parse().unwrap(),
         ),
         RiseType::Mul([a, b]) => (
-            x(a)? * x(b)?,
+            // x(a)? * x(b)?,
+            x(a)?.checked_mul(x(b)?)?,
             format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
         ),
         RiseType::Div([a, b]) if x(b) != Some(0) => (
@@ -186,7 +314,7 @@ fn make_const_prop(
 impl Analysis<RiseType> for UnifyAnalysis {
     type Data = InnerAnalysis;
 
-    fn make(egraph: &mut EGraph<RiseType, Self>, enode: &RiseType) -> Self::Data {
+    fn make(egraph: &mut EGraph, enode: &RiseType) -> Self::Data {
         InnerAnalysis {
             variant: get_variant(enode),
             const_prop: make_const_prop(egraph, enode),
@@ -220,14 +348,25 @@ impl Analysis<RiseType> for UnifyAnalysis {
                 (v, false, false)
             }
         };
+
+        let (new_c, a_c, b_c) = match (a.const_prop.clone(), b.const_prop) {
+            (None, None) => (None, false, false),
+            (None, Some(x)) => (Some(x), true, false),
+            (Some(x), None) => (Some(x), false, true),
+            (Some(x), Some(y)) => {
+                assert_eq!(x.0, y.0);
+                (Some(x), false, false)
+            }
+        };
+
         *a = InnerAnalysis {
             variant: new_val,
-            const_prop: a.const_prop.clone(),
+            const_prop: new_c,
         };
-        DidMerge(a_changed, b_changed)
+        DidMerge(a_changed || a_c, b_changed || b_c)
     }
 
-    fn modify(egraph: &mut EGraph<RiseType, Self>, id: Id) {
+    fn modify(egraph: &mut EGraph, id: Id) {
         let data = egraph[id].data.const_prop.clone();
         if let Some((c, _pat)) = data {
             // if egraph.are_explanations_enabled() {
@@ -257,7 +396,7 @@ fn is_mvar(l: &RiseType) -> bool {
     }
 }
 
-fn pretty_mvar(egraph: &EGraph<RiseType, UnifyAnalysis>, l: &RiseType) -> Option<String> {
+fn pretty_mvar(egraph: &EGraph, l: &RiseType) -> Option<String> {
     let prefix = match l {
         RiseType::TermMVar(_) => Some("term_"),
         RiseType::TypeMVar(_) => Some("type_"),
@@ -303,7 +442,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         .collect::<Result<Vec<(&str, &str)>, String>>()?;
 
     // setup
-    let mut eg: EGraph<RiseType, UnifyAnalysis> = EGraph::new(UnifyAnalysis::default());
+    let mut eg: EGraph = EGraph::new(UnifyAnalysis::default());
     for (s1, s2) in goals {
         let a: RecExpr<RiseType> = s1.parse().unwrap();
         let b: RecExpr<RiseType> = s2.parse().unwrap();
@@ -317,15 +456,22 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         Runner::default().with_egraph(eg).run(&dt_rules());
     let runner = Runner::default()
         .with_egraph(runner.egraph)
-        // .with_node_limit(100)
         .with_iter_limit(10)
-        // .with_time_limit(Duration::from_millis(100))
         .run(&nat_rules());
+    // let runner = Runner::default()
+    //     .with_egraph(runner.egraph)
+    //     .with_iter_limit(3)
+    //     .run(&nat_rules_expensive());
+    // let runner = Runner::default()
+    //     .with_egraph(runner.egraph)
+    //     .with_iter_limit(5)
+    //     .run(&nat_rules());
     let eg = runner.egraph;
 
     #[cfg(all(test, feature = "dot"))]
     eg.dot().to_svg("target/foo.svg").unwrap();
-    // dbg!(runner.egraph.dump());
+    #[cfg(all(test, feature = "dot"))]
+    dbg!(eg.dump());
 
     for class in eg.classes() {
         check_no_self_loops(&eg, class)?
@@ -354,7 +500,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
     Ok(map)
 }
 
-fn get_repr(eg: &EGraph<RiseType, UnifyAnalysis>, id: Id) -> RiseType {
+fn get_repr(eg: &EGraph, id: Id) -> RiseType {
     let class = eg[id].clone();
     match get_variant(&class.nodes[0]) {
         Variant::Term | Variant::TermMVar => {
@@ -392,6 +538,13 @@ macro_rules! map {
         )*
         map
     }};
+}
+
+#[cfg(test)]
+fn pp(map: &HashMap<String, String>) {
+    for (k, v) in map {
+        println!("{}\t = {}", k, v);
+    }
 }
 
 #[test]
@@ -554,7 +707,9 @@ fn t_lapl_upsamp() {
 #[test]
 fn t_downsample() {
     let goals="(array (term_mvar n_31) (array (term_mvar m_32) f32))=(array (+ (term_bvar h_1) 3) (array (+ (term_bvar w_0) 3) f32));(array (term_mvar n_1) (array (term_mvar n_4) (array 4 (array 4 f32))))=(array (+ 1 (term_mvar n_21)) (array (+ 1 (term_mvar n_27)) (array 4 (array 4 (type_mvar d_33)))));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_0);(array (term_mvar n_14) (array (term_mvar n_17) (array (term_mvar m_18) (type_mvar t_19))))=(array (+ 1 (term_mvar n_21)) (array 4 (array (+ 1 (term_mvar n_27)) (array 4 (type_mvar d_33)))));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_13);(array (+ (* 2 (term_mvar n_21)) 4) (type_mvar t_22))=(array (+ (+ 1 (term_mvar n_31)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar h_1) 2)) (/ (term_bvar h_1) 2))))) (array (+ 1 (term_mvar n_27)) (array 4 (type_mvar d_33))));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_20);(array (term_mvar n_24) (array (+ (* 2 (term_mvar n_27)) 4) (type_mvar t_28)))=(array (+ (+ 1 (term_mvar n_31)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar h_1) 2)) (/ (term_bvar h_1) 2))))) (array (+ (+ 1 (term_mvar m_32)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar w_0) 2)) (/ (term_bvar w_0) 2))))) (type_mvar d_33)));(array (term_mvar n_31) (array (term_mvar m_32) (type_mvar d_33)))=(type_mvar anonymous_23);(-> (type_mvar s_25) (type_mvar t_26))=(-> (array (+ (* 2 (term_mvar n_27)) 4) (type_mvar t_28)) (array (+ 1 (term_mvar n_27)) (array 4 (type_mvar t_28))));(-> (type_mvar s_15) (type_mvar t_16))=(-> (array (term_mvar n_17) (array (term_mvar m_18) (type_mvar t_19))) (array (term_mvar m_18) (array (term_mvar n_17) (type_mvar t_19))));(-> (type_mvar s_2) (type_mvar t_3))=(-> (array (term_mvar n_4) (array 4 (array 4 f32))) (array (term_mvar n_4) f32));(-> (type_mvar s_5) (type_mvar t_6))=(-> (array 4 (array 4 f32)) f32);(array 4 f32)=(array (term_mvar n_9) f32);(array (term_mvar n_9) (array 4 f32))=(type_mvar anonymous_7);(-> (type_mvar s_10) (type_mvar t_11))=(-> (array 4 f32) f32);(array (term_mvar n_12) f32)=(array 4 f32);(array (term_mvar n_8) f32)=(array 4 f32)";
+    let goals="(array (term_mvar n_31) (array (term_mvar m_32) f32))=(array (+ (term_bvar h_1) 3) (array (+ (term_bvar w_0) 3) f32));(array (term_mvar n_24) (array (+ (* 2 (term_mvar n_27)) 4) (type_mvar t_28)))=(array (+ (+ 1 (term_mvar n_31)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar h_1) 2)) (/ (term_bvar h_1) 2))))) (array (+ (+ 1 (term_mvar m_32)) (+ 2 (* 2 (- (+ 1 (/ (term_bvar w_0) 2)) (/ (term_bvar w_0) 2))))) (type_mvar d_33)))";
     let r = unify(goals).unwrap();
+    pp(&r);
     assert_eq!(r, map![]);
 }
 #[test]
@@ -566,7 +721,7 @@ fn t_droplast() {
 
 #[test]
 fn t_scalintel() {
-    let goals ="(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar n_3) (type_mvar t_5));(array (term_mvar n_3) (type_mvar s_4))=(array (term_mvar m_30) (array (* (* 4 128) 128) (type_mvar t_31)));(array (* (term_mvar m_30) (* (* 4 128) 128)) (type_mvar t_31))=(array (term_bvar n_0) f32);(-> (type_mvar s_4) (type_mvar t_5))=(-> (type_mvar anonymous_6) (array (* (term_mvar m_8) (term_mvar n_7)) (type_mvar t_9)));(array (term_mvar m_8) (vector (term_mvar n_7) (type_mvar t_9)))=(array (* (term_mvar n_11) (term_mvar m_12)) (type_mvar t_13));(type_mvar anonymous_10)=(type_mvar anonymous_6);(array (term_mvar n_11) (array (term_mvar m_12) (type_mvar t_13)))=(array (term_mvar n_15) (type_mvar t_17));(type_mvar anonymous_14)=(type_mvar anonymous_10);(array (term_mvar n_15) (type_mvar s_16))=(array (term_mvar m_26) (array 128 (type_mvar t_27)));(type_mvar anonymous_25)=(type_mvar anonymous_14);(array (* (term_mvar m_26) 128) (type_mvar t_27))=(array (term_mvar m_28) (vector 4 (type_mvar t_29)));(array (* (term_mvar m_28) 4) (type_mvar t_29))=(type_mvar anonymous_25);(-> (type_mvar s_16) (type_mvar t_17))=(-> (array (term_mvar n_18) (type_mvar s_19)) (array (term_mvar n_18) (type_mvar t_20)));(-> (type_mvar s_19) (type_mvar t_20))=(-> (type_mvar anonymous_21) (type_mvar t_22));(type_mvar t_22)=(vector (term_mvar n_23) (type_mvar t_24));(type_mvar t_24)=f32;(type_mvar t_22)=(type_mvar anonymous_21)";
+    let goals = "(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar n_3) (type_mvar t_5));(array (term_mvar n_3) (type_mvar s_4))=(array (term_mvar m_30) (array (* (* 4 128) 128) (type_mvar t_31)));(array (* (term_mvar m_30) (* (* 4 128) 128)) (type_mvar t_31))=(array (term_bvar n_0) f32);(-> (type_mvar s_4) (type_mvar t_5))=(-> (type_mvar anonymous_6) (array (* (term_mvar m_8) (term_mvar n_7)) (type_mvar t_9)));(array (term_mvar m_8) (vector (term_mvar n_7) (type_mvar t_9)))=(array (* (term_mvar n_11) (term_mvar m_12)) (type_mvar t_13));(type_mvar anonymous_10)=(type_mvar anonymous_6);(array (term_mvar n_11) (array (term_mvar m_12) (type_mvar t_13)))=(array (term_mvar n_15) (type_mvar t_17));(type_mvar anonymous_14)=(type_mvar anonymous_10);(array (term_mvar n_15) (type_mvar s_16))=(array (term_mvar m_26) (array 128 (type_mvar t_27)));(type_mvar anonymous_25)=(type_mvar anonymous_14);(array (* (term_mvar m_26) 128) (type_mvar t_27))=(array (term_mvar m_28) (vector 4 (type_mvar t_29)));(array (* (term_mvar m_28) 4) (type_mvar t_29))=(type_mvar anonymous_25);(-> (type_mvar s_16) (type_mvar t_17))=(-> (array (term_mvar n_18) (type_mvar s_19)) (array (term_mvar n_18) (type_mvar t_20)));(-> (type_mvar s_19) (type_mvar t_20))=(-> (type_mvar anonymous_21) (type_mvar t_22));(type_mvar t_22)=(vector (term_mvar n_23) (type_mvar t_24));(type_mvar t_24)=f32;(type_mvar t_22)=(type_mvar anonymous_21)";
     let r = unify(goals).unwrap();
     assert_eq!(r, map![]);
 }
@@ -592,9 +747,12 @@ fn t_slide2d4() {
 
 #[test]
 fn t_scalt() {
-    let goals="(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar m_3) (array (* (* 4 128) 128) (type_mvar t_4)));(array (* (term_mvar m_3) (* (* 4 128) 128)) (type_mvar t_4))=(array (term_bvar n_0) f32)
-";
+    //     let goals="(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar m_3) (array (* (* 4 128) 128) (type_mvar t_4)));(array (* (term_mvar m_3) (* (* 4 128) 128)) (type_mvar t_4))=(array (term_bvar n_0) f32)
+    // ";
+    let goals ="(array (term_mvar n_0) (array (term_mvar m_1) (type_mvar t_2)))=(array (term_mvar m_3) (array 2 (type_mvar t_4)));(array (* (term_mvar m_3) 2) (type_mvar t_4))=(array (term_mvar m_5) (array (* (* 4 128) 128) (type_mvar t_6)));(array (* (term_mvar m_5) (* (* 4 128) 128)) (type_mvar t_6))=(array (term_bvar n_0) f32)";
+
     let r = unify(goals).unwrap();
+    pp(&r);
     assert_eq!(r, map![]);
 }
 
@@ -610,6 +768,35 @@ fn t_wtf() {
     let r = unify(goals).unwrap();
     assert_eq!(r, map![]);
 }
+#[test]
+fn t_wtf2() {
+    let goals = "(array (term_mvar n_0) f32)=(array (* 3 (term_mvar p_10)) f32)";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+
+#[test]
+fn distr() {
+    let goals = "(term_mvar n_0)=(- (* 2 (+ 2 (/ (term_bvar w_0) 2))) 1)";
+    // let goals = "(term_mvar n_0)=(* 2 (+ 2 (/ (term_bvar w_0) 2)))";
+    // let goals = "(term_mvar n_0)=(+ 2 (/ (term_bvar w_0) 2))";
+    // let goals = "(term_mvar n_0)=(* 2 (+ 2 (term_bvar w_0)))";
+    let r = unify(goals).unwrap();
+    pp(&r);
+    assert_eq!(r, map![]);
+}
+#[test]
+fn flow() {
+    // let goals = "(term_mvar n_0)=(* 16 4)";
+    let goals = "(term_mvar n_0)=(+ 1 (+ 2 (/ (term_bvar m_5) 2)))";
+    // let goals = "(term_mvar n_0)=(* 2 (+ 2 (/ (term_bvar w_0) 2)))";
+    // let goals = "(term_mvar n_0)=(+ 2 (/ (term_bvar w_0) 2))";
+    // let goals = "(term_mvar n_0)=(* 2 (+ 2 (term_bvar w_0)))";
+    let r = unify(goals).unwrap();
+    pp(&r);
+    assert_eq!(r, map![]);
+}
+
 #[test]
 fn t_cle() {
     let x = clean_divide(64, 4);

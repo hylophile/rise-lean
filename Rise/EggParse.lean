@@ -20,6 +20,7 @@ syntax "index" : egg_op
 
 declare_syntax_cat egg_expr
 syntax num : egg_expr
+syntax "-" num : egg_expr
 syntax ident : egg_expr
 syntax "bool" : egg_expr
 syntax "int" : egg_expr
@@ -71,6 +72,9 @@ private partial def elabEggExpr : Syntax → RElabM SubstEnum
   | `(egg_expr| $n:num) => do
     let n := n.getNat
     return .nat <| RNat.nat n
+  | `(egg_expr| -$n:num) => do
+    let n := n.getNat
+    return .nat <| RNat.minus (RNat.nat 0) (RNat.nat n)
   | `(egg_expr| (term_mvar $x:ident)) => do
     let (n,id) ← elabName x
     return .nat <| RNat.mvar id n
