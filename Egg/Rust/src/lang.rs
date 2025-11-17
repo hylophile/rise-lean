@@ -88,6 +88,15 @@ fn imm_is_not_const(var: &'static str) -> impl Fn(&EGraph, Id, &Subst) -> bool {
         None => true,
     }
 }
+// fn imm_is_mvar(var: &'static str) -> impl Fn(&EGraph, Id, &Subst) -> bool {
+//     let var = var.parse().unwrap();
+//     // move |egraph, _, subst| match egraph[subst[var]].data.variant {
+//     //     Variant::TermMVar => true,
+//     //     _ => false,
+//     // }
+//     move |egraph, _, subst| egraph[subst[var]].nodes.iter().any(|n| is_mvar(n))
+// }
+
 // multi_rewrite!(s(); "?c = (+ ?a ?b)" => "?b = (- ?c ?a)"),
 struct AddInverse;
 impl Applier<RiseType, UnifyAnalysis> for AddInverse {
@@ -101,13 +110,12 @@ impl Applier<RiseType, UnifyAnalysis> for AddInverse {
     ) -> Vec<Id> {
         let f = |s| imm_is_not_const(s)(egraph, _eclass, subst);
         let g = |s| imm_is_not_zero(s)(egraph, _eclass, subst);
+        // let h = |s| imm_is_mvar(s)(egraph, _eclass, subst);
         let a_id = subst["?a".parse().unwrap()];
         let b_id = subst["?b".parse().unwrap()];
         let c_id = subst["?c".parse().unwrap()];
-        // if f("?a") && f("?b") && f("?c") {
-        // if f("?c") && f("?b") && !f("?a") && g("?a") {
-        // if true {
-        if f("?b") && f("?c") {
+        // if f("?b") && f("?c") {
+        if f("?b") && g("?c") {
             let x = egraph.add(RiseType::Sub([c_id, a_id]));
             let _ = egraph.union(b_id, x);
             vec![x, b_id]
@@ -381,7 +389,9 @@ impl Analysis<RiseType> for UnifyAnalysis {
             egraph.union(id, added);
             // }
             // to not prune, comment this out
-            // egraph[id].nodes.retain(|n| n.is_leaf());
+            egraph[id]
+                .nodes
+                .retain(|n| n.is_leaf() || is_mvar(n) || is_bvar(n));
 
             #[cfg(debug_assertions)]
             egraph[id].assert_unique_leaves();
@@ -392,6 +402,12 @@ impl Analysis<RiseType> for UnifyAnalysis {
 fn is_mvar(l: &RiseType) -> bool {
     match l {
         RiseType::TermMVar(_) | RiseType::TypeMVar(_) => true,
+        _ => false,
+    }
+}
+fn is_bvar(l: &RiseType) -> bool {
+    match l {
+        RiseType::TermBVar(_) | RiseType::TypeBVar(_) => true,
         _ => false,
     }
 }
@@ -456,7 +472,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         Runner::default().with_egraph(eg).run(&dt_rules());
     let runner = Runner::default()
         .with_egraph(runner.egraph)
-        .with_iter_limit(10)
+        .with_iter_limit(5)
         .run(&nat_rules());
     // let runner = Runner::default()
     //     .with_egraph(runner.egraph)
@@ -789,6 +805,17 @@ fn distr() {
 fn flow() {
     // let goals = "(term_mvar n_0)=(* 16 4)";
     let goals = "(term_mvar n_0)=(+ 1 (+ 2 (/ (term_bvar m_5) 2)))";
+    // let goals = "(term_mvar n_0)=(* 2 (+ 2 (/ (term_bvar w_0) 2)))";
+    // let goals = "(term_mvar n_0)=(+ 2 (/ (term_bvar w_0) 2))";
+    // let goals = "(term_mvar n_0)=(* 2 (+ 2 (term_bvar w_0)))";
+    let r = unify(goals).unwrap();
+    pp(&r);
+    assert_eq!(r, map![]);
+}
+#[test]
+fn aplusc() {
+    // let goals = "(term_mvar n_0)=(* 16 4)";
+    let goals = "(term_mvar n_0)=(+ (term_bvar m_5) 5)";
     // let goals = "(term_mvar n_0)=(* 2 (+ 2 (/ (term_bvar w_0) 2)))";
     // let goals = "(term_mvar n_0)=(+ 2 (/ (term_bvar w_0) 2))";
     // let goals = "(term_mvar n_0)=(* 2 (+ 2 (term_bvar w_0)))";
