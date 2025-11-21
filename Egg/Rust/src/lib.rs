@@ -1,5 +1,5 @@
 use std::ffi::{c_char, CStr, CString};
-mod lang;
+pub mod lang;
 
 // Cf. https://doc.rust-lang.org/stable/std/ffi/struct.CStr.html#examples
 fn c_str_to_string(c_str: *const c_char) -> String {

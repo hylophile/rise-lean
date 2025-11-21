@@ -60,7 +60,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "egg-for-lean"
+name = "egg-unify"
 version = "0.1.0"
 dependencies = [
  "egg",
