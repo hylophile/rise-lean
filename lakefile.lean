@@ -39,10 +39,10 @@ extern_lib ffi pkg := do
   buildStaticLib libFile #[job]
 
 
-extern_lib egg_for_lean pkg := do
+extern_lib egg_unify pkg := do
 
   pkg.afterBuildCacheAsync do
-    let name      := nameToSharedLib "egg_for_lean"
+    let name      := nameToSharedLib "egg_unify"
     let srcPath   := pkg.dir / "Egg" / "Rust" / "target" / "release" / name
     let tgtPath   := pkg.sharedLibDir / name
     let traceFile := pkg.buildDir / "rust" / "egg.trace"
@@ -56,6 +56,6 @@ extern_lib egg_for_lean pkg := do
       }
       IO.FS.createDirAll pkg.sharedLibDir
       IO.FS.writeBinFile tgtPath (← IO.FS.readBinFile srcPath)
-    dbg_trace srcPath
-    dbg_trace tgtPath
+    -- dbg_trace srcPath
+    -- dbg_trace tgtPath
     return pure tgtPath
