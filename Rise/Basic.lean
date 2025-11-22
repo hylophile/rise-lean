@@ -450,6 +450,45 @@ def RType.toSExpr : RType → String
   | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSExpr})"
   | .fn binderType body => s!"(-> {binderType.toSExpr} {body.toSExpr})"
 
+def RNat.toSExpr2 : RNat → String
+  | .bvar idx name => s!"b_{sane name}_{idx}"
+  | .mvar id name => s!"m_{sane name}_{id}"
+  | .nat n => s!"{n}"
+  | .plus n m => s!"(+ {n.toSExpr2} {m.toSExpr2})"
+  | .minus n m => s!"(- {n.toSExpr2} {m.toSExpr2})"
+  | .mult n m => s!"(* {n.toSExpr2} {m.toSExpr2})"
+  | .div n m => s!"(div {n.toSExpr2} {m.toSExpr2})"
+  | .pow n m => s!"(^ {n.toSExpr2} {m.toSExpr2})"
+
+def RData.toSExpr2 : RData → String
+  | .bvar idx name => s!"b_{sane name}_{idx}"
+  | .mvar id name => s!"m_{sane name}_{id}"
+  | .array n d     => s!"(array {n.toSExpr2} {d.toSExpr2})"
+  | .pair d1 d2    => s!"(pair {d1.toSExpr2} {d2.toSExpr2})"
+  | .index n       => s!"(index {n.toSExpr2})"
+  | .scalar x      => s!"{x}"
+  | .natType       => "natType"
+  | .vector n d    => s!"(vector {n.toSExpr2} {d.toSExpr2})"
+
+def RType.toSExpr2 : RType → String
+  | .data dt => RData.toSExpr2 dt
+  | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSExpr2})"
+  | .fn binderType body => s!"(-> {binderType.toSExpr2} {body.toSExpr2})"
+
+def RData.getNatEquivs (l:RData) (r:RData) : List (RNat × RNat) :=
+  match l,r with
+  | .array n1 d1 , .array n2 d2  => (n1, n2) :: d1.getNatEquivs d2
+  | .pair l1 l2  , .pair r1 r2   => l1.getNatEquivs r1 ++ l2.getNatEquivs r2
+  | .index n1    , .index n2     => [(n1, n2)]
+  | .vector n1 d1, .vector n2 d2 => (n1, n2) :: d1.getNatEquivs d2
+  | _,_ => []
+
+def RType.getNatEquivs (l:RType) (r:RType) : List (RNat × RNat) :=
+  match l,r with
+  | .data l, .data r => l.getNatEquivs r
+  | .pi _ _ _ l, .pi _ _ _ r => l.getNatEquivs r
+  | .fn l1 l2, .fn r1 r2 => l1.getNatEquivs r1 ++ l2.getNatEquivs r2
+  | _, _ => []
 
 -- def RNat.toSMTLib : RNat → String
 --   | .bvar idx name => s!"(bvar {name}@{idx})"

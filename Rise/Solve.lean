@@ -7,6 +7,21 @@ open IO
 
 namespace RNat
 
+-- def toSMTLib (lhs rhs : RNat) : String :=
+--   let mvars := (lhs.collectMVars ++ rhs.collectMVars).eraseDups
+--   let decls : String := mvars.map (fun (id,nm) => s!"(declare-const {nm}_{id} Int)") |> String.intercalate "\n"
+--   let assertion := s!"(assert (= {lhs.toSMTTerm.get!} {rhs.toSMTTerm.get!}))"
+--   s!"(set-option :model.v2 true)\n{decls}\n{assertion}\n(check-sat)\n(get-model)"
+  
+-- def toNewSMTTerm : RNat → String
+--   | .bvar id name  =>  s!"b_{name}_{id}"
+--   | .mvar id name  =>  s!"m_{name}_{id}"
+--   | .nat n         =>  s!"{n}"
+--   | .plus n m      =>  s!"(+ {n.toNewSMTTerm} {m.toNewSMTTerm})"
+--   | .minus n m     =>  s!"(- {n.toNewSMTTerm} {m.toNewSMTTerm})"
+--   | .mult n m      =>  s!"(* {n.toNewSMTTerm} {m.toNewSMTTerm})"
+--   | .div n m      =>   s!"(/ {n.toNewSMTTerm} {m.toNewSMTTerm})"
+--   | .pow n m       =>  s!"(^ {n.toNewSMTTerm} {m.toNewSMTTerm})"
 
 -- TODO: the .get! calls are sad.
 -- 

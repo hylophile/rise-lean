@@ -19,6 +19,7 @@ syntax "import" "core"                                  : rise_decl
 
 declare_syntax_cat              rise_program
 syntax (rise_decl)* rise_expr : rise_program
+
 def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
   let keys := (s1.map (·.fst) ++ s2.map (·.fst)).eraseDups
   let header := "id,Subst1,Subst2,naiveEq"
@@ -29,6 +30,42 @@ def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
     s!"{k},{v1},{v2},{eq}"
   )
   String.intercalate "\n" (header :: rows)
+
+def RNat.getDivs (n : RNat) : List (RNat × RNat) :=
+  match n with
+  | .plus n m  => n.getDivs ++ m.getDivs
+  | .minus n m => n.getDivs ++ m.getDivs
+  | .mult n m  => n.getDivs ++ m.getDivs
+  | .div n m   => [(n,m)] ++ n.getDivs ++ m.getDivs
+  | .pow n m   => n.getDivs ++ m.getDivs
+  | _ => []
+
+
+def mkSmtCheck (appliedGoals : List (RType × RType)) : String :=
+  let natEquivs := appliedGoals.map (fun (l,r) => RType.getNatEquivs l r)
+    |>.flatten
+    |>.eraseDups
+  let vars := collectVars natEquivs
+    |>.map (fun s => s!"(declare-const {s} Int)\n(assert (> {s} 0))\n")
+    |> String.intercalate "\n"
+  let divs := natEquivs.map (fun (l,r) => l.getDivs ++ r.getDivs)
+    |>.flatten
+    |>.eraseDups
+    |>.map (fun (l,r) => s!"(assert (= 0 (mod {l.toSExpr2} {r.toSExpr2})))")
+    |> String.intercalate "\n"
+  let asserts := natEquivs
+    |>.map (fun (l,r) => s!"(assert (= {l.toSExpr2} {r.toSExpr2}))")
+    |> String.intercalate "\n"
+  s!"
+{vars}  
+
+{asserts}
+
+{divs}
+
+(check-sat)
+(get-model)
+  "
 
 unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
@@ -50,15 +87,23 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
       let expr ← applyUnifyResultsRecursivelyUntilStable expr
 
       let _ ← stabilizeUnifyResults
-      let goals := (<- get).unifyGoals |> List.map (fun (x,y) => s!"{x.toSExpr}={y.toSExpr}") |>String.intercalate ";"
-      if goals.length > 0 then
-        let res ← match (← elabEggSolveOutput <| runEgg goals) with
+      let goals := (<- get).unifyGoals
+      let goalsStr := (<- get).unifyGoals |> List.map (fun (x,y) => s!"{x.toSExpr}={y.toSExpr}") |>String.intercalate ";"
+      if goalsStr.length > 0 then
+        let res ← match (← elabEggSolveOutput <| runEgg goalsStr) with
           | .ok x => pure x
           | .error e => throwError e
+        let applied: List (RType × RType) := goals.map (fun (l,r) =>
+          let l := l.apply res
+          let r := r.apply res
+          (l,r)
+        )
+        let smt := mkSmtCheck applied
         -- dbg_trace res
         let unifyResults : Substitution := (← get).unifyResult
         -- dbg_trace unifyResults
-        dbg_trace s!"egg. Input\n{goals}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n"
+        dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n{smt}\n\n"
+        -- dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n"
         dbg_trace (compareSubstitutionsCSV unifyResults res)
 
       

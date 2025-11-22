@@ -12,16 +12,16 @@ def padClamp2D := [RiseC|
 ]
 -- #pp padClamp2D.type
 
--- def slide2D4 := [RiseC|
---   fun szOuter stOuter szInner stInner : nat =>
---   fun {n m : nat} =>
---   fun {d : data} =>
---   fun xs : n·m·d =>
---     xs |>
---     map (slide (szInner : nat) (stInner : nat))
---     >> slide (szOuter : nat) (stOuter : nat)
---     >> map transpose
--- ]
+def slide2D4 := [RiseC|
+  fun szOuter stOuter szInner stInner : nat =>
+  fun {n m : nat} =>
+  fun {d : data} =>
+  fun xs : n·m·d =>
+    xs |>
+    map (slide (szInner : nat) (stInner : nat))
+    >> slide (szOuter : nat) (stOuter : nat)
+    >> map transpose
+]
 -- #pp slide2D4.type
 
 -- -- def slideex := [RiseC|
@@ -30,19 +30,19 @@ def padClamp2D := [RiseC|
 -- -- #pp slideex.type
 
 
--- def slide2D := [RiseC|
---   fun sz st : nat =>
---     $slide2D4 (sz : nat) (st : nat) (sz : nat) (st : nat)
--- ]
+def slide2D := [RiseC|
+  fun sz st : nat =>
+    $slide2D4 (sz : nat) (st : nat) (sz : nat) (st : nat)
+]
 
--- def dropLast := [RiseC|
---   -- fun (m : nat) {n : nat} {d : data} (xs : (n+m)·d) =>
---   fun m : nat =>
---   fun {n : nat} =>
---   fun {d : data} =>
---   fun xs : (n+m)·d =>
---     take (n : nat) xs
--- ]
+def dropLast := [RiseC|
+  -- fun (m : nat) {n : nat} {d : data} (xs : (n+m)·d) =>
+  fun m : nat =>
+  fun {n : nat} =>
+  fun {d : data} =>
+  fun xs : (n+m)·d =>
+    take (n : nat) xs
+]
 -- -- #pp dropLast.type
 
 
@@ -105,32 +105,32 @@ def downSample2D := [RiseC|
   >> map transpose
   >> map (map (map ($dot downSampleWeights) >> $dot downSampleWeights))
 ]
-#pp downSample2D.type
--- 
--- def upsample2D := [RiseC|
---   def upsampleWeights1 : 2·f32
---   def upsampleWeights2 : 2·f32
---   def lidx : (i n : nat) → idx[n]
--- 
---   fun h w : nat =>
---   fun input : (h/2)+3·(w/2)+3·f32 =>
---   input |>
---   $padClamp2D (1 : nat) (0 : nat)
---               (1 : nat) (0 : nat)
---   >> $slide2D (2 : nat) (1 : nat)
---   >> map (map (fun nbh =>
---       generate (fun yi : idx[2] =>
---           generate (fun xi : idx[2] =>
---             let wy := (select (equal xi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
---             let wx := (select (equal yi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
---             nbh
---             |> map ($dot wx)
---                >> $dot wy
---           ))))
---   >> map (transpose >> map join)
---   >> join
---   >> drop (1 : nat)
---   >> $dropLast (2 + 2*(h/2) - h : nat) -- is dropLast different from take? (yes!)
---   >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
--- ]
+-- #pp downSample2D.type
+
+def upsample2D := [RiseC|
+  def upsampleWeights1 : 2·f32
+  def upsampleWeights2 : 2·f32
+  def lidx : (i n : nat) → idx[n]
+
+  fun h w : nat =>
+  fun input : (h/2)+3·(w/2)+3·f32 =>
+  input |>
+  $padClamp2D (1 : nat) (0 : nat)
+              (1 : nat) (0 : nat)
+  >> $slide2D (2 : nat) (1 : nat)
+  >> map (map (fun nbh =>
+      generate (fun yi : idx[2] =>
+          generate (fun xi : idx[2] =>
+            let wy := (select (equal xi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
+            let wx := (select (equal yi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
+            nbh
+            |> map ($dot wx)
+               >> $dot wy
+          ))))
+  >> map (transpose >> map join)
+  >> join
+  >> drop (1 : nat)
+  >> $dropLast (2 + 2*(h/2) - h : nat) -- is dropLast different from take? (yes!)
+  >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
+]
 -- #pp upsample2D.type

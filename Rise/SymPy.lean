@@ -46,6 +46,10 @@ private def collectMVars (eqs : List (RNat × RNat)) : List String :=
 private def collectBVars (eqs : List (RNat × RNat)) : List String :=
   eqs.map (fun (l,r) => l.collectBVars ++ r.collectBVars) |> List.flatten
 
+def collectVars (eqs : List (RNat × RNat)) : List String :=
+  eqs.map (fun (l,r) => l.collectBVars ++ r.collectBVars ++ l.collectMVars ++ r.collectMVars) |> List.flatten |> List.eraseDups
+
+
 private def listToSymPyProgram (eqs : List (RNat × RNat)) : String :=
   let mvars := (collectMVars eqs).eraseDups
   let bvars := (collectBVars eqs).eraseDups
@@ -100,7 +104,7 @@ private def pairToSubstitution (ps : List (RNat × RNat)) : Option Substitution 
 unsafe def solveWithSymPy (eqs: List (RNat × RNat)) : RElabM Substitution :=
   if eqs.length == 0 then return [] else
   let sympyInput := eqs |> listToSymPyProgram
-  -- dbg_trace s!"sympy_input:\n{sympyInput}\n\n"
+  dbg_trace s!"sympy_input:\n{sympyInput}\n\n"
   match sympyInput |> runSymPy with
   | .ok (stdout,_stderr) => do
     let res ← elabSymPySolveOutput stdout
