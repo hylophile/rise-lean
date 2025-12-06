@@ -18,12 +18,18 @@ def dotSeq := [RiseC|
 -- #pp dot.type
  
 def mmHighLevel := [RiseC|
-  fun n m o : nat =>
-  -- at can't be identifier
-  fun aat b =>
-    transpose aat |> map (fun aRow =>
+  fun {n m p : nat} =>
+  fun a : m·n·f32 =>
+  fun b : n·p·f32 =>
+    a |> map (fun aRow =>
       transpose b |> map (fun bCol => $dot aRow bCol)
     )
 ]
+#pp mmHighLevel.type
 
 
+def x := [RiseC|
+  fun x : f32 => id 3
+
+]
+#pp x.type

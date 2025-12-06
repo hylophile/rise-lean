@@ -10,3 +10,51 @@ def dot := [RiseC|
 ]
 -- #pp dot.type
 
+
+-- def x := [RiseC|
+-- fun a b : nat =>
+-- fun {m : nat} =>
+-- fun xs : m·f32 =>
+-- concat (split (a+b : nat) xs) (split (a-b : nat) xs)
+-- ]
+-- #pp x.type
+
+
+-- def y := [RiseC|
+--   fun a b : nat =>
+--   fun {q : nat} =>
+--   fun xs : q·f32 =>
+--   add (split (a+b : nat) xs)
+--       (split (a-b : nat) xs)
+-- ]
+-- #pp y.type
+
+
+def y := [RiseC|
+
+  fun a b : nat =>
+  fun {p q : nat} =>
+  fun xs : p·f32 =>
+  fun ys : q·f32 =>
+  take (5 : nat) <| add xs ys
+]
+#pp y.type
+-- def y := [RiseC|
+
+--   fun a b : nat =>
+--   fun {q : nat} =>
+--   fun xs : q·f32 =>
+--   add (take (a : nat) xs)
+--       (take (b : nat) xs)
+-- ]
+-- #pp y.type
+
+-- def z := [RiseC|
+--   fun a b : nat =>
+--   fun {q : nat} =>
+--   fun xs : q·f32 =>
+--   fun ys : 5·f32 =>
+--   add (xs) (ys)
+-- ]
+-- #pp z.type
+

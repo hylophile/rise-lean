@@ -186,6 +186,7 @@ private def parseEggMap (s : String) : TermElabM (Except String Syntax) := do
 
 
 def elabEggSolveOutput (s : String) : RElabM (Except String Substitution) := do
+    if s == "" then return .ok []
     let stx ← parseEggMap s
     match stx with
     | .ok stx =>

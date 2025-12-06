@@ -93,16 +93,17 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
         let res ← match (← elabEggSolveOutput <| runEgg goalsStr) with
           | .ok x => pure x
           | .error e => throwError e
-        let applied: List (RType × RType) := goals.map (fun (l,r) =>
-          let l := l.apply res
-          let r := r.apply res
-          (l,r)
-        )
-        let smt := mkSmtCheck applied
+        -- let applied: List (RType × RType) := goals.map (fun (l,r) =>
+        --   let l := l.apply res
+        --   let r := r.apply res
+        --   (l,r)
+        -- )
+        -- let smt := mkSmtCheck applied
         -- dbg_trace res
         let unifyResults : Substitution := (← get).unifyResult
         -- dbg_trace unifyResults
-        dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n{smt}\n\n"
+        -- dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n{smt}\n\n"
+        dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n"
         -- dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n"
         dbg_trace (compareSubstitutionsCSV unifyResults res)
 

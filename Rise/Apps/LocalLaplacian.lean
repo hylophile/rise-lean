@@ -54,7 +54,7 @@ def dot := [RiseC|
   fun as bs : n·f32 =>
      zip as bs |> map $prodMult |> reduce add 0.0f32
 ]
--- #pp dot.type
+#pp dot.type
 -- 
 -- -- /**
 -- --   * Division operator in Natural set (ie int div like Scala): `1/2=0`.
@@ -100,12 +100,14 @@ def downSample2D := [RiseC|
   $padClamp2D
       (1 : nat) (2 + 2*(1 + h/2 - h/2) : nat) -- 1 - h % 2 -- see comment above
       (1 : nat) (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2
+      -- (1 : nat) (4 - h%2: nat)
+      -- (1 : nat) (4 - w%2: nat)
   >> map (slide (4 : nat) (2 : nat))
   >> slide (4 : nat) (2 : nat)
   >> map transpose
   >> map (map (map ($dot downSampleWeights) >> $dot downSampleWeights))
 ]
--- #pp downSample2D.type
+#pp downSample2D.type
 
 def upsample2D := [RiseC|
   def upsampleWeights1 : 2·f32
@@ -133,4 +135,4 @@ def upsample2D := [RiseC|
   >> $dropLast (2 + 2*(h/2) - h : nat) -- is dropLast different from take? (yes!)
   >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
 ]
--- #pp upsample2D.type
+#pp upsample2D.type

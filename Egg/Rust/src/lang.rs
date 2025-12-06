@@ -1,5 +1,6 @@
 use egg::*;
 use std::collections::HashMap;
+use std::time::Duration;
 // use std::time::Duration;
 
 type EGraph = egg::EGraph<RiseType, UnifyAnalysis>;
@@ -17,7 +18,7 @@ define_language! {
         "*" = Mul([Id; 2]),
         "/" = Div([Id; 2]),
         "-" = Sub([Id; 2]),
-        // "~" = Unify([Id; 2]),
+        "~" = Unify([Id; 2]),
         // "int" = Int,
         "type_mvar" = TypeMVar(Id),
         "type_bvar" = TypeBVar(Id),
@@ -42,138 +43,49 @@ fn s() -> String {
 fn dt_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
     vec![
         // datatypes
-        multi_rewrite!(s(); "?v = (-> ?a ?b) = (-> ?c ?d)" => "?a = ?c, ?b = ?d"),
-        multi_rewrite!(s(); "?v = (array ?a ?b) = (array ?c ?d)" => "?a = ?c, ?b = ?d"),
-        multi_rewrite!(s(); "?v = (vector ?a ?b) = (vector ?c ?d)" => "?a = ?c, ?b = ?d"),
-        multi_rewrite!(s(); "?v = (pair ?a ?b) = (pair ?c ?d)" => "?a = ?c, ?b = ?d"),
-        multi_rewrite!(s(); "?v = (index ?a) = (index ?c)" => "?a = ?c"),
+        multi_rewrite!(s(); "?v = (~ (-> ?a ?b) (-> ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
+        multi_rewrite!(s(); "?v = (~ (vector ?a ?b) (vector ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
+        multi_rewrite!(s(); "?v = (~ (pair ?a ?b) (pair ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
+        multi_rewrite!(s(); "?v = (~ (array ?a ?b) (array ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
+        multi_rewrite!(s(); "?v = (~ (index ?a) (index ?c))" => "?w = (~ ?a ?c)"),
+        multi_rewrite!(s(); "?q = (type_mvar ?v), ?p = (~ ?a ?b)" => "?a = ?b"), // if no analysis conflict...
     ]
 }
 
-fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var = var.parse().unwrap();
-    // let zero = RiseType::Num(0);
-    // note this check is just an example,
-    // checking for the absence of 0 is insufficient since 0 could be merged in later
-    // see https://github.com/egraphs-good/egg/issues/297
-    // move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
-    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
-        Some((n, _)) => n != 0,
-        None => true,
-    }
-}
-fn is_not_const(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
-    let var = var.parse().unwrap();
-    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
-        Some(_) => false,
-        None => true,
-    }
-}
-fn imm_is_not_zero(var: &'static str) -> impl Fn(&EGraph, Id, &Subst) -> bool {
-    let var = var.parse().unwrap();
-    // let zero = RiseType::Num(0);
-    // note this check is just an example,
-    // checking for the absence of 0 is insufficient since 0 could be merged in later
-    // see https://github.com/egraphs-good/egg/issues/297
-    // move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
-    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
-        Some((n, _)) => n != 0,
-        None => true,
-    }
-}
-fn imm_is_not_const(var: &'static str) -> impl Fn(&EGraph, Id, &Subst) -> bool {
-    let var = var.parse().unwrap();
-    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
-        Some(_) => false,
-        None => true,
-    }
-}
-// fn imm_is_mvar(var: &'static str) -> impl Fn(&EGraph, Id, &Subst) -> bool {
-//     let var = var.parse().unwrap();
-//     // move |egraph, _, subst| match egraph[subst[var]].data.variant {
-//     //     Variant::TermMVar => true,
-//     //     _ => false,
-//     // }
-//     move |egraph, _, subst| egraph[subst[var]].nodes.iter().any(|n| is_mvar(n))
-// }
-
-// multi_rewrite!(s(); "?c = (+ ?a ?b)" => "?b = (- ?c ?a)"),
-struct AddInverse;
-impl Applier<RiseType, UnifyAnalysis> for AddInverse {
-    fn apply_one(
-        &self,
-        egraph: &mut EGraph,
-        _eclass: Id,
-        subst: &Subst,
-        _searcher_ast: Option<&PatternAst<RiseType>>,
-        _rule_name: Symbol,
-    ) -> Vec<Id> {
-        let f = |s| imm_is_not_const(s)(egraph, _eclass, subst);
-        let g = |s| imm_is_not_zero(s)(egraph, _eclass, subst);
-        // let h = |s| imm_is_mvar(s)(egraph, _eclass, subst);
-        let a_id = subst["?a".parse().unwrap()];
-        let b_id = subst["?b".parse().unwrap()];
-        let c_id = subst["?c".parse().unwrap()];
-        // if f("?b") && f("?c") {
-        if f("?b") && g("?c") {
-            let x = egraph.add(RiseType::Sub([c_id, a_id]));
-            let _ = egraph.union(b_id, x);
-            vec![x, b_id]
-        } else {
-            vec![]
-        }
-    }
-}
-
-// "?c = (* ?a ?b)" => "?b = (/ ?c ?a)" if a != 0
-struct DivInverse;
-impl Applier<RiseType, UnifyAnalysis> for DivInverse {
-    fn apply_one(
-        &self,
-        egraph: &mut EGraph,
-        _eclass: Id,
-        subst: &Subst,
-        _searcher_ast: Option<&PatternAst<RiseType>>,
-        _rule_name: Symbol,
-    ) -> Vec<Id> {
-        let f = |s| imm_is_not_const(s)(egraph, _eclass, subst);
-        let g = |s| imm_is_not_zero(s)(egraph, _eclass, subst);
-        let a_id = subst["?a".parse().unwrap()];
-        let b_id = subst["?b".parse().unwrap()];
-        let c_id = subst["?c".parse().unwrap()];
-        // if f("?a") && f("?b") && f("?c") {
-        // if g("?a") && g("?b") && g("?c") && f("?c") && f("?b") && !g("?a") {
-        // if g("?a") && f("?b") && f("?c") {
-        if g("?a") {
-            // if g("?a") && g("?b") && g("?c") {
-            let x = egraph.add(RiseType::Div([c_id, a_id]));
-            let _ = egraph.union(b_id, x);
-            vec![x, b_id]
-        } else {
-            vec![]
-        }
-    }
+#[rustfmt::skip]
+fn nat_rules_shift() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
+    vec![
+        rewrite!("add-comm"; "(+ ?a ?b)" => "(+ ?b ?a)"),
+        rewrite!("mul-comm"; "(* ?a ?b)" => "(* ?b ?a)"),
+        rewrite!("t-comm"; "(~ ?a ?b)" => "(~ ?b ?a)"),
+        rewrite!(s(); "(~ ?c (/ ?a ?b))" => "(~ (* ?c ?b) ?a)"),
+        rewrite!(s(); "(~ ?c (* ?a ?b))" => "(~ (/ ?c ?b) ?a)" if is_not_zero("?b")),
+        rewrite!(s(); "(~ ?c (+ ?a ?b))" => "(~ (- ?c ?b) ?a)"),
+        rewrite!(s(); "(~ ?c (- ?a ?b))" => "(~ (+ ?c ?b) ?a)"),
+        multi_rewrite!(s(); "?p = (~ ?a ?b), ?q = (~ ?a ?c)" => "?r = (~ ?b ?c)"),
+        multi_rewrite!(s(); "?q = (~ (term_mvar ?a) ?b), ?p = (~ (term_mvar ?a) ?c)" => "?b = ?c"),
+        multi_rewrite!(s(); "?q = (~ (term_mvar ?a) (term_mvar ?b))" => "?p = (term_mvar ?a) = (term_mvar ?b)"),
+        multi_rewrite!(s(); "?p=(term_mvar ?a), ?q = (~ (term_mvar ?a) ?b)" => "?p = ?b"),
+    ]
 }
 
 #[rustfmt::skip]
 fn nat_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
-    // let x =  {
-    //     let searcher = egg::__rewrite!(@parse MultiPattern "?c = (* ?a ?b)");
-    //     let core_applier = egg::__rewrite!(@parse MultiPattern "?b = (/ ?c ?a)");
-    //     let applier = egg::__rewrite!(@applier core_applier; is_not_zero("?a"),);
-    //     egg::Rewrite::new((s()).to_string(),searcher,applier).unwrap()
-    // };
     vec![
         // add
         rewrite!("add-comm"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rewrite!("add-assoc"; "(+ ?a (+ ?b ?c))" => "(+ (+ ?a ?b) ?c)"),
-        rewrite!("add-assoc2"; "(+ (+ ?a ?b) ?c)" => "(+ ?a (+ ?b ?c))"),
         rewrite!("add-zero"; "(+ ?a 0)" => "?a"),
 
         // add-sub
         rewrite!("add-sub-assoc"; "(+ ?a (- ?b ?c))" => "(- (+ ?a ?b) ?c)"),
-        // adding the second one makes graph inconsistent?
         rewrite!("add-sub-assoc2"; "(- (+ ?a ?b) ?c)" => "(+ ?a (- ?b ?c))"),
+        rewrite!("add-sub-assoc3"; "(- ?c (+ ?a ?b))" => "(- (- ?c ?a) ?b)"),
+        
+
+        // rewrite!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
+        // rewrite!("sub-canon2"; "(+ ?b (* -1 ?b))" => "0"),
+        // rewrite!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
         
         // sub
         rewrite!("sub-zero"; "(- ?a 0)" => "?a"),
@@ -194,26 +106,31 @@ fn nat_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         rewrite!(s(); "(* ?a (/ ?b ?a))" => "?b" if is_not_zero("?a")),
         rewrite!(s(); "(/ ?a (/ ?b ?c))" => "(* ?a (/ ?c ?b))" if is_not_zero("?b")),
         rewrite!(s(); "(/ (/ ?a ?b) ?c)" => "(/ ?a (* ?b ?c))" if is_not_zero("?b") if is_not_zero("?c")),
-        multi_rewrite!(s(); "?c = (/ ?a ?b)" => "?a = (* ?c ?b)"),
 
         // div-add
         rewrite!(s(); "(/ (+ ?a ?b) ?c)" => "(+ (/ ?a ?c) (/ ?b ?c))" if is_not_zero("?b") if is_not_zero("?c")),
+        rewrite!(s(); "(+ ?a (/ ?b ?c))" => "(/ (+ (* ?a ?c) ?b) ?c)"),
 
-        // more. expensive
-        multi_rewrite!(s(); "?c = (* ?a ?b)" => DivInverse ),
-        multi_rewrite!(s(); "?c = (+ ?a ?b)" => AddInverse),
+        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) (term_mvar ?b))" => "?p = (term_mvar ?a) = (term_mvar ?b)"),
 
-        // multi_rewrite!(s(); "?p = (term_mvar ?c) = (+ (term_mvar ?a) ?b)" => "?q = (term_mvar ?a) = (- (term_mvar ?c) (term_mvar ?b))"),
-        // multi_rewrite!(s(); "?p = (term_bvar ?c) = (+ (term_mvar ?a) ?b)" => "?q = (term_mvar ?a) = (- (term_bvar ?c) (term_mvar ?b))"),
+        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) ?b), ?p = (~ (term_mvar ?a) ?c)" => "?b = ?c"),
+        // multi_rewrite!(s(); "?q = (term_mvar ?a), ?p = (~ ?q ?b)" => "?q = ?b"),
+        
+
         ]
 }
 
-#[rustfmt::skip]
-fn nat_rules_expensive() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
-    vec![
-        multi_rewrite!(s(); "?c = (* ?a ?b)" => DivInverse ),
-        multi_rewrite!(s(); "?c = (+ ?a ?b)" => AddInverse),
-    ]
+fn is_not_zero(var: &'static str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
+    let var = var.parse().unwrap();
+    // let zero = RiseType::Num(0);
+    // note this check is just an example,
+    // checking for the absence of 0 is insufficient since 0 could be merged in later
+    // see https://github.com/egraphs-good/egg/issues/297
+    // move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
+    move |egraph, _, subst| match egraph[subst[var]].data.const_prop {
+        Some(n) => n != 0,
+        None => true,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -249,7 +166,7 @@ fn check_no_self_loops(egraph: &EGraph, class: &EClass) -> Result<(), String> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct InnerAnalysis {
     variant: Variant,
-    const_prop: Option<(i32, PatternAst<RiseType>)>,
+    const_prop: Option<i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -266,6 +183,7 @@ fn get_variant(i: &RiseType) -> Variant {
         | RiseType::Add(_)
         | RiseType::Mul(_)
         | RiseType::Div(_)
+        | RiseType::Unify(_)
         | RiseType::Sub(_) => Variant::Term,
         RiseType::TypeMVar(_) => Variant::TypeMVar,
         RiseType::TermMVar(_) => Variant::TermMVar,
@@ -287,35 +205,14 @@ fn clean_divide(x: i32, y: i32) -> Option<i32> {
     }
 }
 
-fn make_const_prop(egraph: &mut EGraph, enode: &RiseType) -> Option<(i32, PatternAst<RiseType>)> {
-    let x = |i: &Id| egraph[*i].data.const_prop.as_ref().map(|d| d.0);
+fn make_const_prop(egraph: &mut EGraph, enode: &RiseType) -> Option<i32> {
+    let x = |i: &Id| egraph[*i].data.const_prop;
     Some(match enode {
-        RiseType::Num(c) => (*c, format!("{}", c).parse().unwrap()),
-        RiseType::Add([a, b]) => (
-            x(a)? + x(b)?,
-            format!("(+ {} {})", x(a)?, x(b)?).parse().unwrap(),
-        ),
-        RiseType::Sub([a, b]) => (
-            // {
-            //     let r = x(a)? - x(b)?;
-            //     if r > 0 {
-            //         r
-            //     } else {
-            //         return None;
-            //     }
-            // },
-            x(a)? - x(b)?,
-            format!("(- {} {})", x(a)?, x(b)?).parse().unwrap(),
-        ),
-        RiseType::Mul([a, b]) => (
-            // x(a)? * x(b)?,
-            x(a)?.checked_mul(x(b)?)?,
-            format!("(* {} {})", x(a)?, x(b)?).parse().unwrap(),
-        ),
-        RiseType::Div([a, b]) if x(b) != Some(0) => (
-            clean_divide(x(a)?, x(b)?)?,
-            format!("(/ {} {})", x(a)?, x(b)?).parse().unwrap(),
-        ),
+        RiseType::Num(c) => *c,
+        RiseType::Add([a, b]) => x(a)? + x(b)?,
+        RiseType::Sub([a, b]) => x(a)? - x(b)?,
+        RiseType::Mul([a, b]) => x(a)?.checked_mul(x(b)?)?,
+        RiseType::Div([a, b]) if x(b) != Some(0) => clean_divide(x(a)?, x(b)?)?,
         _ => return None,
     })
 }
@@ -363,8 +260,8 @@ impl Analysis<RiseType> for UnifyAnalysis {
             (None, Some(x)) => (Some(x), true, false),
             (Some(x), None) => (Some(x), false, true),
             (Some(x), Some(y)) => {
-                if x.0 != y.0 {
-                    self.found_err = Err(format!("merged unequal constants {} and {}", x.0, y.0))
+                if x != y {
+                    self.found_err = Err(format!("merged unequal constants {} and {}", x, y))
                 }
                 (Some(x), false, false)
             }
@@ -378,8 +275,16 @@ impl Analysis<RiseType> for UnifyAnalysis {
     }
 
     fn modify(egraph: &mut EGraph, id: Id) {
+        match egraph.analysis.found_err.clone() {
+            Ok(_) => (),
+            Err(s) => {
+                if s.contains("unequal") {
+                    egraph.analysis.found_err = Err(format!("id {id}; {s}"))
+                }
+            }
+        }
         let data = egraph[id].data.const_prop.clone();
-        if let Some((c, _pat)) = data {
+        if let Some(c) = data {
             // if egraph.are_explanations_enabled() {
             //     egraph.union_instantiations(
             //         &pat,
@@ -449,7 +354,40 @@ impl CostFunction<RiseType> for SillyCostFn {
     }
 }
 
+struct ExcludingIdCostFn {
+    top: bool,
+    id: Id,
+}
+
+impl CostFunction<RiseType> for ExcludingIdCostFn {
+    type Cost = i32;
+    fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost,
+    {
+        let op_cost = match enode {
+            RiseType::TermMVar(id) => {
+                if &self.id == id {
+                    i32::MAX
+                } else {
+                    100
+                }
+            }
+            // RiseType::Num(_) => todo!(),
+            // RiseType::Add(_) => todo!(),
+            // RiseType::Mul(_) => todo!(),
+            // RiseType::Div(_) => todo!(),
+            // RiseType::Sub(_) => todo!(),
+            // RiseType::TermBVar(id) => todo!(),
+            _ => 1,
+        };
+        // self.top = false;
+        enode.fold(op_cost, |sum, id| sum.saturating_add(costs(id)))
+    }
+}
+
 pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
+    // let goals: Vec<&str> = input.split(';').filter(|x| *x != "").collect::<Vec<&str>>();
     let goals: Vec<(&str, &str)> = input
         .split(';')
         .filter(|x| *x != "")
@@ -457,50 +395,106 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         .collect::<Result<Vec<(&str, &str)>, String>>()?;
 
     // setup
-    let mut eg: EGraph = EGraph::new(UnifyAnalysis::default());
+    let mut eg: EGraph = EGraph::new(UnifyAnalysis::default()); //.with_explanations_enabled();
     for (s1, s2) in goals {
-        let a: RecExpr<RiseType> = s1.parse().unwrap();
-        let b: RecExpr<RiseType> = s2.parse().unwrap();
-        let id_a = eg.add_expr(&a);
-        let id_b = eg.add_expr(&b);
-        eg.union(id_a, id_b);
+        let a: RecExpr<RiseType> = (format!("(~ {s1} {s2})")).parse().unwrap();
+        let _id_a = eg.add_expr(&a);
     }
 
     // run
-    let runner: Runner<RiseType, UnifyAnalysis> =
+    let mut runner: Runner<RiseType, UnifyAnalysis> =
         Runner::default().with_egraph(eg).run(&dt_rules());
-    let runner = Runner::default()
-        .with_egraph(runner.egraph)
-        .with_iter_limit(3)
-        .run(&nat_rules());
-    // let runner = Runner::default()
-    //     .with_egraph(runner.egraph)
-    //     .with_iter_limit(3)
-    //     .run(&nat_rules_expensive());
-    // let runner = Runner::default()
-    //     .with_egraph(runner.egraph)
-    //     .with_iter_limit(5)
-    //     .run(&nat_rules());
+    let mut counter = 0;
+    while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
+        runner = Runner::default()
+            .with_egraph(runner.egraph)
+            // .with_scheduler(BackoffScheduler::default().do_not_ban("assoc-plus"))
+            // .with_scheduler(SimpleScheduler {})
+            .with_iter_limit(1)
+            .run(&nat_rules_shift());
+        counter += 1;
+    }
+
     let eg = runner.egraph;
 
-    #[cfg(all(test, feature = "dot"))]
+    #[cfg(feature = "dot")]
     eg.dot().to_svg("target/foo.svg").unwrap();
-    #[cfg(all(test, feature = "dot"))]
-    dbg!(eg.dump());
+    // #[cfg(feature = "dot")]
+    // dbg!(eg.dump());
+
+    let _ = &eg.analysis.found_err.clone()?;
 
     for class in eg.classes() {
         check_no_self_loops(&eg, class)?
     }
 
-    let _ = &eg.analysis.found_err.clone()?;
+    let s3: Pattern<RiseType> = "(~ (term_mvar ?a) ?b)".parse().unwrap();
+    let mut neweg = EGraph::new(UnifyAnalysis::default());
+    let p = s3.search(&eg);
+    for m in p {
+        for s in m.substs {
+            let pid_a = s["?a".parse().unwrap()];
+            let a = get_repr(&eg, pid_a);
+            let r = RecExpr::from(vec![a.clone(), RiseType::TermMVar(0.into())]);
+            let id_a = neweg.add_expr(&r);
 
+            let b = &pq(&eg, s["?b".parse().unwrap()]);
+            let id_b = neweg.add_expr(b);
+            neweg.union(id_a, id_b);
+            // neweg.add(RiseType::Unify([id_a, id_b]));
+            // eprintln!(
+            //     "{}: {}",
+            //     RecExpr::from(vec![a]).pretty(1000),
+            //     b.pretty(1000)
+            // );
+        }
+    }
+    let s3: Pattern<RiseType> = "(~ (type_mvar ?a) ?b)".parse().unwrap();
+    // let mut neweg = EGraph::new(UnifyAnalysis::default());
+    let p = s3.search(&eg);
+    for m in p {
+        for s in m.substs {
+            let pid_a = s["?a".parse().unwrap()];
+            let a = get_repr(&eg, pid_a);
+            let r = RecExpr::from(vec![a.clone(), RiseType::TypeMVar(0.into())]);
+            let id_a = neweg.add_expr(&r);
+
+            let b = &pq(&eg, s["?b".parse().unwrap()]);
+            let id_b = neweg.add_expr(b);
+            neweg.union(id_a, id_b);
+            // neweg.add(RiseType::Unify([id_a, id_b]));
+            // eprintln!(
+            //     "{}: {}",
+            //     RecExpr::from(vec![a]).pretty(1000),
+            //     b.pretty(1000)
+            // );
+        }
+    }
+    // let neweg = eg;
+
+    let mut runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
+        .with_egraph(neweg)
+        // .with_scheduler(SimpleScheduler {})
+        .with_iter_limit(10)
+        // .with_time_limit(Duration::from_secs(5))
+        .run(&nat_rules());
+    // while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
+    //     runner = Runner::default()
+    //         .with_egraph(runner.egraph)
+    //         .with_iter_limit(20)
+    //         .run(&nat_rules());
+    //     counter += 1;
+    // }
+    let eg = runner.egraph;
+    // #[cfg(feature = "dot")]
+    // eg.dot().to_svg("target/foo.svg").unwrap();
+
+    // dbg!(eg.dump());
     let mut map = HashMap::new();
     for class in eg.classes() {
         // find repr
-        //
         let init = get_repr(&eg, class.id);
         let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
-        // let repr: RecExpr<RiseType> = eg[class.id].bui
 
         for mvar in class.nodes.iter().filter(|n| is_mvar(n)) {
             // assign repr
@@ -512,7 +506,48 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
             }
         }
     }
+
+    // let s3: Pattern<RiseType> = "(~ (term_mvar n_1) ?b)".parse().unwrap();
+    // let mut neweg = EGraph::new(UnifyAnalysis::default());
+    // let p = s3.search(&eg);
+    // for m in p {
+    //     for s in m.substs {
+    //         // let pid_a = s["?a".parse().unwrap()];
+    //         let pid_a = 0.into();
+    //         let a = get_repr(&eg, pid_a);
+    //         let r = RecExpr::from(vec![a.clone(), RiseType::TermMVar(0.into())]);
+    //         let id_a = neweg.add_expr(&r);
+
+    //         let b = &pq_excl(&eg, s["?b".parse().unwrap()], pid_a);
+    //         let id_b = neweg.add_expr(b);
+    //         neweg.union(id_a, id_b);
+    //         // neweg.add(RiseType::Unify([id_a, id_b]));
+    //         eprintln!(
+    //             "{}: {}",
+    //             RecExpr::from(vec![a]).pretty(1000),
+    //             b.pretty(1000)
+    //         );
+    //     }
+    // }
     Ok(map)
+}
+
+fn pq(eg: &EGraph, id: Id) -> RecExpr<RiseType> {
+    let init = get_repr(&eg, id);
+    let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
+    repr
+}
+
+fn pq_excl(eg: &EGraph, id: Id, ex: Id) -> RecExpr<RiseType> {
+    let init = get_repr_excl(&eg, id, ex);
+    let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr_excl(&eg, n, n));
+    repr
+}
+
+fn ppp(eg: &EGraph, id: Id) -> String {
+    let init = get_repr(&eg, id);
+    let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
+    repr.pretty(1000)
 }
 
 fn get_repr(eg: &EGraph, id: Id) -> RiseType {
@@ -520,6 +555,36 @@ fn get_repr(eg: &EGraph, id: Id) -> RiseType {
     match get_variant(&class.nodes[0]) {
         Variant::Term | Variant::TermMVar => {
             let ex = Extractor::new(&eg, SillyCostFn {});
+            let v = ex.find_best_node(id);
+            v.clone()
+        }
+        _ => {
+            let non_mvars = class
+                .nodes
+                .iter()
+                .filter(|n| !is_mvar(n))
+                .collect::<Vec<_>>();
+            match non_mvars.len() {
+                0 => {
+                    // first mvar
+                    class.nodes[0].clone()
+                }
+                1 => non_mvars[0].clone(),
+                _ => {
+                    panic!("found multiple non_mvars: {non_mvars:?}")
+                }
+            }
+        }
+    }
+}
+fn get_repr_excl(eg: &EGraph, id: Id, ex: Id) -> RiseType {
+    // dbg!(id, &eg[id]);
+    // dbg!(id);
+    let class = eg[id].clone();
+    match get_variant(&class.nodes[0]) {
+        Variant::Term | Variant::TermMVar => {
+            let ex = Extractor::new(&eg, SillyCostFn {});
+            // let ex = Extractor::new(&eg, ExcludingIdCostFn { top: true, id: ex });
             let v = ex.find_best_node(id);
             v.clone()
         }

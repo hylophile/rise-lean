@@ -1,6 +1,15 @@
-- slide2 is urgh
-- extraction is broken, but:
-  - for type eclasses, we know that there will only ever be one interesting node. so we just take that. for term eclasses we use a normal extractor, devaluing mvars.
+- omg downsample ???? need modulo or something.
+- **ok**
+  even the most complex problems are already solved [1] after **only** two iterations! however.
+  this is also pretty quick. constant propagation however takes a long time, because we have assoc & comm rules.
+
+  [1]: solved := there are no mvars in any substitution.
+
+  so it might be a good idea to
+  1. iterate twice
+  2. if not solved, goto 1
+  3. extract solutions and do constprop on them separately (either with a different ruleset or a different method)
+
 - we need to simplify at least top-level types (with sympy i guess)
 - add constant propagation to analysis
 - locallaplacian: do we need / and /^ ?

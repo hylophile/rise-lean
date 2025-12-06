@@ -300,7 +300,8 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         | .error x =>
           logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}\n{x}"
           -- logErrorAt e_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
-          throwError "unification failed"
+          -- throwError "unification failed"
+          return ⟨.app f e, brt⟩
       | _ => throwErrorAt f_syn s!"expected a function type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | `(rise_expr| $f_syn:rise_expr ($n:rise_nat : nat)) => do

@@ -15,9 +15,20 @@ res = sp.solvers.solve((eq0, eq1, eq2, eq3, eq4), (m_n_6, m_n_61, m_n_12, m_n_60
 print(res)
 print(sp.srepr(res))
 
-m_x_55, b_z_23, m, n, b = sp.symbols("m_x_55 b_z_23 m n b", integer=True, positive=True)
+m_x_55, b_z_23, m, n, b, k = sp.symbols(
+    "m_x_55 b_z_23 m n b k", integer=True, positive=True
+)
 # eq0 = sp.Equality((5 + m_x_55), b_z_23)
 # eq1 = sp.Equality(2 * (5 + m), n)
-eq0 = sp.Equality(m * n, b)
-res = sp.solvers.solve((eq0,), (n, m))
+eq0 = sp.Equality(m * 2**k, 16)
+res = sp.solvers.solve((eq0,), (k, m), dict=True)
 print(res)
+# print(len(res))
+# print(res[0])
+# print("hi")
+eq0 = sp.Equality(m * n, b)
+res = sp.solvers.solve((eq0,), (n, m), dict=True)
+print(res)
+print(len(res))
+print(res[0])
+print("hi")

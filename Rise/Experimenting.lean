@@ -172,13 +172,11 @@ import Rise.Solve
     
 "
 #eval runSygus "
-    (set-logic NRA)
-    (synth-fun m?30 ((n.1 Real) (n?30 Real)) Real)
-    (declare-var n1 Real)
-    (declare-var n.1 Real)
-    ;todo
-    ;(constraint (> n.1 0))
-    (constraint (= (* (m?30 n.1) (n?30 n.1)) n.1))
+    (set-logic NIA)
+    (synth-fun m_30 ((n.1 Int)) Int)
+    (declare-var n.1 Int)
+    (constraint (> n.1 0))
+    (constraint (> (m_30 n.1) 0))
+    (constraint (= (m_30 n.1) 3))
     (check-synth)
-    
 "
