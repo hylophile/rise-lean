@@ -1,41 +1,15 @@
 import Rise.Basic
 import Rise.RElabM
-import Rise.Solve
 import Lean
 
 -- unification algorithm adapted from
 -- https://web.archive.org/web/20250713140859/http://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
 
--- we could throw errors here instead of just Option
-
-
 mutual
 unsafe def unifyOneRNat (s t : RNat) : RElabM UnificationResult :=
-  -- match s, t with
-  -- | .nat n, .nat m => do
-  --   if n == m then return .ok [] else return .error <| .structural (.nat s) (.nat t)
-
-  -- | .bvar x _, .bvar y _ =>
-  --   if x == y then return .ok [] else return .error <| .structural (.nat s) (.nat t)
-
-  -- | .mvar x _, .mvar y _ =>
-  --   if x == y then return .ok [] else return .ok [(x, .nat t)]
-
-  -- | .mvar x _, term | term, .mvar x _ =>
-  --   if term.has x then
-  --     return .error <| .structural (.nat s) (.nat t)
-  --   else
-  --     return .ok [(x, .nat term)]
-
-  -- | _, _ => do
-    -- dbg_trace s!"{s} = {t}"
   do
   addRNatEquality (s,t)
   return .ok []
-    -- let x := solve s t --(RNat.toSMTLib s t)
-    -- x
-    -- dbg_trace x
-    -- .error <| .structural (.nat s) (.nat t)
 
 unsafe def unifyRNat (equations : List (RNat × RNat)) : RElabM UnificationResult :=
   match equations with
@@ -54,9 +28,6 @@ unsafe def unifyRNat (equations : List (RNat × RNat)) : RElabM UnificationResul
       | e => return e
     | e => return e
 end
-
--- TODO think about corresponding structural rules
--- TODO relate eqsat and unifi
 
 mutual
 unsafe def unifyOneRData (s t : RData) : RElabM UnificationResult :=
@@ -147,92 +118,7 @@ end
 unsafe def RType.unify (l r : RType) : RElabM UnificationResult :=
   unifyRType [(l, r)]
 
--- def Substitution.toString (s : Substitution) : String :=
---   let pairs := s.map (fun (id, term) => s!"({id} -> {repr term})")
---   "[" ++ String.intercalate ", " pairs ++ "]"
-
--- instance : ToString Substitution where
---   toString := Substitution.toString
-
 unsafe def unify := RType.unify
-
-
--- technically, the "_, _" case doesn't check for enough. we would want better checking here, but we trust the algorithm.
--- private unsafe def unifies (l r : RType) : Bool :=
---   match l.unify r, r.unify l with
---   | .ok s1, .ok s2 =>
---     -- dbg_trace s1
---     -- dbg_trace s2
---     -- dbg_trace (l.apply s1, r.apply s1)
---     -- dbg_trace (l.apply s2, r.apply s2)
---     -- dbg_trace (l.apply s1 == r.apply s1)
---     -- dbg_trace (l.apply s2 == r.apply s2)
---     l.apply s1 == r.apply s1 && l.apply s2 == r.apply s2
---   | _, _ =>
---     -- dbg_trace (l.unify r, r.unify l)
---     false
-
--- /--
---   Utility elaborator for Rise Types - adds metavariables to context.
---   "[Rise Type with <identifiers> | <rise_type>]"
-
---   TODO (if necessary): make a difference between variables and metavariables.
---   TODO (if necessary): currently all metavars are just data
--- -/
--- elab "[RTw" mvars:ident* "|" t:rise_type "]" : term => do
---   let l ← Lean.Elab.liftMacroM <| Lean.expandMacros t
---   let mvars ← mvars.toList.mapM (fun var => do
---     return {userName := var.getId, kind := RKind.data, type:= .error <| .structural (.nat s) (.nat t)}
---   )
---   -- let mvars : List ((Lean.Name × RKind × Option RType) × Nat) := mvars.zipIdx
---   let mvars : Lean.PersistentHashMap RMVarId MetaVarDeclaration :=
---     mvars.zipIdx.foldl (λ acc (x, id) => acc.insert id x) Lean.PersistentHashMap.empty
---   liftToTermElabMWith defaultContext {defaultState with mvars := mvars} <| elabRType l
-
-
--- #check [RTw a     | a                     ]
--- tests. note that both params to unify should have the same mvar context.
-
--- #assert (unifies [RTw a     | a                     ] [RTw a     | scalar                ]) == true
--- #assert (unifies [RTw a     | scalar                 ] [RTw a     | a                    ]) == true
--- #assert (unifies [RTw a     | a                     ] [RTw a     | a                    ]) == true
--- #assert (unifies [RTw a     | 3·a                 ] [RTw a     | 3·scalar            ]) == true
--- #assert (unifies [RTw a     | scalar → a             ] [RTw a     | scalar → 3<scalar>     ]) == true
--- #assert (unifies [RTw a     | 4·a                 ] [RTw a     | 4·5<scalar>         ]) == true
--- #assert (unifies [RTw a b   | a                     ] [RTw a b   | b                    ]) == true
--- #assert (unifies [RTw a b   | a × b                 ] [RTw a b   | scalar × 5<scalar>     ]) == true
--- #assert (unifies [RTw a b   | scalar × a             ] [RTw a b   | b × 3<scalar>         ]) == true
--- #assert (unifies [RTw a b   | a × b                 ] [RTw a b   | 5<scalar> × scalar     ]) == true
--- #assert (unifies [RTw a b   | 5<scalar> × scalar      ] [RTw a b   | a × b                ]) == true
--- #assert (unifies [RTw a b   | a → a                 ] [RTw a b   | a → b                ]) == true
--- #assert (unifies [RTw a b c | a → b                 ] [RTw a b c | b → c                ]) == true
--- #assert (unifies [RTw a b c | a → b                 ] [RTw a b c | c → c                ]) == true
--- #assert (unifies [RTw a b c | a × b                 ] [RTw a b c | c                    ]) == true
--- #assert (unifies [RTw a b c | a × b → a             ] [RTw a b c | c → scalar            ]) == true
--- #assert (unifies [RTw a b c | c → scalar             ] [RTw a b c | a × b → a            ]) == true
--- #assert (unifies [RTw a b c | a × b                 ] [RTw a b c | b × c                ]) == true
--- #assert (unifies [RTw a b c | b × c                 ] [RTw a b c | a × b                ]) == true
--- #assert (unifies [RTw       | 2·scalar             ] [RTw       | 3·scalar            ]) == false
--- #assert (unifies [RTw       | scalar                 ] [RTw       | 3<scalar>             ]) == false
--- #assert (unifies [RTw       | idx[1]                ] [RTw       | idx[2]               ]) == false
--- #assert (unifies [RTw a     | scalar → scalar         ] [RTw a     | a                    ]) == false
--- #assert (unifies [RTw a     | a                     ] [RTw a     | a → scalar            ]) == false
--- #assert (unifies [RTw a     | a → scalar             ] [RTw a     | a                    ]) == false
--- #assert (unifies [RTw a     | a                     ] [RTw a     | a × scalar            ]) == false
--- #assert (unifies [RTw a     | a × scalar             ] [RTw a     | a                    ]) == false
--- #assert (unifies [RTw a b   | a                     ] [RTw a b   | a → b                ]) == false
--- #assert (unifies [RTw a b c | a × b → a             ] [RTw a b c | c → c                ]) == false
--- #assert (unifies [RTw a b c | c → c                 ] [RTw a b c | a × b → a            ]) == false
--- -- these mvars are of kind nat, but no one checked if they fit! these shouldn't succeed right now.
--- #assert (unifies [RTw a     | idx[a]                ] [RTw a     | idx[5]               ]) == true
--- #assert (unifies [RTw a b   | a·b                 ] [RTw a b   | 3·scalar            ]) == true
--- #assert (unifies [RTw a b   | a·a                 ] [RTw a b   | 3·b                ]) == true
--- #assert (unifies [RTw a b   | idx[a]                ] [RTw a b   | idx[b]               ]) == true
-
-
-
-
--- #eval (unify [RTw a     | idx[a]                ] [RTw a     | idx[5]               ])
 
 unsafe def addSubst (stx : Lean.Syntax) (subst : Substitution) : RElabM Unit := do
   let unifyResults : Substitution := (← get).unifyResult
@@ -242,11 +128,7 @@ unsafe def addSubst (stx : Lean.Syntax) (subst : Substitution) : RElabM Unit := 
       | .data dt1, .data dt2 => do
         match ← unifyOneRData dt1 dt2 with
         | .ok s => do
-          -- dbg_trace ("!!!adding\n", toString s, "\n",dt1, dt2,"\n\n")
-          -- dbg_trace ("because", x,"\n\n!!")
-          -- let x ← addSubst s
           addSubst stx s
-          -- modify (λ r => {r with unifyResult := x }) --s ++ r.unifyResult})
         | .error x => throwErrorAt stx "unify error while addSubst ({x})"
       | .nat n1, .nat n2 => do
         match ← unifyOneRNat n1 n2 with
@@ -256,9 +138,6 @@ unsafe def addSubst (stx : Lean.Syntax) (subst : Substitution) : RElabM Unit := 
       | _,_ => throwError "weird addSubst error"
     | none => modify (λ r => {r with unifyResult := x :: r.unifyResult})
   )
-  
-  -- modify (λ r => {r with unifyResult := s ++ r.unifyResult})
-
 
 def stabilizeUnifyResultsAux (x : SubstEnum) (s : Substitution) : RElabM SubstEnum :=
   let fuel := 100
@@ -272,16 +151,12 @@ def stabilizeUnifyResultsAux (x : SubstEnum) (s : Substitution) : RElabM SubstEn
 
 def stabilizeUnifyResults : RElabM Unit := do
   let unifyResult : Substitution := (← get).unifyResult
-  -- let unifyResultMap : Std.HashMap RMVarId SubstEnum := (← get).unifyResultMap
-  -- let map : Std.HashMap RMVarId SubstEnum := unifyResult.foldl (init := {}) (fun m (k, v) => m.insert k v)
   let new ← unifyResult.mapM (fun (k,v) => do
     let v ← stabilizeUnifyResultsAux v unifyResult
     return (k, v)
   )
   modify (λ r => {r with unifyResult := new})
   return ()
-
-
 
 def applyUnifyResults (t : RType) : RElabM RType := do
   let unifyResults : Substitution := (← get).unifyResult
@@ -308,10 +183,9 @@ def applyUnifyResultsUntilStableRNat (x : RNat) (fuel : Nat := 100) : RElabM RNa
   loop x fuel
 
 partial def applyUnifyResultsRecursivelyUntilStable (e : TypedRExpr) : RElabM TypedRExpr := do
-  let newt := (← applyUnifyResultsUntilStable e.type) 
+  let newt := (← applyUnifyResultsUntilStable e.type)
   match e.node with
   | .app e1 e2 => return ⟨.app (← applyUnifyResultsRecursivelyUntilStable e1) (← applyUnifyResultsRecursivelyUntilStable e2), newt⟩
   | .lam un t b => return ⟨.lam un (← applyUnifyResultsUntilStable t) (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
   | .deplam un k b => return ⟨.deplam un k (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
   | _ => return ⟨e.node, newt⟩
-

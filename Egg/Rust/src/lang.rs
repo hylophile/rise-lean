@@ -474,8 +474,8 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
     // }
     // let neweg = eg;
 
-    let iters = std::env::var("ITERS")
-        .expect("no iters set")
+    let iters = std::env::var("SIMP_ITERS")
+        .unwrap_or("3".into())
         .parse::<usize>()
         .expect("cant parse usize in iters");
     let mut runner: Runner<RiseType, UnifyAnalysis> = Runner::default()

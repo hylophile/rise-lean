@@ -6,11 +6,6 @@ import Rise.Type
 import Lean
 open Lean Elab Meta
 
-
--- #eval runEgg "hi"
-
-
-
 instance : ToExpr RLit where
   toExpr
     | .bool b => mkAppN (mkConst ``RLit.bool) #[toExpr b]
@@ -63,7 +58,7 @@ instance : ToExpr TypedRExprNode where
   toTypeExpr := mkConst ``TypedRExprNode
 
 
--- 
+--
 declare_syntax_cat rise_expr_numlit_suffix
 syntax "int" : rise_expr_numlit_suffix
 syntax "i8"  : rise_expr_numlit_suffix
@@ -86,7 +81,6 @@ declare_syntax_cat                                            rise_expr
 syntax num         (noWs rise_expr_numlit_suffix)?          : rise_expr
 syntax scientific  (noWs rise_expr_scilit_suffix)?          : rise_expr
 syntax ident                                                : rise_expr
-syntax "?" ident                                            : rise_expr
 syntax "fun" "(" ident+ (":" rise_type)? ")" "=>" rise_expr : rise_expr
 syntax "fun"     ident+ (":" rise_type)?     "=>" rise_expr : rise_expr
 syntax "fun" "(" ident+ (":" rise_kind)  ")" "=>" rise_expr : rise_expr
@@ -187,12 +181,6 @@ macro_rules
   | `(rise_expr| $x:rise_expr.2) =>
     `(rise_expr| (snd $x:rise_expr))
 
--- def syn2str (stx : Syntax) : Std.Format :=
---   match stx with
---   | .node _ `choice choices =>
---     choices[0]!.prettyPrint
---   | stx => stx.prettyPrint
-
 -- takes an expr with possibly conflicting mvarIds and maps them to fresh mvarIds in the current context.
 def shiftMVars (e : TypedRExpr) : RElabM TypedRExpr := do
   let mvars := e.collectMVarIds
@@ -215,7 +203,6 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| $l:num$[$s:rise_expr_numlit_suffix]?) => do
     match s with
     | .some suffix => match suffix with
-      -- | `(rise_expr_numlit_suffix| nat) => return ⟨.lit (.nat l.getNat), .data .natType⟩
       | `(rise_expr_numlit_suffix| int) => return ⟨.lit (.int l.getNat), .data <| .scalar .int⟩
       | `(rise_expr_numlit_suffix| i8)  => return ⟨.lit (.int l.getNat), .data <| .scalar .i8⟩
       | `(rise_expr_numlit_suffix| i16) => return ⟨.lit (.int l.getNat), .data <| .scalar .i16⟩
@@ -226,7 +213,6 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | `(rise_expr_numlit_suffix| u32) => return ⟨.lit (.int l.getNat), .data <| .scalar .u32⟩
       | _                               => throwErrorAt suffix s!"unknown integer suffix {suffix}"
     | .none => return ⟨.lit (.int l.getNat), .data <| .scalar .int⟩
-      -- let _ ← Term.addTermInfo l (toExpr t.toString) -- meh
   | `(rise_expr| $l:scientific$[$s:rise_expr_scilit_suffix]?) => do
     match s with
     | .some suffix => match suffix with
@@ -237,8 +223,6 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | _                                 => throwErrorAt suffix s!"unknown float suffix {suffix}"
     | .none => return ⟨.lit (.float (toString l)), .data <| .scalar .float⟩
 
-  | `(rise_expr| ? $_i:ident) => do
-    return ⟨.mvar `testing, .data <| .mvar 0 `testing⟩
   | `(rise_expr| $i:ident) => do
     let ltctx ← getLTCtx
     let gtctx ← getGTCtx
@@ -256,7 +240,6 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     addMVar id Lean.Name.anonymous RKind.data
     let t :=  RType.data (.mvar id Lean.Name.anonymous)
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
-    -- let t ← applyUnifyResultsUntilStable t
     return ⟨.lam x.getId t b, .fn t b.type⟩
 
   | `(rise_expr| fun ( $x:ident : $t:rise_type ) => $b:rise_expr ) => do
@@ -276,31 +259,18 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
 
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
       let f ← elabToTypedRExpr f_syn
-      -- dbg_trace ("before f",f.type)
       let f := {f with type := (← addImplicits f.type)}
-      -- dbg_trace ("after f",f.type)
       let e ← elabToTypedRExpr e_syn
-      -- dbg_trace ("before e",e.type)
       let e := {e with type := (← addImplicits e.type)}
-      -- dbg_trace ("after e",e.type)
       match f.type with
       | .fn blt brt => do
         addUnifyGoal (blt, e.type)
         match ← blt.unify e.type with
         | .ok sub =>
-          -- dbg_trace "---"
-          -- let x := runEgg s!"{blt.toSExpr}={e.type.toSExpr}"
-          -- let x := runEgg RNat.toSMTLib 
-          -- dbg_trace x
           addSubst f_syn sub
-          -- dbg_trace (<- get).unifyResult
-          -- return ⟨.app f e, brt.apply sub⟩
           return ⟨.app f e, brt⟩
-          -- catch e => throwErrorAt f_syn e
         | .error x =>
           logErrorAt f_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}\n{x}"
-          -- logErrorAt e_syn s!"\ncannot unify application of '{f_syn.raw.prettyPrint}' to '{e_syn.raw.prettyPrint}':\n{blt} != {e.type}"
-          -- throwError "unification failed"
           return ⟨.app f e, brt⟩
       | _ => throwErrorAt f_syn s!"expected a function type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
@@ -308,7 +278,6 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     let n <- elabToRNat n
     let f <- elabToTypedRExpr f_syn
     let f := {f with type := (← addImplicits f.type)}
-    -- dbg_trace ("nat", f, n)
     match f.type with
     | .pi .nat .explicit _ b =>
       let bt := b.rnatbvar2rnat n
@@ -324,25 +293,9 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       let bt := b.rdatabvar2rdata d
       return ⟨.depapp f <| .data d, bt⟩
     | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
-    
+
   | stx =>
     match stx with
-    -- | .node _ `choice choices => do
-    --   -- dbg_trace choices
-    --   let results ← choices.mapM (fun c =>
-    --     try
-    --       Except.ok <$> elabToTypedRExpr c
-    --     catch e => do
-    --       return Except.error e)
-    --   match results.partition (·.isOk) with
-    --   | (#[.ok res], _) => return res
-    --   | (#[], errs) => do
-    --     errs.forM (fun err => match err with
-    --     | .error e => logErrorAt stx e.toMessageData
-    --     | _ => throwError "unreachable"
-    --     ) 
-    --     throwErrorAt stx "Only found errors under all interpretations"
-    --   | _ => throwError "Multiple interpretations possible. Haven't seen this case yet though"
     | .node _ `rise_expr.pseudo.antiquot xs
     | .node _ `rise_decl.pseudo.antiquot xs =>
       match xs[2]? with
@@ -369,51 +322,3 @@ unsafe def elabTypedRExpr (stx : Syntax) : RElabM Expr := do
 elab "[RiseTE|" e:rise_expr "]" : term => unsafe do
   let p ← liftMacroM <| expandMacros e
   liftToTermElabM <| elabTypedRExpr p
-
--- #eval IO.println <| toString [RiseTE| fun a : int → int => a 10000].node
--- #check [RiseTE| fun a : int → int → int => a 10000 2]
--- #check [RiseTE| 3]
---
--- def abc := [RiseTE| fun x => x]
-
--- #eval toString [RiseTE| fun x => $abc].type
-
--- #check [RiseTE| 3u32]
--- #check [RiseTE| 3.0f32]
--- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 3.0f32]
--- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => (x 5.0f32) 3.0f32]
--- #eval toJson [RiseTE| fun x: f32 → f32 → f32 => x 5.0f32 (3.0f32)]
--- #eval toJson [RiseTE| (fun n: nat => fun x : f32 => x) (3+5) 5.0f32]
--- #eval toJson [RiseTE| (fun n: nat => fun x : f32 => x) 3 5.0f32]
-
-
--- dependent application demo
-
--- #eval toJson [RiseTE| (fun n: nat => fun x : n·f32 => x) 3]
-
--- #eval toJson [RiseTE| (fun d: data => fun x : d => x) f32]
-
-
--- #check [RiseTE| fun as => as]
--- #check [RiseTE| fun as bs => as]
--- #eval toJson [RiseTE| fun as bs cs => as]
--- #check [RiseTE| fun as: f32 → f32 => fun bs => (as bs)]
--- #check [RiseTE| fun as => (fun as => as)]
-
--- #check [RiseTE| fun x => x]
-
--- #check [RiseTE| fun(x : nat) => 3+5]
--- #check [RiseTE| fun(x : data) => 3]
-
--- -- -- trying to use x at term level. it's not legal,
--- -- -- because x is only in the kinding context
--- -- #check [RiseTE| fun(x : nat) => x]
-
-
-
--- -- -- TODO: translate example programs in shine/src/test/scala/rise/core
--- -- -- /home/n/tub/masters/shine/src/test/scala/apps
--- -- --
--- -- --
--- --
--- --

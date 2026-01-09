@@ -1,8 +1,6 @@
 import Lake
 open Lake DSL
 
-require Regex from git "https://github.com/pandaman64/lean-regex.git" @ "v4.23.0" / "regex"
-
 package rise_lean where
   -- srcDir := "Rise"
   -- See https://github.com/leanprover/lean4/tree/master/src/lake#github-release-builds
@@ -15,9 +13,9 @@ lean_lib Rise where
   -- This enables the interpreter to run functions marked `@[extern]`.
   precompileModules := true
 
--- lean_lib Elevate where
+lean_lib Elevate where
 --   -- This enables the interpreter to run functions marked `@[extern]`.
---   precompileModules := true
+  precompileModules := true
 
 lean_exe rise_lean where
   root := `Main

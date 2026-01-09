@@ -57,7 +57,7 @@ def mkSmtCheck (appliedGoals : List (RType × RType)) : String :=
     |>.map (fun (l,r) => s!"(assert (= {l.toSExpr2} {r.toSExpr2}))")
     |> String.intercalate "\n"
   s!"
-{vars}  
+{vars}
 
 {asserts}
 
@@ -109,7 +109,7 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
         -- dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n"
         dbg_trace (compareSubstitutionsCSV unifyResults res)
 
-      
+
 
       return toExpr expr
 
@@ -117,29 +117,14 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
     match decl with
     | `(rise_decl| def $x:ident : $t:rise_type) => do
       let t ← elabToRType t
-      -- let _ ← Term.addTermInfo x (toExpr t.toString) -- meh
       withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
 
-    -- | `(rise_decl| def $x:ident := $e:rise_expr;) => do
-    --   let e ← elabToTypedRExpr e
-    --   -- let e := {e with type := (← addImplicits e.type)}
-    --   withNewGlobalTerm (x.getId, e.type) do elabRDeclAndRExpr expr rest
-
-    -- | `(rise_decl| def $x:ident : $t_syn:rise_type := $e:rise_expr;) => do
-    --   let t ← elabToRType t_syn
-    --   let e ← elabToTypedRExpr e
-    --   let e := {e with type := (← addImplicits e.type)}
-    --   if t.unify e.type == .none then throwErrorAt x s!"cannot unify type annotation '{t_syn.raw.prettyPrint}' with inferred type '{e.type}'"
-    --   withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
-
     | s => throwErrorAt s m!"{s}"
-    -- | _ => throwUnsupportedSyntax
 
 unsafe def elabRProgram : Syntax → RElabM Expr
   | `(rise_program| $d:rise_decl* $e:rise_expr) => do
     elabRDeclAndRExpr e d.toList
   | s => throwErrorAt s m!"{s}"
-    -- | _ => throwUnsupportedSyntax
 
 elab "[Rise|" p:rise_program "]" : term => unsafe do
   let p ← liftMacroM <| expandMacros p
