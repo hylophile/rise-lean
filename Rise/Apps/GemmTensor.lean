@@ -3,18 +3,32 @@ import Rise.Program
 -- shine/src/main/scala/apps/gemmTensor.scala
 def tiling2D := [RiseC|
   fun mTile nTile : nat =>
-    fun c =>
+  fun {d : data} =>
+  fun {m n : nat} =>
+    fun c : m·n·d =>
       c
       |> split (mTile : nat)
       |> map (fun x =>
         x
         |> transpose
         |> split (nTile : nat)
-        -- |> map (fun y => y |> transpose))
         |> map transpose)
       |> join
 ]
+        -- |> map (fun y => y |> transpose))
 #pp tiling2D.type
+def tiling2D2 := [RiseC|
+  fun mTile nTile : nat =>
+  fun {d : data} =>
+  fun {m n : nat} =>
+    fun c : m·n·d =>
+      c
+      |> split (mTile : nat)
+      |> map (transpose >> split (nTile : nat) >> map transpose)
+      |> join
+]
+        -- |> map (fun y => y |> transpose))
+#pp tiling2D2.type
 
 def simpleGemm := [RiseC|
   fun mTileFrag nTileFrag kTileFrag : nat =>

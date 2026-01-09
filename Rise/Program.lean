@@ -75,6 +75,8 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
       let expr ← applyUnifyResultsRecursivelyUntilStable expr
       -- dbg_trace "-------------------"
       let eqs := (<- get).rnatEqualities
+      let goals := (<- get).unifyGoals
+      dbg_trace (goals,eqs)
       let stableEqs <- eqs.mapM (fun (l,r) => do
         let l <- applyUnifyResultsUntilStableRNat l
         let r <- applyUnifyResultsUntilStableRNat r

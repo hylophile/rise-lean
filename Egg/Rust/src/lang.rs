@@ -1,5 +1,6 @@
 use egg::*;
 use std::collections::HashMap;
+use std::env;
 use std::time::Duration;
 // use std::time::Duration;
 
@@ -19,7 +20,6 @@ define_language! {
         "/" = Div([Id; 2]),
         "-" = Sub([Id; 2]),
         "~" = Unify([Id; 2]),
-        // "int" = Int,
         "type_mvar" = TypeMVar(Id),
         "type_bvar" = TypeBVar(Id),
         "term_mvar" = TermMVar(Id),
@@ -43,12 +43,13 @@ fn s() -> String {
 fn dt_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
     vec![
         // datatypes
+        rewrite!("t-comm"; "(~ ?a ?b)" => "(~ ?b ?a)"),
         multi_rewrite!(s(); "?v = (~ (-> ?a ?b) (-> ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (vector ?a ?b) (vector ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (pair ?a ?b) (pair ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (array ?a ?b) (array ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (index ?a) (index ?c))" => "?w = (~ ?a ?c)"),
-        multi_rewrite!(s(); "?q = (type_mvar ?v), ?p = (~ ?a ?b)" => "?a = ?b"), // if no analysis conflict...
+        multi_rewrite!(s(); "?a = (type_mvar ?v), ?p = (~ ?a ?b)" => "?a = ?b"), // if no analysis conflict...
     ]
 }
 
@@ -58,14 +59,15 @@ fn nat_rules_shift() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         rewrite!("add-comm"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rewrite!("mul-comm"; "(* ?a ?b)" => "(* ?b ?a)"),
         rewrite!("t-comm"; "(~ ?a ?b)" => "(~ ?b ?a)"),
-        rewrite!(s(); "(~ ?c (/ ?a ?b))" => "(~ (* ?c ?b) ?a)"),
+        rewrite!(s(); "(~ ?c (/ ?a ?b))" => "(~ (* ?c ?b) ?a)" if is_not_zero("?b")),
         rewrite!(s(); "(~ ?c (* ?a ?b))" => "(~ (/ ?c ?b) ?a)" if is_not_zero("?b")),
         rewrite!(s(); "(~ ?c (+ ?a ?b))" => "(~ (- ?c ?b) ?a)"),
         rewrite!(s(); "(~ ?c (- ?a ?b))" => "(~ (+ ?c ?b) ?a)"),
-        multi_rewrite!(s(); "?p = (~ ?a ?b), ?q = (~ ?a ?c)" => "?r = (~ ?b ?c)"),
-        multi_rewrite!(s(); "?q = (~ (term_mvar ?a) ?b), ?p = (~ (term_mvar ?a) ?c)" => "?b = ?c"),
-        multi_rewrite!(s(); "?q = (~ (term_mvar ?a) (term_mvar ?b))" => "?p = (term_mvar ?a) = (term_mvar ?b)"),
         multi_rewrite!(s(); "?p=(term_mvar ?a), ?q = (~ (term_mvar ?a) ?b)" => "?p = ?b"),
+        // rewrite!("t-comm2"; "(~ ?a ?b)" => "(~ ?b ?a)"),
+        // multi_rewrite!(s(); "?p = (~ ?a ?b), ?q = (~ ?a ?c)" => "?r = (~ ?b ?c)"),
+        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) ?b), ?p = (~ (term_mvar ?a) ?c)" => "?b = ?c"),
+        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) (term_mvar ?b))" => "?p = (term_mvar ?a) = (term_mvar ?b)"),
     ]
 }
 
@@ -83,8 +85,8 @@ fn nat_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         rewrite!("add-sub-assoc3"; "(- ?c (+ ?a ?b))" => "(- (- ?c ?a) ?b)"),
         
 
-        // rewrite!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
-        // rewrite!("sub-canon2"; "(+ ?b (* -1 ?b))" => "0"),
+        rewrite!("sub-canon"; "(- ?a ?b)" => "(+ ?a (* -1 ?b))"),
+        rewrite!("sub-canon2"; "(+ ?b (* -1 ?b))" => "0"),
         // rewrite!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
         
         // sub
@@ -405,15 +407,15 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
     let mut runner: Runner<RiseType, UnifyAnalysis> =
         Runner::default().with_egraph(eg).run(&dt_rules());
     let mut counter = 0;
-    while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
-        runner = Runner::default()
-            .with_egraph(runner.egraph)
-            // .with_scheduler(BackoffScheduler::default().do_not_ban("assoc-plus"))
-            // .with_scheduler(SimpleScheduler {})
-            .with_iter_limit(1)
-            .run(&nat_rules_shift());
-        counter += 1;
-    }
+    // while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
+    runner = Runner::default()
+        .with_egraph(runner.egraph)
+        .with_scheduler(BackoffScheduler::default().do_not_ban("assoc-plus"))
+        // .with_scheduler(SimpleScheduler {})
+        // .with_iter_limit(5)
+        .run(&nat_rules_shift());
+    //     counter += 1;
+    // }
 
     let eg = runner.egraph;
 
@@ -449,35 +451,40 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
             // );
         }
     }
-    let s3: Pattern<RiseType> = "(~ (type_mvar ?a) ?b)".parse().unwrap();
-    // let mut neweg = EGraph::new(UnifyAnalysis::default());
-    let p = s3.search(&eg);
-    for m in p {
-        for s in m.substs {
-            let pid_a = s["?a".parse().unwrap()];
-            let a = get_repr(&eg, pid_a);
-            let r = RecExpr::from(vec![a.clone(), RiseType::TypeMVar(0.into())]);
-            let id_a = neweg.add_expr(&r);
+    // let s3: Pattern<RiseType> = "(~ (type_mvar ?a) ?b)".parse().unwrap();
+    // // let mut neweg = EGraph::new(UnifyAnalysis::default());
+    // let p = s3.search(&eg);
+    // for m in p {
+    //     for s in m.substs {
+    //         let pid_a = s["?a".parse().unwrap()];
+    //         let a = get_repr(&eg, pid_a);
+    //         let r = RecExpr::from(vec![a.clone(), RiseType::TypeMVar(0.into())]);
+    //         let id_a = neweg.add_expr(&r);
 
-            let b = &pq(&eg, s["?b".parse().unwrap()]);
-            let id_b = neweg.add_expr(b);
-            neweg.union(id_a, id_b);
-            // neweg.add(RiseType::Unify([id_a, id_b]));
-            // eprintln!(
-            //     "{}: {}",
-            //     RecExpr::from(vec![a]).pretty(1000),
-            //     b.pretty(1000)
-            // );
-        }
-    }
+    //         let b = &pq(&eg, s["?b".parse().unwrap()]);
+    //         let id_b = neweg.add_expr(b);
+    //         neweg.union(id_a, id_b);
+    //         // neweg.add(RiseType::Unify([id_a, id_b]));
+    //         // eprintln!(
+    //         //     "{}: {}",
+    //         //     RecExpr::from(vec![a]).pretty(1000),
+    //         //     b.pretty(1000)
+    //         // );
+    //     }
+    // }
     // let neweg = eg;
 
+    let iters = std::env::var("ITERS")
+        .expect("no iters set")
+        .parse::<usize>()
+        .expect("cant parse usize in iters");
     let mut runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
         .with_egraph(neweg)
         // .with_scheduler(SimpleScheduler {})
-        .with_iter_limit(10)
+        .with_iter_limit(iters)
         // .with_time_limit(Duration::from_secs(5))
         .run(&nat_rules());
+
     // while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
     //     runner = Runner::default()
     //         .with_egraph(runner.egraph)
