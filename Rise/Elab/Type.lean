@@ -1,6 +1,6 @@
 import Lean
 import Rise.Basic
-import Rise.RElabM
+import Rise.Elab.RElabM
 open Lean Elab Meta Command
 open PrettyPrinter Delaborator SubExpr
 
@@ -149,18 +149,18 @@ syntax    "f64"                      : rise_data
 
 partial def elabToRData : Syntax → RElabM RData
   | `(rise_data| bool) => return RData.scalar .bool
-  | `(rise_data|  int) => return RData.scalar .int 
-  | `(rise_data|   i8) => return RData.scalar .i8  
-  | `(rise_data|  i16) => return RData.scalar .i16 
-  | `(rise_data|  i32) => return RData.scalar .i32 
-  | `(rise_data|  i64) => return RData.scalar .i64 
-  | `(rise_data|   u8) => return RData.scalar .u8  
-  | `(rise_data|  u16) => return RData.scalar .u16 
-  | `(rise_data|  u32) => return RData.scalar .u32 
-  | `(rise_data|  u64) => return RData.scalar .u64 
-  | `(rise_data|  f16) => return RData.scalar .f16 
-  | `(rise_data|  f32) => return RData.scalar .f32 
-  | `(rise_data|  f64) => return RData.scalar .f64 
+  | `(rise_data|  int) => return RData.scalar .int
+  | `(rise_data|   i8) => return RData.scalar .i8
+  | `(rise_data|  i16) => return RData.scalar .i16
+  | `(rise_data|  i32) => return RData.scalar .i32
+  | `(rise_data|  i64) => return RData.scalar .i64
+  | `(rise_data|   u8) => return RData.scalar .u8
+  | `(rise_data|  u16) => return RData.scalar .u16
+  | `(rise_data|  u32) => return RData.scalar .u32
+  | `(rise_data|  u64) => return RData.scalar .u64
+  | `(rise_data|  f16) => return RData.scalar .f16
+  | `(rise_data|  f32) => return RData.scalar .f32
+  | `(rise_data|  f64) => return RData.scalar .f64
 
   | `(rise_data|  natType) => return RData.natType
 
@@ -484,7 +484,7 @@ def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
     else if bn > n then
     .bvar (bn-1) un
     else rn
-    
+
   | .mvar .. => rn
   | .nat .. => rn
   | .plus p q => .plus (p.bvar2mvar n m) (q.bvar2mvar n m)

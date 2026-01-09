@@ -1,5 +1,5 @@
 import Lean
-import Rise.RElabM
+import Rise.Elab.RElabM
 
 open Lean Parser Elab Command Meta
 

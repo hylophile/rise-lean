@@ -1,4 +1,4 @@
-import Rise.Program
+import Rise
 -- src/main/scala/apps/localLaplacian.scala
 
 -- src/main/scala/rise/core/DSL/HighLevelConstructs.scala
@@ -55,7 +55,7 @@ def dot := [RiseC|
      zip as bs |> map $prodMult |> reduce add 0.0f32
 ]
 #pp dot.type
--- 
+--
 -- -- /**
 -- --   * Division operator in Natural set (ie int div like Scala): `1/2=0`.
 -- --   *
@@ -64,7 +64,7 @@ def dot := [RiseC|
 -- --   * @throws ArithmeticException if the right-hand-side is zero.
 -- --   */
 -- -- def /(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(IntDiv(this, that))
--- 
+--
 -- -- /**
 -- --   * Ordinal division operator.
 -- --   * This prevents integer arithmetic simplification through exponentiation.
@@ -73,8 +73,8 @@ def dot := [RiseC|
 -- --   * @return The expression multiplied by the divisor exponent -1.
 -- --   */
 -- -- def /^(that: ArithExpr): ArithExpr with SimplifiedExpr = this * that.pow(-1)
--- 
--- 
+--
+--
 -- -- (1 : nat) (2 + 2*(1 + h/2 - h/^2) : nat) -- 1 - h % 2
 -- -- (1 : nat) (2 + 2*(1 + w/2 - w/^2) : nat) -- 1 - w % 2
 -- -- it seems the comments here are wrong and should be "2*(1 + h/2 - h/^2) = 2 - h % 2" ?

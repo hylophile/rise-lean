@@ -1,7 +1,6 @@
 use egg::*;
 use std::collections::HashMap;
-use std::env;
-use std::time::Duration;
+// use std::time::Duration;
 // use std::time::Duration;
 
 type EGraph = egg::EGraph<RiseType, UnifyAnalysis>;
@@ -315,12 +314,12 @@ fn is_mvar(l: &RiseType) -> bool {
         _ => false,
     }
 }
-fn is_bvar(l: &RiseType) -> bool {
-    match l {
-        RiseType::TermBVar(_) | RiseType::TypeBVar(_) => true,
-        _ => false,
-    }
-}
+// fn is_bvar(l: &RiseType) -> bool {
+//     match l {
+//         RiseType::TermBVar(_) | RiseType::TypeBVar(_) => true,
+//         _ => false,
+//     }
+// }
 
 fn pretty_mvar(egraph: &EGraph, l: &RiseType) -> Option<String> {
     let prefix = match l {
@@ -356,37 +355,37 @@ impl CostFunction<RiseType> for SillyCostFn {
     }
 }
 
-struct ExcludingIdCostFn {
-    top: bool,
-    id: Id,
-}
+// struct ExcludingIdCostFn {
+//     top: bool,
+//     id: Id,
+// }
 
-impl CostFunction<RiseType> for ExcludingIdCostFn {
-    type Cost = i32;
-    fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
-    where
-        C: FnMut(Id) -> Self::Cost,
-    {
-        let op_cost = match enode {
-            RiseType::TermMVar(id) => {
-                if &self.id == id {
-                    i32::MAX
-                } else {
-                    100
-                }
-            }
-            // RiseType::Num(_) => todo!(),
-            // RiseType::Add(_) => todo!(),
-            // RiseType::Mul(_) => todo!(),
-            // RiseType::Div(_) => todo!(),
-            // RiseType::Sub(_) => todo!(),
-            // RiseType::TermBVar(id) => todo!(),
-            _ => 1,
-        };
-        // self.top = false;
-        enode.fold(op_cost, |sum, id| sum.saturating_add(costs(id)))
-    }
-}
+// impl CostFunction<RiseType> for ExcludingIdCostFn {
+//     type Cost = i32;
+//     fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
+//     where
+//         C: FnMut(Id) -> Self::Cost,
+//     {
+//         let op_cost = match enode {
+//             RiseType::TermMVar(id) => {
+//                 if &self.id == id {
+//                     i32::MAX
+//                 } else {
+//                     100
+//                 }
+//             }
+//             // RiseType::Num(_) => todo!(),
+//             // RiseType::Add(_) => todo!(),
+//             // RiseType::Mul(_) => todo!(),
+//             // RiseType::Div(_) => todo!(),
+//             // RiseType::Sub(_) => todo!(),
+//             // RiseType::TermBVar(id) => todo!(),
+//             _ => 1,
+//         };
+//         // self.top = false;
+//         enode.fold(op_cost, |sum, id| sum.saturating_add(costs(id)))
+//     }
+// }
 
 pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
     // let goals: Vec<&str> = input.split(';').filter(|x| *x != "").collect::<Vec<&str>>();
@@ -406,7 +405,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
     // run
     let mut runner: Runner<RiseType, UnifyAnalysis> =
         Runner::default().with_egraph(eg).run(&dt_rules());
-    let mut counter = 0;
+    // let mut counter = 0;
     // while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
     runner = Runner::default()
         .with_egraph(runner.egraph)
@@ -478,7 +477,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         .unwrap_or("3".into())
         .parse::<usize>()
         .expect("cant parse usize in iters");
-    let mut runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
+    let runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
         .with_egraph(neweg)
         // .with_scheduler(SimpleScheduler {})
         .with_iter_limit(iters)
@@ -545,17 +544,17 @@ fn pq(eg: &EGraph, id: Id) -> RecExpr<RiseType> {
     repr
 }
 
-fn pq_excl(eg: &EGraph, id: Id, ex: Id) -> RecExpr<RiseType> {
-    let init = get_repr_excl(&eg, id, ex);
-    let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr_excl(&eg, n, n));
-    repr
-}
+// fn pq_excl(eg: &EGraph, id: Id, ex: Id) -> RecExpr<RiseType> {
+//     let init = get_repr_excl(&eg, id, ex);
+//     let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr_excl(&eg, n, n));
+//     repr
+// }
 
-fn ppp(eg: &EGraph, id: Id) -> String {
-    let init = get_repr(&eg, id);
-    let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
-    repr.pretty(1000)
-}
+// fn ppp(eg: &EGraph, id: Id) -> String {
+//     let init = get_repr(&eg, id);
+//     let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
+//     repr.pretty(1000)
+// }
 
 fn get_repr(eg: &EGraph, id: Id) -> RiseType {
     let class = eg[id].clone();
@@ -584,33 +583,33 @@ fn get_repr(eg: &EGraph, id: Id) -> RiseType {
         }
     }
 }
-fn get_repr_excl(eg: &EGraph, id: Id, ex: Id) -> RiseType {
-    // dbg!(id, &eg[id]);
-    // dbg!(id);
-    let class = eg[id].clone();
-    match get_variant(&class.nodes[0]) {
-        Variant::Term | Variant::TermMVar => {
-            let ex = Extractor::new(&eg, SillyCostFn {});
-            // let ex = Extractor::new(&eg, ExcludingIdCostFn { top: true, id: ex });
-            let v = ex.find_best_node(id);
-            v.clone()
-        }
-        _ => {
-            let non_mvars = class
-                .nodes
-                .iter()
-                .filter(|n| !is_mvar(n))
-                .collect::<Vec<_>>();
-            match non_mvars.len() {
-                0 => {
-                    // first mvar
-                    class.nodes[0].clone()
-                }
-                1 => non_mvars[0].clone(),
-                _ => {
-                    panic!("found multiple non_mvars: {non_mvars:?}")
-                }
-            }
-        }
-    }
-}
+// fn get_repr_excl(eg: &EGraph, id: Id, ex: Id) -> RiseType {
+//     // dbg!(id, &eg[id]);
+//     // dbg!(id);
+//     let class = eg[id].clone();
+//     match get_variant(&class.nodes[0]) {
+//         Variant::Term | Variant::TermMVar => {
+//             let ex = Extractor::new(&eg, SillyCostFn {});
+//             // let ex = Extractor::new(&eg, ExcludingIdCostFn { top: true, id: ex });
+//             let v = ex.find_best_node(id);
+//             v.clone()
+//         }
+//         _ => {
+//             let non_mvars = class
+//                 .nodes
+//                 .iter()
+//                 .filter(|n| !is_mvar(n))
+//                 .collect::<Vec<_>>();
+//             match non_mvars.len() {
+//                 0 => {
+//                     // first mvar
+//                     class.nodes[0].clone()
+//                 }
+//                 1 => non_mvars[0].clone(),
+//                 _ => {
+//                     panic!("found multiple non_mvars: {non_mvars:?}")
+//                 }
+//             }
+//         }
+//     }
+// }

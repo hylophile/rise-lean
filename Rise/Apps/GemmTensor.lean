@@ -1,4 +1,4 @@
-import Rise.Program
+import Rise
 
 -- shine/src/main/scala/apps/gemmTensor.scala
 def tiling2D := [RiseC|
@@ -49,4 +49,3 @@ def simpleGemm := [RiseC|
       )
 
 ]
-

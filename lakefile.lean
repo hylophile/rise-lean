@@ -13,9 +13,9 @@ lean_lib Rise where
   -- This enables the interpreter to run functions marked `@[extern]`.
   precompileModules := true
 
-lean_lib Elevate where
+-- lean_lib Elevate where
 --   -- This enables the interpreter to run functions marked `@[extern]`.
-  precompileModules := true
+  -- precompileModules := true
 
 lean_exe rise_lean where
   root := `Main
@@ -26,7 +26,7 @@ lean_exe rise_lean where
 target importTarget pkg : System.FilePath :=
   pkg.afterBuildCacheAsync do
     let oFile := pkg.buildDir / "c" / "ffi.o"
-    let srcJob ← inputTextFile <| pkg.dir / "Egg/C" / "ffi.c"
+    let srcJob ← inputTextFile <| pkg.dir / "Rise" / "Unification" / "Egg" / "Bridge/C" / "ffi.c"
     buildFileAfterDep oFile srcJob fun srcFile => do
       let flags := #["-I", toString (← getLeanIncludeDir), "-fPIC"]
       compileO oFile srcFile flags
@@ -41,7 +41,7 @@ extern_lib egg_unify pkg := do
 
   pkg.afterBuildCacheAsync do
     let name      := nameToSharedLib "egg_unify"
-    let srcPath   := pkg.dir / "Egg" / "Rust" / "target" / "release" / name
+    let srcPath   := pkg.dir / "Rise" / "Unification" / "Egg"/ "Bridge" / "Rust" / "target" / "release" / name
     let tgtPath   := pkg.sharedLibDir / name
     let traceFile := pkg.buildDir / "rust" / "egg.trace"
     -- let _ ← buildUnlessUpToDate? traceFile (← getTrace) traceFile do
@@ -50,7 +50,7 @@ extern_lib egg_unify pkg := do
         cmd := "cargo",
         -- args := #["build", "--release"]
         args := #["rustc", "--release", "--", "-C", "relocation-model=pic"],
-        cwd := pkg.dir / "Egg" / "Rust"
+        cwd := pkg.dir / "Rise" / "Unification" / "Egg" / "Bridge" / "Rust"
       }
       IO.FS.createDirAll pkg.sharedLibDir
       IO.FS.writeBinFile tgtPath (← IO.FS.readBinFile srcPath)

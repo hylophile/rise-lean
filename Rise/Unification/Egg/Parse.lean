@@ -1,5 +1,5 @@
 import Lean
-import Rise.RElabM
+import Rise.Elab.RElabM
 
 open Lean Parser Elab Command Meta
 
@@ -56,18 +56,18 @@ private def elabName (x:Syntax) : RElabM (Name × Nat) :=
 
 private partial def elabEggExpr : Syntax → RElabM SubstEnum
   | `(egg_expr| bool) => return .data <| RData.scalar .bool
-  | `(egg_expr|  int) => return .data <| RData.scalar .int 
-  | `(egg_expr|   i8) => return .data <| RData.scalar .i8  
-  | `(egg_expr|  i16) => return .data <| RData.scalar .i16 
-  | `(egg_expr|  i32) => return .data <| RData.scalar .i32 
-  | `(egg_expr|  i64) => return .data <| RData.scalar .i64 
-  | `(egg_expr|   u8) => return .data <| RData.scalar .u8  
-  | `(egg_expr|  u16) => return .data <| RData.scalar .u16 
-  | `(egg_expr|  u32) => return .data <| RData.scalar .u32 
-  | `(egg_expr|  u64) => return .data <| RData.scalar .u64 
-  | `(egg_expr|  f16) => return .data <| RData.scalar .f16 
-  | `(egg_expr|  f32) => return .data <| RData.scalar .f32 
-  | `(egg_expr|  f64) => return .data <| RData.scalar .f64 
+  | `(egg_expr|  int) => return .data <| RData.scalar .int
+  | `(egg_expr|   i8) => return .data <| RData.scalar .i8
+  | `(egg_expr|  i16) => return .data <| RData.scalar .i16
+  | `(egg_expr|  i32) => return .data <| RData.scalar .i32
+  | `(egg_expr|  i64) => return .data <| RData.scalar .i64
+  | `(egg_expr|   u8) => return .data <| RData.scalar .u8
+  | `(egg_expr|  u16) => return .data <| RData.scalar .u16
+  | `(egg_expr|  u32) => return .data <| RData.scalar .u32
+  | `(egg_expr|  u64) => return .data <| RData.scalar .u64
+  | `(egg_expr|  f16) => return .data <| RData.scalar .f16
+  | `(egg_expr|  f32) => return .data <| RData.scalar .f32
+  | `(egg_expr|  f64) => return .data <| RData.scalar .f64
   | `(egg_expr|  natType) => return .data <| RData.natType
   | `(egg_expr| $n:num) => do
     let n := n.getNat

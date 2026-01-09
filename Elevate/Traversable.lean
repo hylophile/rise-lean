@@ -1,5 +1,5 @@
 import Elevate.Basic
-import Rise.Basic
+import Rise
 
 namespace Traversable
 

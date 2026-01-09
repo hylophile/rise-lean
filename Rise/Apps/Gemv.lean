@@ -1,4 +1,4 @@
-import Rise.Program
+import Rise
 -- /shine/src/main/scala/apps/gemv.scala
 --
 
@@ -25,7 +25,7 @@ def scaleSeq := [RiseC|
 def dot := [RiseC|
   fun {n : nat} =>
   fun as bs : n·f32 =>
-     zip as bs |> map $prodMult |> reduce add 0.0f32 
+     zip as bs |> map $prodMult |> reduce add 0.0f32
 ]
 -- #pp dot.type
 

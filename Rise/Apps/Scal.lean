@@ -1,4 +1,4 @@
-import Rise.Program
+import Rise
 -- from shine/src/test/scala/apps/scal.scala
 
 
@@ -33,7 +33,7 @@ def scalIntel := [RiseC|
 --     input |>
 --     split (4 * 128 * 128 : nat) |>
 --     split (2 : nat) |>
-    
+
 --     join
 -- ]
 -- #pp scalt.type

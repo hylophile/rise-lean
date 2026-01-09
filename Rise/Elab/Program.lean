@@ -1,7 +1,7 @@
-import Rise.Type
-import Rise.TypedRExpr
-import Rise.SymPy
-import Rise.EggParse
+import Rise.Elab.Type
+import Rise.Elab.TypedRExpr
+import Rise.Unification.SymPy.Main
+import Rise.Unification.Egg.Main
 import Lean
 
 open Lean Elab Meta

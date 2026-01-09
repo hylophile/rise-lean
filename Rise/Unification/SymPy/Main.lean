@@ -1,5 +1,5 @@
 import Rise.Basic
-import Rise.SymPyParse
+import Rise.Unification.SymPy.Parse
 import Lean
 
 def mvarToString : Nat → String → String

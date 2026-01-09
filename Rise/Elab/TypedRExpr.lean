@@ -1,8 +1,8 @@
 import Rise.Basic
-import Rise.Egg
-import Rise.RElabM
-import Rise.Unification
-import Rise.Type
+-- import Rise.Unification.Egg
+import Rise.Elab.RElabM
+import Rise.Unification.MM
+import Rise.Elab.Type
 import Lean
 open Lean Elab Meta
 

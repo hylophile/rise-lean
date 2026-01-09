@@ -1,4 +1,4 @@
-import Rise.Program 
+import Rise
 
 def prodMult := [RiseC| fun {d : data} => fun xs : d × d => xs.1 * xs.2]
 -- #pp prodMult.type
@@ -57,4 +57,3 @@ def y := [RiseC|
 --   add (xs) (ys)
 -- ]
 -- #pp z.type
-

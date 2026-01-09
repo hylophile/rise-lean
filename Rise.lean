@@ -1,1 +1,1 @@
-import Rise.Program
+import Rise.Elab.Program

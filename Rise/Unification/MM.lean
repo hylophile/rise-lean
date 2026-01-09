@@ -1,5 +1,5 @@
 import Rise.Basic
-import Rise.RElabM
+import Rise.Elab.RElabM
 import Lean
 
 -- unification algorithm adapted from

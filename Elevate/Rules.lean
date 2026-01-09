@@ -1,6 +1,5 @@
-import Rise.Basic
-import Rise.Program
-import Rise.Traversable
+import Rise
+import Elevate.Traversable
 import Elevate.Basic
 
 import Lean
