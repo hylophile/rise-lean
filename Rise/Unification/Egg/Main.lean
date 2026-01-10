@@ -1,5 +1,6 @@
 import Rise.Unification.Egg.Run
 import Rise.Unification.Egg.Parse
+import Rise.Unification.MVars
 
 
 def RNat.toEggSExpr : RNat → String

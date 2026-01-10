@@ -1,32 +1,8 @@
 import Rise.Basic
 import Rise.Unification.SymPy.Parse
+import Rise.Unification.MVars
 import Lean
 
-def mvarToString : Nat → String → String
-  | id, nm => s!"m_{nm}_{id}"
-def bvarToString : Nat → String → String
-  | id, nm => s!"b_{nm}_{id}"
-
-
-private def RNat.collectMVars : RNat → List String
-  | .bvar ..    => []
-  | .mvar id nm => [mvarToString id nm.toString]
-  | .nat _      => []
-  | .plus a b
-  | .minus a b
-  | .mult a b
-  | .div a b
-  | .pow a b    => collectMVars a ++ collectMVars b
-
-private def RNat.collectBVars : RNat → List String
-  | .mvar ..    => []
-  | .bvar id nm => [bvarToString id nm.toString]
-  | .nat _      => []
-  | .plus a b
-  | .minus a b
-  | .mult a b
-  | .div a b
-  | .pow a b    => collectBVars a ++ collectBVars b
 
 private def RNat.toSympyString : RNat → String :=
     let rec go : RNat → String
@@ -39,16 +15,6 @@ private def RNat.toSympyString : RNat → String :=
       | .div n m => s!"({go n}/{go m})"
       | .pow n m => s!"({go n}**{go m})"
     go
-
-private def collectMVars (eqs : List (RNat × RNat)) : List String :=
-  eqs.map (fun (l,r) => l.collectMVars ++ r.collectMVars) |> List.flatten
-
-private def collectBVars (eqs : List (RNat × RNat)) : List String :=
-  eqs.map (fun (l,r) => l.collectBVars ++ r.collectBVars) |> List.flatten
-
-def collectVars (eqs : List (RNat × RNat)) : List String :=
-  eqs.map (fun (l,r) => l.collectBVars ++ r.collectBVars ++ l.collectMVars ++ r.collectMVars) |> List.flatten |> List.eraseDups
-
 
 private def listToSymPyProgram (eqs : List (RNat × RNat)) : String :=
   let mvars := (collectMVars eqs).eraseDups

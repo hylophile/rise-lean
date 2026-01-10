@@ -2,20 +2,14 @@ import Rise.Elab.Type
 import Rise.Elab.TypedRExpr
 import Rise.Unification.SymPy.Main
 import Rise.Unification.Egg.Main
+import Rise.Unification.SMT.Check
 import Lean
 
 open Lean Elab Meta
 
-set_option pp.raw true
-set_option pp.raw.maxDepth 10
-
 declare_syntax_cat                 rise_decl
-syntax "def" ident ":" rise_type                        : rise_decl
--- without separating with ;, the rise_expr is overlapping with the
--- first and only rise_expr of rise_program. there is probably a way to
--- make rise_expr's whitespace-sensitive, but this will do for now
--- syntax "def" ident (":" rise_type)? ":=" rise_expr ";"  : rise_decl
-syntax "import" "core"                                  : rise_decl
+syntax "def" ident ":" rise_type : rise_decl
+syntax "import" "core"           : rise_decl
 
 declare_syntax_cat              rise_program
 syntax (rise_decl)* rise_expr : rise_program
@@ -30,42 +24,6 @@ def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
     s!"{k},{v1},{v2},{eq}"
   )
   String.intercalate "\n" (header :: rows)
-
-def RNat.getDivs (n : RNat) : List (RNat × RNat) :=
-  match n with
-  | .plus n m  => n.getDivs ++ m.getDivs
-  | .minus n m => n.getDivs ++ m.getDivs
-  | .mult n m  => n.getDivs ++ m.getDivs
-  | .div n m   => [(n,m)] ++ n.getDivs ++ m.getDivs
-  | .pow n m   => n.getDivs ++ m.getDivs
-  | _ => []
-
-
-def mkSmtCheck (appliedGoals : List (RType × RType)) : String :=
-  let natEquivs := appliedGoals.map (fun (l,r) => RType.getNatEquivs l r)
-    |>.flatten
-    |>.eraseDups
-  let vars := collectVars natEquivs
-    |>.map (fun s => s!"(declare-const {s} Int)\n(assert (> {s} 0))\n")
-    |> String.intercalate "\n"
-  let divs := natEquivs.map (fun (l,r) => l.getDivs ++ r.getDivs)
-    |>.flatten
-    |>.eraseDups
-    |>.map (fun (l,r) => s!"(assert (= 0 (mod {l.toSmtSExpr} {r.toSmtSExpr})))")
-    |> String.intercalate "\n"
-  let asserts := natEquivs
-    |>.map (fun (l,r) => s!"(assert (= {l.toSmtSExpr} {r.toSmtSExpr}))")
-    |> String.intercalate "\n"
-  s!"
-{vars}
-
-{asserts}
-
-{divs}
-
-(check-sat)
-(get-model)
-  "
 
 unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
@@ -95,12 +53,12 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
         let res ← match (← elabEggSolveOutput <| runEgg goalsStr) with
           | .ok x => pure x
           | .error e => throwError e
-        -- let applied: List (RType × RType) := goals.map (fun (l,r) =>
-        --   let l := l.apply res
-        --   let r := r.apply res
-        --   (l,r)
-        -- )
-        -- let smt := mkSmtCheck applied
+        let applied: List (RType × RType) := goals.map (fun (l,r) =>
+          let l := l.apply res
+          let r := r.apply res
+          (l,r)
+        )
+        let smt := mkSmtCheck applied
         -- dbg_trace res
         let unifyResults : Substitution := (← get).unifyResult
         -- dbg_trace unifyResults
@@ -108,9 +66,6 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
         dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n"
         -- dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n"
         dbg_trace (compareSubstitutionsCSV unifyResults res)
-
-
-
       return toExpr expr
 
   | decl :: rest =>
@@ -118,7 +73,6 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
     | `(rise_decl| def $x:ident : $t:rise_type) => do
       let t ← elabToRType t
       withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
-
     | s => throwErrorAt s m!"{s}"
 
 unsafe def elabRProgram : Syntax → RElabM Expr
@@ -155,7 +109,6 @@ macro_rules
 
   -- cast ops
   def cast : {s t : data} → s → t
-  -- TODO: what's natType? the type nat (as opposed to the kind nat)?
   def indexAsNat : {n : nat} → idx[n] → natType
   def natAsIndex : (n : nat) → natType → idx[n]
 
@@ -191,7 +144,6 @@ macro_rules
 
   def  gather : {n m : nat} → {t : data} → m·idx[n] → n·t → m·t
   def scatter : {n m : nat} → {t : data} → n·idx[m] → n·t → m·t
-  -- TODO: type-level functions
   --def reorder : {t : data} → (n : nat) → (idxF : nat2nat) → (idxFinv : nat2nat) → n·t → n·t
 
   def padCst :   {n : nat} → (l r : nat) → {t : data} → t → n·t → (l+n+r)·t
@@ -218,7 +170,6 @@ macro_rules
   def mapSeqUnroll  : {n : nat} → {s t : data} → (s → t) → n·s → n·t
   def mapStream     : {n : nat} → {s t : data} → (s → t) → n·s → n·t
   def iterateStream : {n : nat} → {s t : data} → (s → t) → n·s → n·t
-  -- added because it was found in a scala file
   def mapPar        : {n : nat} → {s t : data} → (s → t) → n·s → n·t
 
   def mapFst : {s1 t  s2 : data} → (s1 → s2) → (s1 × t) → (s2 × t)
@@ -266,13 +217,10 @@ elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => unsafe do
   liftToTermElabM <| elabRProgram p
 
 -- #eval toJson [RiseC| add 0 5]
--- #pp [RiseC| reduce add 0]
 
+/-- Command for pretty printing using the ToString instance. -/
 syntax "#pp " term : command
 macro_rules
 | `(#pp $e) => `(#eval IO.print <| toString $e)
 
-
--- def yy := [RiseC| fun n m : nat => fun mat : n·m·f32 => 3]
--- def zz := [RiseC| fun p : nat => fun q : nat => $yy (p : nat) (q:nat)] -- add (q:nat), then get problem because p@2 doesn't become p@1
--- #pp zz.type
+-- #pp [RiseC| reduce add 0]

@@ -2,6 +2,7 @@ import Rise.Basic
 import Rise.Elab.RElabM
 import Rise.Elab.Type
 import Rise.Unification.MM
+import Rise.Unification.MVars
 import Lean
 open Lean Elab Meta
 
@@ -179,15 +180,6 @@ macro_rules
     `(rise_expr| (fst $x:rise_expr))
   | `(rise_expr| $x:rise_expr.2) =>
     `(rise_expr| (snd $x:rise_expr))
-
--- takes an expr with possibly conflicting mvarIds and maps them to fresh mvarIds in the current context.
-def shiftMVars (e : TypedRExpr) : RElabM TypedRExpr := do
-  let mvars := e.collectMVarIds
-  let map : Std.HashMap RMVarId RMVarId ← mvars.foldM (init := Std.HashMap.emptyWithCapacity)
-    (fun m a => do
-      let x ← getFreshMVarId
-      pure <| m.insert a x)
-  return e.mapTypeMVars (fun id => map[id]!)
 
 partial def addImplicits (t: RType) : RElabM RType := do
   match t with

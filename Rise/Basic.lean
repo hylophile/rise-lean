@@ -122,8 +122,6 @@ deriving BEq, Repr
 
 abbrev Substitution := List (RMVarId × SubstEnum)
 
-
-
 def RNat.substNat (t : RNat) (x : RMVarId) (s : RNat) : RNat :=
     match t with
     | .mvar y _ => if x == y then s else t
@@ -208,35 +206,6 @@ def SubstEnum.apply (se : SubstEnum) (subst : Substitution) : SubstEnum :=
   match se with
   | .data s => data <| subst.foldr (fun (id, replacement) acc => acc.subst id replacement) s
   | .nat s => nat <| subst.foldr (fun (id, replacement) acc => acc.subst id replacement) s
-
-
-------------------------------------------------
---
---
---
-
-def digitToSubscript (d : Nat) : Char :=
-  match d with
-  | 0 => '₀'
-  | 1 => '₁'
-  | 2 => '₂'
-  | 3 => '₃'
-  | 4 => '₄'
-  | 5 => '₅'
-  | 6 => '₆'
-  | 7 => '₇'
-  | 8 => '₈'
-  | 9 => '₉'
-  | _ => '₀' -- :/
-
-def natToSubscript (n : Nat) : String :=
-  let rec getDigits (n : Nat) : List Nat :=
-    if n < 10 then [n]
-    else (n % 10) :: getDigits (n / 10)
-  let digits := getDigits n
-  String.mk (digits.reverse.map digitToSubscript)
-
-
 
 instance : ToString RKind where
   toString
@@ -363,10 +332,8 @@ instance : Std.ToFormat TypedRExprNode where
 instance : ToString TypedRExprNode where
   toString e := Std.Format.pretty e.render
 
-private
-def indent (s : String) : String :=
+private def indent (s : String) : String :=
   s.trim |>.splitOn "\n" |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
-
 
 instance : ToString TypedRExpr where
   toString e := "expr:\n" ++ (indent <| toString e.node) ++ "\ntype:\n" ++ (indent <| toString e.type)
@@ -386,189 +353,3 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
 instance : Lean.ToJson TypedRExpr where
   toJson e := e.toJson
 
-
-inductive UnificationError
-  | structural (l r : SubstEnum)
-  | structuralType (l r : RType)
-  | unsolved (msg : String)
-deriving Repr, BEq
-
-def UnificationResult := Except UnificationError Substitution
-
-
-
-instance : ToString UnificationError where
-  toString x := match x with
-  | .structural l r => s!"structural: {l} != {r}"
-  | .structuralType l r => s!"structural: {l} != {r}"
-  | .unsolved s => s!"solver: {s}"
-
-instance : ToString UnificationResult where
-  toString x := match x with
-  | .ok s => s!"{s}"
-  | .error s => s!"{s}"
-
-instance : Repr UnificationResult where
-  reprPrec x _ :=
-    match x with
-    | .ok a    => s!".ok {a}"
-    | .error e => s!".error {repr e}"
-
-def UnificationResult.merge : UnificationResult → UnificationResult → UnificationResult
-  | .ok l, .ok r => .ok <| l ++ r
-  | .error e, .ok _ | .ok _, .error e => .error e
-  | .error e1, .error e2 => .error <| .unsolved s!"{e1}\n{e2}"
-
-def sane (n: Lean.Name) : String :=
-  if n == Lean.Name.anonymous then "anonymous" else toString n
-
-def RNat.toSmtSExpr : RNat → String
-  | .bvar idx name => s!"b_{sane name}_{idx}"
-  | .mvar id name => s!"m_{sane name}_{id}"
-  | .nat n => s!"{n}"
-  | .plus n m => s!"(+ {n.toSmtSExpr} {m.toSmtSExpr})"
-  | .minus n m => s!"(- {n.toSmtSExpr} {m.toSmtSExpr})"
-  | .mult n m => s!"(* {n.toSmtSExpr} {m.toSmtSExpr})"
-  | .div n m => s!"(div {n.toSmtSExpr} {m.toSmtSExpr})"
-  | .pow n m => s!"(^ {n.toSmtSExpr} {m.toSmtSExpr})"
-
-def RData.toSmtSExpr : RData → String
-  | .bvar idx name => s!"b_{sane name}_{idx}"
-  | .mvar id name => s!"m_{sane name}_{id}"
-  | .array n d     => s!"(array {n.toSmtSExpr} {d.toSmtSExpr})"
-  | .pair d1 d2    => s!"(pair {d1.toSmtSExpr} {d2.toSmtSExpr})"
-  | .index n       => s!"(index {n.toSmtSExpr})"
-  | .scalar x      => s!"{x}"
-  | .natType       => "natType"
-  | .vector n d    => s!"(vector {n.toSmtSExpr} {d.toSmtSExpr})"
-
-def RType.toSmtSExpr : RType → String
-  | .data dt => dt.toSmtSExpr
-  | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSmtSExpr})"
-  | .fn binderType body => s!"(-> {binderType.toSmtSExpr} {body.toSmtSExpr})"
-
-def RData.getNatEquivs (l:RData) (r:RData) : List (RNat × RNat) :=
-  match l,r with
-  | .array n1 d1 , .array n2 d2  => (n1, n2) :: d1.getNatEquivs d2
-  | .pair l1 l2  , .pair r1 r2   => l1.getNatEquivs r1 ++ l2.getNatEquivs r2
-  | .index n1    , .index n2     => [(n1, n2)]
-  | .vector n1 d1, .vector n2 d2 => (n1, n2) :: d1.getNatEquivs d2
-  | _,_ => []
-
-def RType.getNatEquivs (l:RType) (r:RType) : List (RNat × RNat) :=
-  match l,r with
-  | .data l, .data r => l.getNatEquivs r
-  | .pi _ _ _ l, .pi _ _ _ r => l.getNatEquivs r
-  | .fn l1 l2, .fn r1 r2 => l1.getNatEquivs r1 ++ l2.getNatEquivs r2
-  | _, _ => []
-
-def RNat.mapMVars (t : RNat) (f : RMVarId → RMVarId) : RNat :=
-  match t with
-  | .bvar ..    => t
-  | .mvar id nm => .mvar (f id) nm
-  | .nat _      => t
-  | .plus a b   => .plus (a.mapMVars f) (b.mapMVars f)
-  | .minus a b  => .minus (a.mapMVars f) (b.mapMVars f)
-  | .mult a b   => .mult (a.mapMVars f) (b.mapMVars f)
-  | .div a b    => .div (a.mapMVars f) (b.mapMVars f)
-  | .pow a b    => .pow (a.mapMVars f) (b.mapMVars f)
-
-def RData.mapMVars (t : RData) (f : RMVarId → RMVarId) : RData :=
-  match t with
-  | .bvar ..       => t
-  | .mvar id name  => .mvar (f id) name
-  | .array n d     => .array (n.mapMVars f) (d.mapMVars f)
-  | .pair d1 d2    => .pair (d1.mapMVars f) (d2.mapMVars f)
-  | .index n       => .index (n.mapMVars f)
-  | .scalar ..     => t
-  | .natType       => t
-  | .vector n d    => .vector (n.mapMVars f) (d.mapMVars f)
-
-def RType.mapMVars (t : RType) (f : RMVarId → RMVarId) : RType :=
-  match t with
-  | .data dt => .data <| dt.mapMVars f
-  | .fn a b => .fn (a.mapMVars f) (b.mapMVars f)
-  | .pi k bi n b => .pi k bi n (b.mapMVars f)
-
-mutual
-partial def TypedRExprNode.mapMVars (t : TypedRExprNode) (f : RMVarId → RMVarId) : TypedRExprNode :=
-  match t with
-  | .bvar ..
-  | .fvar ..
-  | .mvar ..
-  | .const ..
-  | .lit .. => t
-  | .app fn arg => .app (fn.mapTypeMVars f) (arg.mapTypeMVars f)
-  | .depapp fn arg => match arg with
-    | .nat v => .depapp (fn.mapTypeMVars f) (.nat <| v.mapMVars f)
-    | .data v => .depapp (fn.mapTypeMVars f) (.data <| v.mapMVars f)
-    | .type v => .depapp (fn.mapTypeMVars f) (.type <| v.mapMVars f)
-  | .lam n t b => .lam n (t.mapMVars f) (b.mapTypeMVars f)
-  | .deplam n k b => .deplam n k (b.mapTypeMVars f)
-
-
-partial def TypedRExpr.mapTypeMVars (t : TypedRExpr) (f : RMVarId → RMVarId) : TypedRExpr :=
-  ⟨t.node.mapMVars f, t.type.mapMVars f⟩
-end
-
-
--- open Std.HashSet
-
-def RNat.collectMVarIds (t : RNat) : Std.HashSet RMVarId :=
-  match t with
-  | .bvar ..    => {} --Std.HashSet.emptyWithCapacity 0
-  | .mvar id _  => {id}
-  | .nat _      => {}
-  | .plus a b
-  | .minus a b
-  | .mult a b
-  | .div a b
-  | .pow a b    => a.collectMVarIds ∪ b.collectMVarIds
-
-
-def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
-  match t with
-  | .bvar ..       => {}
-  | .mvar id _     => {id}
-  | .scalar ..     => {}
-  | .natType       => {}
-  | .array n d     => n.collectMVarIds ∪ d.collectMVarIds
-  | .pair d1 d2    => d1.collectMVarIds ∪ d2.collectMVarIds
-  | .index n       => (n.collectMVarIds)
-  | .vector n d    => n.collectMVarIds ∪ d.collectMVarIds
-
-
-def RType.collectMVarIds (t : RType) : Std.HashSet RMVarId :=
-  match t with
-  | .data dt => dt.collectMVarIds
-  | .fn a b => a.collectMVarIds ∪ b.collectMVarIds
-  | .pi _ _ _ b => (b.collectMVarIds)
-
-partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
-  let t_mvars := e.type.collectMVarIds
-  let n_mvars := match e.node with
-    | .bvar ..
-    | .fvar ..
-    | .const ..
-    | .mvar .. -- yes, really.
-    | .lit .. => {}
-    | .app fn arg => fn.collectMVarIds ∪ arg.collectMVarIds
-    | .depapp fn arg => match arg with
-      | .nat v => v.collectMVarIds ∪ fn.collectMVarIds
-      | .data v => v.collectMVarIds ∪ fn.collectMVarIds
-      | .type v => v.collectMVarIds ∪ fn.collectMVarIds
-    | .lam _ t b => t.collectMVarIds ∪ b.collectMVarIds
-    | .deplam _ _ b => b.collectMVarIds
-  t_mvars ∪ n_mvars
-
-namespace Ex
-
-
-def l : RNat := .plus (.nat 5) (.mvar 55 `x)
--- def l : RNat := .plus (.nat 5) (.mvar 55 `x)
-def r : RNat := .bvar 23 `y
-
--- #eval IO.print $ RNat.toSygus l r
-
-
-end Ex

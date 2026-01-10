@@ -5,6 +5,37 @@ import Lean
 -- unification algorithm adapted from
 -- https://web.archive.org/web/20250713140859/http://www.cs.cornell.edu/courses/cs3110/2011sp/Lectures/lec26-type-inference/type-inference.htm
 
+
+inductive UnificationError
+  | structural (l r : SubstEnum)
+  | structuralType (l r : RType)
+  | unsolved (msg : String)
+deriving Repr, BEq
+
+def UnificationResult := Except UnificationError Substitution
+
+instance : ToString UnificationError where
+  toString x := match x with
+  | .structural l r => s!"structural: {l} != {r}"
+  | .structuralType l r => s!"structural: {l} != {r}"
+  | .unsolved s => s!"solver: {s}"
+
+instance : ToString UnificationResult where
+  toString x := match x with
+  | .ok s => s!"{s}"
+  | .error s => s!"{s}"
+
+instance : Repr UnificationResult where
+  reprPrec x _ :=
+    match x with
+    | .ok a    => s!".ok {a}"
+    | .error e => s!".error {repr e}"
+
+def UnificationResult.merge : UnificationResult → UnificationResult → UnificationResult
+  | .ok l, .ok r => .ok <| l ++ r
+  | .error e, .ok _ | .ok _, .error e => .error e
+  | .error e1, .error e2 => .error <| .unsolved s!"{e1}\n{e2}"
+  
 mutual
 unsafe def unifyOneRNat (s t : RNat) : RElabM UnificationResult :=
   do
