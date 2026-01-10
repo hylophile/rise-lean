@@ -86,10 +86,10 @@ def withNewTVar (arg : KindingContextElement) : RElabM α → RElabM α :=
 def withNewType (arg : KindingContextElement) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with kctx := ctx.kctx.push arg })
 
-def getLTCtx : RElabM TypingContext := do
+def getLocalTCtx : RElabM TypingContext := do
   return (← read).ltctx
 
-def getGTCtx : RElabM TypingContext := do
+def getGlobalTCtx : RElabM TypingContext := do
   return (← read).gtctx
 
 def getKCtx : RElabM KindingContext := do

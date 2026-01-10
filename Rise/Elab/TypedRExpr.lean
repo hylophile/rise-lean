@@ -58,7 +58,6 @@ instance : ToExpr TypedRExprNode where
   toTypeExpr := mkConst ``TypedRExprNode
 
 
---
 declare_syntax_cat rise_expr_numlit_suffix
 syntax "int" : rise_expr_numlit_suffix
 syntax "i8"  : rise_expr_numlit_suffix
@@ -95,16 +94,11 @@ syntax rise_expr ".2" : rise_expr
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
 syntax:50 rise_expr:50 "(" rise_nat ":" "nat" ")"             : rise_expr
 syntax:50 rise_expr:50 "(" rise_data ":" "data" ")"           : rise_expr
--- syntax:50 rise_expr:50 rise_nat:51             : rise_expr
--- syntax:50 rise_expr:50 rise_data:51           : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<|" rise_expr:41                    : rise_expr
 syntax:41 rise_expr:41 ">>" rise_expr:42                    : rise_expr
 syntax:41 rise_expr:41 "<<" rise_expr:42                    : rise_expr
 syntax:60 "(" rise_expr ")"                                 : rise_expr
-
-set_option pp.raw true
--- set_option pp.raw.maxDepth 10
 
 macro_rules
   | `(rise_expr| let $x:ident := $v:rise_expr in $b:rise_expr) =>
@@ -181,19 +175,21 @@ macro_rules
   | `(rise_expr| $x:rise_expr.2) =>
     `(rise_expr| (snd $x:rise_expr))
 
-partial def addImplicits (t: RType) : RElabM RType := do
+/-- For each leading implicit parameter, remove it and replace each occurrence with the same fresh mvar. -/
+partial def implicitsToMVars (t: RType) : RElabM RType := do
   match t with
   | .pi bk .implicit un b => do
     let mid ← getFreshMVarId
     addMVar mid un bk none
-    let newB := b.bvar2mvar mid
-    addImplicits newB
+    let newB := b.supplyMVar mid
+    implicitsToMVars newB
   | x => return x
 
-/- Lean.Meta.evalExpr is unsafe, but we use it in elabToTypedRExpr -/
+/-- Lean.Meta.evalExpr is unsafe, but we use it in elabToTypedRExpr. -/
 @[implemented_by evalExpr]
 opaque myEvalExpr (α) (expectedType : Expr) (value : Expr) (safety := DefinitionSafety.safe) : MetaM α
 
+/-- Main elaboration function for Rise expressions. -/
 partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| $l:num$[$s:rise_expr_numlit_suffix]?) => do
     match s with
@@ -208,6 +204,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | `(rise_expr_numlit_suffix| u32) => return ⟨.lit (.int l.getNat), .data <| .scalar .u32⟩
       | _                               => throwErrorAt suffix s!"unknown integer suffix {suffix}"
     | .none => return ⟨.lit (.int l.getNat), .data <| .scalar .int⟩
+    
   | `(rise_expr| $l:scientific$[$s:rise_expr_scilit_suffix]?) => do
     match s with
     | .some suffix => match suffix with
@@ -219,8 +216,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     | .none => return ⟨.lit (.float (toString l)), .data <| .scalar .float⟩
 
   | `(rise_expr| $i:ident) => do
-    let ltctx ← getLTCtx
-    let gtctx ← getGTCtx
+    let ltctx ← getLocalTCtx
+    let gtctx ← getGlobalTCtx
     -- todo: use findLocal? and findConst? here
     match ltctx.reverse.zipIdx.find? (λ ((name, _t), _id) => name == i.getId) with
       | some ((name, t), index) =>
@@ -230,33 +227,33 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           return ⟨.const i.getId, t⟩
         | none => throwErrorAt i s!"unknown identifier {i.getId}"
 
-  | `(rise_expr| fun ($x:ident) => $b:rise_expr ) => do
+  | `(rise_expr| fun ($x:ident) => $b:rise_expr) => do
     let id ← getFreshMVarId
     addMVar id Lean.Name.anonymous RKind.data
     let t :=  RType.data (.mvar id Lean.Name.anonymous)
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
     return ⟨.lam x.getId t b, .fn t b.type⟩
 
-  | `(rise_expr| fun ( $x:ident : $t:rise_type ) => $b:rise_expr ) => do
+  | `(rise_expr| fun ( $x:ident : $t:rise_type ) => $b:rise_expr) => do
     let t ← elabToRType t
     let b ← withNewLocalTerm (x.getId, t) do elabToTypedRExpr b
     return ⟨.lam x.getId t b, .fn t b.type⟩
 
-  | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr ) => do
+  | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr) => do
     let k ← elabToRKind k
     let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
     return ⟨.deplam x.getId k b, .pi k .explicit x.getId b.type⟩
 
-  | `(rise_expr| fun { $x:ident : $k:rise_kind } => $b:rise_expr ) => do
+  | `(rise_expr| fun { $x:ident : $k:rise_kind } => $b:rise_expr) => do
     let k ← elabToRKind k
     let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
     return ⟨.deplam x.getId k b, .pi k .implicit x.getId b.type⟩
 
-  | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr ) => do
+  | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr) => do
       let f ← elabToTypedRExpr f_syn
-      let f := {f with type := (← addImplicits f.type)}
+      let f := {f with type := (← implicitsToMVars f.type)}
       let e ← elabToTypedRExpr e_syn
-      let e := {e with type := (← addImplicits e.type)}
+      let e := {e with type := (← implicitsToMVars e.type)}
       match f.type with
       | .fn blt brt => do
         addUnifyGoal (blt, e.type)
@@ -272,25 +269,26 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| $f_syn:rise_expr ($n:rise_nat : nat)) => do
     let n <- elabToRNat n
     let f <- elabToTypedRExpr f_syn
-    let f := {f with type := (← addImplicits f.type)}
+    let f := {f with type := (← implicitsToMVars f.type)}
     match f.type with
     | .pi .nat .explicit _ b =>
-      let bt := b.rnatbvar2rnat n
+      let bt := b.supplyRNat n
       return ⟨.depapp f <| .nat n, bt⟩
     | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | `(rise_expr| $f_syn:rise_expr ($d:rise_data : data)) => do
     let d ← elabToRData d
     let f <- elabToTypedRExpr f_syn
-    let f := {f with type := (← addImplicits f.type)}
+    let f := {f with type := (← implicitsToMVars f.type)}
     match f.type with
     | .pi .data .explicit _ b =>
-      let bt := b.rdatabvar2rdata d
+      let bt := b.supplyRData d
       return ⟨.depapp f <| .data d, bt⟩
     | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | stx =>
     match stx with
+    -- Use Lean's context to reuse definitions (e.g. $matmul) of other Rise programs.
     | .node _ `rise_expr.pseudo.antiquot xs
     | .node _ `rise_decl.pseudo.antiquot xs =>
       match xs[2]? with
@@ -303,6 +301,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           match decl.value? with
           | some v =>
             let v ← myEvalExpr TypedRExpr (mkConst ``TypedRExpr) v
+            -- todo: Shifting mvars is not necessary if we start prohibiting Rise programs that contain mvars.
             shiftMVars v
           | none => throwError "?!?"
         | _=> throwError "???"

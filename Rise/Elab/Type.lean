@@ -2,10 +2,6 @@ import Lean
 import Rise.Basic
 import Rise.Elab.RElabM
 open Lean Elab Meta Command
-open PrettyPrinter Delaborator SubExpr
-
--- abbrev MVarCtx := Array (Name × Expr)
-
 
 declare_syntax_cat rise_kind
 syntax "nat"                   : rise_kind
@@ -27,7 +23,6 @@ instance : ToExpr RKind where
   | RKind.data => mkConst ``RKind.data
   | RKind.type => mkConst ``RKind.type
   toTypeExpr := mkConst ``RKind
-
 
 declare_syntax_cat rise_nat
 syntax    num                          : rise_nat
@@ -51,12 +46,6 @@ partial def elabToRNat : Syntax → RElabM RNat
     | some idx =>
       return RNat.bvar idx x.getId
     | none => throwErrorAt x s!"rnat: unknown identifier {mkConst x.getId}"
-    -- | none =>
-    --   let mctx ← getMVCtx
-    --   match mctx.reverse.findIdx? (λ (name, _, _) => name == x.getId) with
-    --   | some idx =>
-    --     return RNat.mvar idx x.getId.toString
-    --   | none => throwErrorAt x s!"rnat: unknown identifier {mkConst x.getId}"
 
   | `(rise_nat| $n:rise_nat + $m:rise_nat) => do
     let n ← elabToRNat n
@@ -166,17 +155,10 @@ partial def elabToRData : Syntax → RElabM RData
 
   | `(rise_data| $x:ident) => do
     let kctx ← getKCtx
-    -- let mctx ← getMVCtx
     match kctx.reverse.findIdx? (λ (name, _) => name == x.getId) with
     | some index =>
       return RData.bvar index x.getId
     | none => throwErrorAt x s!"rdata: unknown identifier {mkConst x.getId}"
-
-    -- | none =>
-      -- match mctx.reverse.findIdx? (λ (name, _, _) => name == x.getId) with
-      -- | some index =>
-      --   return RData.mvar index x.getId.toString
-      -- | none => throwErrorAt x s!"rdata: unknown identifier {mkConst x.getId}"
 
   | `(rise_data| $n:rise_nat·$d:rise_data) => do
     let n ← elabToRNat n
@@ -251,7 +233,6 @@ instance : ToExpr RBinderInfo where
   | RBinderInfo.implicit => mkConst ``RBinderInfo.implicit
   toTypeExpr := mkConst ``RBinderInfo
 
-
 declare_syntax_cat rise_type
 syntax rise_data                                  : rise_type
 syntax rise_type "→" rise_type                    : rise_type
@@ -259,10 +240,6 @@ syntax "(" rise_type ")"                          : rise_type
 syntax "{" ident+ ":" rise_kind "}" "→" rise_type : rise_type
 syntax "(" ident+ ":" rise_kind ")" "→" rise_type  : rise_type
 
--- set_option pp.raw true
--- set_option pp.raw.maxDepth 10
-
--- i bet this could be written nicer
 macro_rules
   | `(rise_type| {$x:ident $y:ident $xs:ident* : $k:rise_kind} → $t:rise_type) =>
     match xs with
@@ -271,15 +248,12 @@ macro_rules
     | _ =>
       `(rise_type| {$x : $k} → {$y : $k} → {$xs* : $k} → $t)
 
-macro_rules
   | `(rise_type| ($x:ident $y:ident $xs:ident* : $k:rise_kind) → $t:rise_type) =>
     match xs with
     | #[] =>
       `(rise_type| ($x : $k) → ($y : $k) → $t)
     | _ =>
       `(rise_type| ($x : $k) → ($y : $k) → ($xs* : $k) → $t)
-
-
 
 partial def elabToRType : Syntax → RElabM RType
   | `(rise_type| $d:rise_data) => do
@@ -331,142 +305,43 @@ partial def elabRType : Syntax → RElabM Expr
     return toExpr t
 
 elab "[RiseT|" t:rise_type "]" : term => do
-  -- macros run before elab, but we still have to manually expand macros?
+  -- macros run before elab, but we still have to manually expand macros
   let t ← liftMacroM <| expandMacros t
   let term ← liftToTermElabM <| elabRType t
   return term
 
+private def RNat.supplyMVar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
+  match rn with
+  | .bvar bn un => if bn == n then .mvar m un
+    else if bn > n then
+    .bvar (bn-1) un
+    else rn
+  | .mvar .. => rn
+  | .nat .. => rn
+  | .plus p q => .plus (p.supplyMVar n m) (q.supplyMVar n m)
+  | .minus p q => .minus (p.supplyMVar n m) (q.supplyMVar n m)
+  | .mult p q => .mult (p.supplyMVar n m) (q.supplyMVar n m)
+  | .div p q => .div (p.supplyMVar n m) (q.supplyMVar n m)
+  | .pow p q => .pow (p.supplyMVar n m) (q.supplyMVar n m)
 
--- set_option pp.rawOnError true
--- @[app_unexpander RType.fn]
--- def unexpandRiseTypePi : Unexpander
---   | `($(_) $l $r) => `(($l → $r))
---   | _ => throw ()
+private def RData.supplyMVar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
+  match dt with
+  | .bvar bn un => if bn == n then .mvar m un else dt
+  | .array rn dt => .array (rn.supplyMVar n m) (dt.supplyMVar n m)
+  | .pair dt1 dt2 => .pair (dt1.supplyMVar n m) (dt2.supplyMVar n m)
+  | .index rn => .index (rn.supplyMVar n m)
+  | .vector rn d => .vector (rn.supplyMVar n m) (d.supplyMVar n m)
+  | .mvar .. | .scalar .. | .natType => dt
 
+/-- Substitutes outermost bvar (current de-bruijn index 0) with mvar of id mid. -/
+def RType.supplyMVar (t : RType) (mid : RMVarId) : RType :=
+  go t 0 mid where
+  go : RType → RBVarId → RMVarId → RType
+  | .data dt, n, m => .data (dt.supplyMVar n m)
+  | .pi bk pc un b, n, m => .pi bk pc un (go b (n+1) m)
+  | .fn bt b, n, m => .fn (go bt n m) (go b n m)
 
-
--- def RData.ismvar : RData → Bool
---   | .mvar .. => true
---   | _ => false
-
--- def RNat.liftmvars (n : Nat) : RNat → RNat
---   | .mvar id un => .mvar (id + n) un
---   | .bvar id un => .bvar id un
---   | .nat k      => .nat k
-
--- def RData.liftmvars (n : Nat) : RData → RData
---   | .bvar n un  => .bvar n un
---   | .mvar id un => .mvar (id + n) un
---   | .array k d  => .array (k.liftmvars n) (d.liftmvars n)
---   | .pair l r   => .pair (l.liftmvars n) (r.liftmvars n)
---   | .index k    => .index (k.liftmvars n)
---   | .scalar     => .scalar
---   | .vector k   => .vector (k.liftmvars n)
-
--- def RType.liftmvars (n : Nat) : RType → RType
---   | .pi bk pc un b   => .pi bk pc un (b.liftmvars n)
---   | .fn bt b    => .fn (bt.liftmvars n) (b.liftmvars n)
---   | .data dt    => .data (dt.liftmvars n)
-
-
-
--- def RNat.mapMVars (f : Nat → String → (Nat × String)) : RNat → RNat
---   | .mvar id un => let (nId, nUn) := f(id un); .mvar nId nUn
---   | .bvar id un => .bvar id un
---   | .nat k      => .nat k
-
--- def RData.mapMVars (f : Nat → String → (Nat × String) ) : RData → RData
---   | .bvar n un  => .bvar n un
---   | .mvar id un => .mvar (id + n) un
---   | .array k d  => .array (k.mapMVars n) (d.mapMVars n)
---   | .pair l r   => .pair (l.mapMVars n) (r.mapMVars n)
---   | .index k    => .index (k.mapMVars n)
---   | .scalar     => .scalar
---   | .vector k   => .vector (k.mapMVars n)
-
--- def RType.mapMVars (f : Nat → String → (Nat × String) ) : RType → RType
---   | .pi bk b   => .pi bk (b.mapMVars n)
---   | .fn bt b    => .fn (bt.mapMVars n) (b.mapMVars n)
---   | .data dt    => .data (dt.mapMVars n)
-
-
--- #reduce [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1].liftmvars 5
-
-
--- private def RNat.getmvarsAux : RNat → Array (Nat × String × RKind) → Array (Nat × String × RKind)
---   | .mvar id un, acc => acc.push (id, un, .nat)
---   | .bvar _id _un, acc => acc
---   | .nat _k, acc      => acc
-
--- private def RData.getmvarsAux : RData → Array (Nat × String × RKind) → Array (Nat × String × RKind)
---   | .bvar _n _un, acc  => acc
---   | .mvar id un, acc => acc.push (id, un, .data)
---   | .array k d, acc  => d.getmvarsAux (k.getmvarsAux acc)
---   | .pair l r, acc   => r.getmvarsAux (l.getmvarsAux acc)
---   | .index k, acc    => k.getmvarsAux acc
---   | .scalar, acc     => acc
---   | .vector k, acc   => k.getmvarsAux acc
-
-
--- private def RType.getmvarsAux : RType → Array (Nat × String × RKind) → Array (Nat × String × RKind)
---   | .pi _bk _pc _un b, acc   => b.getmvarsAux acc
---   | .fn bt b, acc    => b.getmvarsAux (bt.getmvarsAux acc)
---   | .data dt, acc    => dt.getmvarsAux acc
-
--- -- now have to deduplicate and sort. very silly approach but it works for now.
--- def RType.getmvars (t : RType) : Array (String × RKind) :=
---   let sorted := (t.getmvarsAux #[]).qsort (fun (n1, _, _) (n2, _, _) => n1 ≤ n2)
---   let deduped := sorted.foldl (fun acc x =>
---     if acc.any (fun y => y == x) then acc else acc.push x) #[]
---   deduped.map (fun (_, s, r) => (s, r))
-
--- #eval [RiseT| {δ1 δ2 : data} → δ1 × δ2 → δ1].getmvars
-
--- def RType.countUniqueMVars : RType → Nat := (· |>.getmvars |>.size)
--- def RType.countUniqueMVars' : RType → Nat := Array.size ∘ RType.getmvars
-
--- def RType.subst (x : RType) (v : RType) (t : RType) : RType :=
---   match
-
-def RData.substdata (x : RData) (v : RData) (t : RData) : RData :=
-  match x with
-  | .array n ad => if x == v then t else .array n (ad.substdata v t)
-  | .pair l r => if x == v then t else .pair (l.substdata v t) (r.substdata v t)
-  | _ => if x == v then t else x
-  -- | .bvar
-  -- | .mvar
-  -- | .index
-  -- | .scalar
-  -- | .vector
-
-
--- x[v → t] -- should ignore username?
-def RType.substdata (x : RType) (v : RData) (t : RData) : RType :=
-  match x with
-  | .data dt => if dt == v then .data t else .data <| dt.substdata v t
-  | .pi bk pc un b => .pi bk pc un (b.substdata v t)
-  | .fn bt b => .fn (bt.substdata v t) (b.substdata v t)
-
-
-def RType.ismvardata : RType → Bool
-  | .data (.mvar ..) => true
-  | _ => false
-
--- def RType.tryUnifyData (x : RType) (t : RType) : RType :=
---   match x, t with
---   | .data m@(.mvar ..), .data .. => x.substdata m t
---   | _, _ => panic! s!"unexpected unify: {repr x} with {repr t}"
-
-def RType.gettopmvar : RType → Option RData
-  | .data m@(.mvar ..) => some m
-  | _ => none
-
-def RType.getRKind : RType → RKind
-  | .data .. => .data
-  | _ => .type -- not sure if correct
-  -- never .nat? is my model wrong?
-
-def RNat.shiftBVars (rn : RNat) (n : Nat) : RNat :=
+private def RNat.shiftBVars (rn : RNat) (n : Nat) : RNat :=
   match rn with
   | .bvar bn un => .bvar (bn + n) un
   | .mvar .. => rn
@@ -477,39 +352,7 @@ def RNat.shiftBVars (rn : RNat) (n : Nat) : RNat :=
   | .div p q => .div (p.shiftBVars n) (q.shiftBVars n)
   | .pow p q => .pow (p.shiftBVars n) (q.shiftBVars n)
 
-
-def RNat.bvar2mvar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
-  match rn with
-  | .bvar bn un => if bn == n then .mvar m un
-    else if bn > n then
-    .bvar (bn-1) un
-    else rn
-
-  | .mvar .. => rn
-  | .nat .. => rn
-  | .plus p q => .plus (p.bvar2mvar n m) (q.bvar2mvar n m)
-  | .minus p q => .minus (p.bvar2mvar n m) (q.bvar2mvar n m)
-  | .mult p q => .mult (p.bvar2mvar n m) (q.bvar2mvar n m)
-  | .div p q => .div (p.bvar2mvar n m) (q.bvar2mvar n m)
-  | .pow p q => .pow (p.bvar2mvar n m) (q.bvar2mvar n m)
-
-def RData.bvar2mvar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
-  match dt with
-  | .bvar bn un => if bn == n then .mvar m un else dt
-  | .array rn dt => .array (rn.bvar2mvar n m) (dt.bvar2mvar n m)
-  | .pair dt1 dt2 => .pair (dt1.bvar2mvar n m) (dt2.bvar2mvar n m)
-  | .index rn => .index (rn.bvar2mvar n m)
-  | .vector rn d => .vector (rn.bvar2mvar n m) (d.bvar2mvar n m)
-  | .mvar .. | .scalar .. | .natType => dt
-
-def RType.bvar2mvar (t : RType) (mid : RMVarId) : RType :=
-  go t 0 mid where
-  go : RType → RBVarId → RMVarId → RType
-  | .data dt, n, m => .data (dt.bvar2mvar n m)
-  | .pi bk pc un b, n, m => .pi bk pc un (go b (n+1) m)
-  | .fn bt b, n, m => .fn (go bt n m) (go b n m)
-
-def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
+private def RNat.supplyRNat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
   match rn with
   | .bvar bn un => if bn == n then rnat.shiftBVars n
     else if bn > n then
@@ -517,53 +360,43 @@ def RNat.rnatbvar2rnat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
     else rn
   | .mvar .. => rn
   | .nat .. => rn
-  | .plus p q => .plus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
-  | .minus p q => .minus (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
-  | .mult p q => .mult (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
-  | .div p q => .div (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
-  | .pow p q => .pow (p.rnatbvar2rnat n rnat) (q.rnatbvar2rnat n rnat)
+  | .plus p q => .plus (p.supplyRNat n rnat) (q.supplyRNat n rnat)
+  | .minus p q => .minus (p.supplyRNat n rnat) (q.supplyRNat n rnat)
+  | .mult p q => .mult (p.supplyRNat n rnat) (q.supplyRNat n rnat)
+  | .div p q => .div (p.supplyRNat n rnat) (q.supplyRNat n rnat)
+  | .pow p q => .pow (p.supplyRNat n rnat) (q.supplyRNat n rnat)
 
-def RData.rnatbvar2rnat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
+private def RData.supplyRNat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
   match dt with
-  | .array rn dt => .array (rn.rnatbvar2rnat n rnat) (dt.rnatbvar2rnat n rnat)
-  | .pair dt1 dt2 => .pair (dt1.rnatbvar2rnat n rnat) (dt2.rnatbvar2rnat n rnat)
-  | .index rn => .index (rn.rnatbvar2rnat n rnat)
-  | .vector rn d => .vector (rn.rnatbvar2rnat n rnat) (d.rnatbvar2rnat n rnat)
+  | .array rn dt => .array (rn.supplyRNat n rnat) (dt.supplyRNat n rnat)
+  | .pair dt1 dt2 => .pair (dt1.supplyRNat n rnat) (dt2.supplyRNat n rnat)
+  | .index rn => .index (rn.supplyRNat n rnat)
+  | .vector rn d => .vector (rn.supplyRNat n rnat) (d.supplyRNat n rnat)
   | .scalar .. | .bvar .. | .mvar .. | .natType => dt
 
-def RType.rnatbvar2rnat (t : RType) (rnat : RNat) : RType :=
+/-- Supplies rnat to t, i.e. substitutes outermost bvar (current de-bruijn index 0) with rnat. -/
+def RType.supplyRNat (t : RType) (rnat : RNat) : RType :=
   go t 0 rnat where
   go : RType → RBVarId → RNat → RType
-  | .data dt, n, rnat => .data (dt.rnatbvar2rnat n rnat)
+  | .data dt, n, rnat => .data (dt.supplyRNat n rnat)
   | .pi bk pc un b, n, rnat => .pi bk pc un (go b (n+1) rnat)
   | .fn bt b, n, rnat => .fn (go bt n rnat) (go b n rnat)
 
-
-def RData.rdatabvar2rdata (dt : RData) (n : RBVarId) (rdata : RData) : RData :=
+private def RData.supplyRData (dt : RData) (n : RBVarId) (rdata : RData) : RData :=
   match dt with
+   -- todo: this is wrong, we need RData.shiftBVars here as in RNat.supplyRNat
   | .bvar bn .. => if bn == n then rdata else dt
-  | .array rn dt => .array rn (dt.rdatabvar2rdata n rdata)
-  | .pair dt1 dt2 => .pair (dt1.rdatabvar2rdata n rdata) (dt2.rdatabvar2rdata n rdata)
+  | .array rn dt => .array rn (dt.supplyRData n rdata)
+  | .pair dt1 dt2 => .pair (dt1.supplyRData n rdata) (dt2.supplyRData n rdata)
   | .index rn => .index rn
-  | .vector rn d => .vector rn (d.rdatabvar2rdata n rdata)
+  | .vector rn d => .vector rn (d.supplyRData n rdata)
   | .scalar .. | .mvar .. | .natType => dt
 
-def RType.rdatabvar2rdata (t : RType) (rdata : RData) : RType :=
+/-- Supplies rdata to t, i.e. substitutes outermost bvar (current de-bruijn index 0) with rdata. -/
+def RType.supplyRData (t : RType) (rdata : RData) : RType :=
   go t 0 rdata where
   go : RType → RBVarId → RData → RType
-  | .data dt, n, rdata => .data (dt.rdatabvar2rdata n rdata)
+  | .data dt, n, rdata => .data (dt.supplyRData n rdata)
   | .pi bk pc un b, n, rdata => .pi bk pc un (go b (n+1) rdata)
   | .fn bt b, n, rdata => .fn (go bt n rdata) (go b n rdata)
 
-
-
--- #eval [RiseT| (n : nat) →(m:nat)→ n·scalar].rnatbvar2rnat <| .nat 9
--- #eval (RType.pi RKind.nat RBinderInfo.explicit `n (RType.pi RKind.nat RBinderInfo.explicit `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
--- #eval ((RType.pi RKind.nat RBinderInfo.explicit `m (RType.data (RData.array (RNat.bvar 1 `n) RData.scalar)))).rnatbvar2rnat <| .nat 9
-
--- #eval (RType.pi RKind.nat RBinderInfo.explicit `n
---         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).fn
---           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5
--- #eval (--RType.pi RKind.nat RBinderInfo.explicit `n
---         ((RType.data (RData.array ((RNat.bvar 2 `n).plus (RNat.mvar 0 `m)) (RData.mvar 1 `t))).fn
---           (RType.data (RData.array (RNat.bvar 2 `n) (RData.mvar 1 `t))))).rnatbvar2rnat <| .nat 5
