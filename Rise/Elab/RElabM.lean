@@ -3,12 +3,9 @@ import Lean
 open Lean Elab.Command
 
 structure RContext where
-  gtctx : TCtx := #[]
-  ltctx : TCtx := #[]
-  kctx : KCtx := #[]
-  -- mctx : MVCtx
-  -- debug : Bool := false
-  -- depth : Nat := 0
+  gtctx : TypingContext := #[]
+  ltctx : TypingContext := #[]
+  kctx : KindingContext := #[]
 
 structure RState where
   unifyResult : Substitution := []
@@ -30,10 +27,6 @@ def liftToTermElabMWith (ctx : RContext) (initialState : RState) (x : RElabM α)
 def liftToTermElabM (x : RElabM α) : Lean.Elab.TermElabM α := do
   let (result, _) ← x.run defaultContext |>.run defaultState
   return result
-  
--- def liftToCommandElabM (x : RElabM α) : CommandElabM α := do
---   let (result, _) ← x.run defaultContext |>.run defaultState
---   return result
 
 def getFreshMVarId : RElabM RMVarId := do
   let rstate : RState ← get
@@ -59,10 +52,10 @@ def findMVar? (id : RMVarId) : RElabM <| Option MetaVarDeclaration := do
   let rstate : RState ← get
   return rstate.mvars.find? id
 
-def withNewLocalTerm (arg : TCtxElem) : RElabM α → RElabM α :=
+def withNewLocalTerm (arg : TypingContextElement) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with ltctx := ctx.ltctx.push arg })
 
-def withNewGlobalTerm (arg : TCtxElem) : RElabM α → RElabM α :=
+def withNewGlobalTerm (arg : TypingContextElement) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with gtctx := ctx.gtctx.push arg })
 
 def findConst? (n : Lean.Name) : RElabM <| Option RType := do
@@ -87,23 +80,17 @@ def ur : RElabM Substitution := do
   return (← get).unifyResult
 
 
-def withNewTVar (arg : KCtxElem) : RElabM α → RElabM α :=
+def withNewTVar (arg : KindingContextElement) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with kctx := ctx.kctx.push arg })
 
--- def withNewMVCTx (f : MVCtx → MVCtx) : RElabM α → RElabM α :=
--- withReader (fun ctx => { ctx with mctx := f ctx.mctx })
-
-def withNewType (arg : KCtxElem) : RElabM α → RElabM α :=
+def withNewType (arg : KindingContextElement) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with kctx := ctx.kctx.push arg })
 
-def getLTCtx : RElabM TCtx := do
+def getLTCtx : RElabM TypingContext := do
   return (← read).ltctx
 
-def getGTCtx : RElabM TCtx := do
+def getGTCtx : RElabM TypingContext := do
   return (← read).gtctx
 
-def getKCtx : RElabM KCtx := do
+def getKCtx : RElabM KindingContext := do
   return (← read).kctx
-
--- def getMVCtx : RElabM MVCtx := do
--- return (← read).mctx

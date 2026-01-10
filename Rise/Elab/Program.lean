@@ -51,10 +51,10 @@ def mkSmtCheck (appliedGoals : List (RType × RType)) : String :=
   let divs := natEquivs.map (fun (l,r) => l.getDivs ++ r.getDivs)
     |>.flatten
     |>.eraseDups
-    |>.map (fun (l,r) => s!"(assert (= 0 (mod {l.toSExpr2} {r.toSExpr2})))")
+    |>.map (fun (l,r) => s!"(assert (= 0 (mod {l.toSmtSExpr} {r.toSmtSExpr})))")
     |> String.intercalate "\n"
   let asserts := natEquivs
-    |>.map (fun (l,r) => s!"(assert (= {l.toSExpr2} {r.toSExpr2}))")
+    |>.map (fun (l,r) => s!"(assert (= {l.toSmtSExpr} {r.toSmtSExpr}))")
     |> String.intercalate "\n"
   s!"
 {vars}
@@ -90,7 +90,7 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
 
       let _ ← stabilizeUnifyResults
       let goals := (<- get).unifyGoals
-      let goalsStr := (<- get).unifyGoals |> List.map (fun (x,y) => s!"{x.toSExpr}={y.toSExpr}") |>String.intercalate ";"
+      let goalsStr := (<- get).unifyGoals |> List.map (fun (x,y) => s!"{x.toEggSExpr}={y.toEggSExpr}") |>String.intercalate ";"
       if goalsStr.length > 0 then
         let res ← match (← elabEggSolveOutput <| runEgg goalsStr) with
           | .ok x => pure x

@@ -101,14 +101,11 @@ inductive TypedRExprNode where
 deriving Repr, BEq
 end
 
--- abbrev MVCtxElem := Lean.Name × RKind × Option RType
--- abbrev MVCtx := Array MVCtxElem
+abbrev KindingContextElement := Lean.Name × RKind
+abbrev KindingContext := Array KindingContextElement
 
-abbrev KCtxElem := Lean.Name × RKind
-abbrev KCtx := Array KCtxElem
-
-abbrev TCtxElem := Lean.Name × RType
-abbrev TCtx := Array TCtxElem
+abbrev TypingContextElement := Lean.Name × RType
+abbrev TypingContext := Array TypingContextElement
 
 structure MetaVarDeclaration where
   userName : Lean.Name := Lean.Name.anonymous
@@ -425,55 +422,30 @@ def UnificationResult.merge : UnificationResult → UnificationResult → Unific
 def sane (n: Lean.Name) : String :=
   if n == Lean.Name.anonymous then "anonymous" else toString n
 
-def RNat.toSExpr : RNat → String
-  | .bvar idx name => s!"(term_bvar {sane name}_{idx})"
-  | .mvar id name => s!"(term_mvar {sane name}_{id})"
-  | .nat n => s!"{n}"
-  | .plus n m => s!"(+ {n.toSExpr} {m.toSExpr})"
-  | .minus n m => s!"(- {n.toSExpr} {m.toSExpr})"
-  | .mult n m => s!"(* {n.toSExpr} {m.toSExpr})"
-  | .div n m => s!"(/ {n.toSExpr} {m.toSExpr})"
-  | .pow n m => s!"(^ {n.toSExpr} {m.toSExpr})"
-
-def RData.toSExpr : RData → String
-  | .bvar idx name => s!"(type_bvar {sane name}_{idx})"
-  | .mvar id name  => s!"(type_mvar {sane name}_{id})"
-  | .array n d     => s!"(array {n.toSExpr} {d.toSExpr})"
-  | .pair d1 d2    => s!"(pair {d1.toSExpr} {d2.toSExpr})"
-  | .index n       => s!"(index {n.toSExpr})"
-  | .scalar x      => s!"{x}"
-  | .natType       => "natType"
-  | .vector n d    => s!"(vector {n.toSExpr} {d.toSExpr})"
-
-def RType.toSExpr : RType → String
-  | .data dt => RData.toSExpr dt
-  | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSExpr})"
-  | .fn binderType body => s!"(-> {binderType.toSExpr} {body.toSExpr})"
-
-def RNat.toSExpr2 : RNat → String
+def RNat.toSmtSExpr : RNat → String
   | .bvar idx name => s!"b_{sane name}_{idx}"
   | .mvar id name => s!"m_{sane name}_{id}"
   | .nat n => s!"{n}"
-  | .plus n m => s!"(+ {n.toSExpr2} {m.toSExpr2})"
-  | .minus n m => s!"(- {n.toSExpr2} {m.toSExpr2})"
-  | .mult n m => s!"(* {n.toSExpr2} {m.toSExpr2})"
-  | .div n m => s!"(div {n.toSExpr2} {m.toSExpr2})"
-  | .pow n m => s!"(^ {n.toSExpr2} {m.toSExpr2})"
+  | .plus n m => s!"(+ {n.toSmtSExpr} {m.toSmtSExpr})"
+  | .minus n m => s!"(- {n.toSmtSExpr} {m.toSmtSExpr})"
+  | .mult n m => s!"(* {n.toSmtSExpr} {m.toSmtSExpr})"
+  | .div n m => s!"(div {n.toSmtSExpr} {m.toSmtSExpr})"
+  | .pow n m => s!"(^ {n.toSmtSExpr} {m.toSmtSExpr})"
 
-def RData.toSExpr2 : RData → String
+def RData.toSmtSExpr : RData → String
   | .bvar idx name => s!"b_{sane name}_{idx}"
   | .mvar id name => s!"m_{sane name}_{id}"
-  | .array n d     => s!"(array {n.toSExpr2} {d.toSExpr2})"
-  | .pair d1 d2    => s!"(pair {d1.toSExpr2} {d2.toSExpr2})"
-  | .index n       => s!"(index {n.toSExpr2})"
+  | .array n d     => s!"(array {n.toSmtSExpr} {d.toSmtSExpr})"
+  | .pair d1 d2    => s!"(pair {d1.toSmtSExpr} {d2.toSmtSExpr})"
+  | .index n       => s!"(index {n.toSmtSExpr})"
   | .scalar x      => s!"{x}"
   | .natType       => "natType"
-  | .vector n d    => s!"(vector {n.toSExpr2} {d.toSExpr2})"
+  | .vector n d    => s!"(vector {n.toSmtSExpr} {d.toSmtSExpr})"
 
-def RType.toSExpr2 : RType → String
-  | .data dt => RData.toSExpr2 dt
-  | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSExpr2})"
-  | .fn binderType body => s!"(-> {binderType.toSExpr2} {body.toSExpr2})"
+def RType.toSmtSExpr : RType → String
+  | .data dt => dt.toSmtSExpr
+  | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSmtSExpr})"
+  | .fn binderType body => s!"(-> {binderType.toSmtSExpr} {body.toSmtSExpr})"
 
 def RData.getNatEquivs (l:RData) (r:RData) : List (RNat × RNat) :=
   match l,r with
@@ -490,22 +462,8 @@ def RType.getNatEquivs (l:RType) (r:RType) : List (RNat × RNat) :=
   | .fn l1 l2, .fn r1 r2 => l1.getNatEquivs r1 ++ l2.getNatEquivs r2
   | _, _ => []
 
--- def RNat.toSMTLib : RNat → String
---   | .bvar idx name => s!"(bvar {name}@{idx})"
---   | .mvar id name => s!"(mvar {name}_{id})"
---   | .nat n => s!"{n}"
---   | .plus n m => s!"(+ {n.toSExpr} {m.toSExpr})"
---   | .minus n m => s!"(- {n.toSExpr} {m.toSExpr})"
---   | .mult n m => s!"(* {n.toSExpr} {m.toSExpr})"
---   | .pow n m => s!"(^ {n.toSExpr} {m.toSExpr})"
-
--- -- (declare-const x_54 Int)
--- -- (assert (= 7 (+ 5 x_54)))
--- -- (check-sat)
--- -- (get-model)
-
 def RNat.mapMVars (t : RNat) (f : RMVarId → RMVarId) : RNat :=
-  match t with 
+  match t with
   | .bvar ..    => t
   | .mvar id nm => .mvar (f id) nm
   | .nat _      => t
@@ -520,7 +478,7 @@ def RData.mapMVars (t : RData) (f : RMVarId → RMVarId) : RData :=
   | .bvar ..       => t
   | .mvar id name  => .mvar (f id) name
   | .array n d     => .array (n.mapMVars f) (d.mapMVars f)
-  | .pair d1 d2    => .pair (d1.mapMVars f) (d2.mapMVars f) 
+  | .pair d1 d2    => .pair (d1.mapMVars f) (d2.mapMVars f)
   | .index n       => .index (n.mapMVars f)
   | .scalar ..     => t
   | .natType       => t
@@ -555,16 +513,16 @@ end
 
 
 -- open Std.HashSet
-  
+
 def RNat.collectMVarIds (t : RNat) : Std.HashSet RMVarId :=
-  match t with 
+  match t with
   | .bvar ..    => {} --Std.HashSet.emptyWithCapacity 0
   | .mvar id _  => {id}
   | .nat _      => {}
-  | .plus a b   
-  | .minus a b  
-  | .mult a b   
-  | .div a b    
+  | .plus a b
+  | .minus a b
+  | .mult a b
+  | .div a b
   | .pow a b    => a.collectMVarIds ∪ b.collectMVarIds
 
 
@@ -575,7 +533,7 @@ def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
   | .scalar ..     => {}
   | .natType       => {}
   | .array n d     => n.collectMVarIds ∪ d.collectMVarIds
-  | .pair d1 d2    => d1.collectMVarIds ∪ d2.collectMVarIds 
+  | .pair d1 d2    => d1.collectMVarIds ∪ d2.collectMVarIds
   | .index n       => (n.collectMVarIds)
   | .vector n d    => n.collectMVarIds ∪ d.collectMVarIds
 
@@ -605,7 +563,7 @@ partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
 
 namespace Ex
 
- 
+
 def l : RNat := .plus (.nat 5) (.mvar 55 `x)
 -- def l : RNat := .plus (.nat 5) (.mvar 55 `x)
 def r : RNat := .bvar 23 `y
