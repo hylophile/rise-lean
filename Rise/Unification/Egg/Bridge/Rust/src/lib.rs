@@ -3,7 +3,7 @@ pub mod lang;
 
 // Cf. https://doc.rust-lang.org/stable/std/ffi/struct.CStr.html#examples
 fn c_str_to_string(c_str: *const c_char) -> String {
-    let str = unsafe { CStr::from_ptr(c_str) };
+    let str = { CStr::from_ptr(c_str) };
     String::from_utf8_lossy(str.to_bytes()).to_string()
 }
 

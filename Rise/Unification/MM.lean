@@ -37,12 +37,12 @@ def UnificationResult.merge : UnificationResult → UnificationResult → Unific
   | .error e1, .error e2 => .error <| .unsolved s!"{e1}\n{e2}"
   
 mutual
-unsafe def unifyOneRNat (s t : RNat) : RElabM UnificationResult :=
+def unifyOneRNat (s t : RNat) : RElabM UnificationResult :=
   do
   addRNatEquality (s,t)
   return .ok []
 
-unsafe def unifyRNat (equations : List (RNat × RNat)) : RElabM UnificationResult :=
+def unifyRNat (equations : List (RNat × RNat)) : RElabM UnificationResult :=
   match equations with
   | [] => return .ok []
   | (x, y) :: rest => do
@@ -61,7 +61,7 @@ unsafe def unifyRNat (equations : List (RNat × RNat)) : RElabM UnificationResul
 end
 
 mutual
-unsafe def unifyOneRData (s t : RData) : RElabM UnificationResult :=
+partial def unifyOneRData (s t : RData) : RElabM UnificationResult :=
   match s, t with
   | .mvar x _, .mvar y _ =>
     if x == y then return .ok [] else return .ok [(x, .data t)]
@@ -93,7 +93,7 @@ unsafe def unifyOneRData (s t : RData) : RElabM UnificationResult :=
 
   | _, _ => return .error <| .structural (.data s) (.data t)
 
-unsafe def unifyRData (equations : List (RData × RData)) : RElabM UnificationResult :=
+partial def unifyRData (equations : List (RData × RData)) : RElabM UnificationResult :=
   match equations with
   | [] => return .ok []
   | (x, y) :: t => do
@@ -112,7 +112,7 @@ partial def RData.unify (l r : RData) : RElabM UnificationResult :=
   result
 
 mutual
-unsafe def unifyOneRType (s t : RType) : RElabM UnificationResult :=
+partial def unifyOneRType (s t : RType) : RElabM UnificationResult :=
   match s, t with
   | .data dt1, .data dt2 =>
     unifyRData [(dt1, dt2)]
@@ -128,7 +128,7 @@ unsafe def unifyOneRType (s t : RType) : RElabM UnificationResult :=
 
   | _, _ => return .error <| .structuralType s t
 
-unsafe def unifyRType (equations : List (RType × RType)) : RElabM UnificationResult :=
+partial def unifyRType (equations : List (RType × RType)) : RElabM UnificationResult :=
   match equations with
   | [] => return .ok []
   | (x, y) :: rest => do
@@ -146,12 +146,12 @@ unsafe def unifyRType (equations : List (RType × RType)) : RElabM UnificationRe
     | e => return e
 end
 
-unsafe def RType.unify (l r : RType) : RElabM UnificationResult :=
+def RType.unify (l r : RType) : RElabM UnificationResult :=
   unifyRType [(l, r)]
 
-unsafe def unify := RType.unify
+def unify := RType.unify
 
-unsafe def addSubst (stx : Lean.Syntax) (subst : Substitution) : RElabM Unit := do
+partial def addSubst (stx : Lean.Syntax) (subst : Substitution) : RElabM Unit := do
   let unifyResults : Substitution := (← get).unifyResult
   subst.forM (λ x@(mv, se) =>
     match unifyResults.find? (λ (mvv, _) => mvv == mv) with

@@ -25,7 +25,7 @@ def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
   )
   String.intercalate "\n" (header :: rows)
 
-unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
+def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
   | [] => do
       let expr ← elabToTypedRExpr expr
@@ -75,12 +75,12 @@ unsafe def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) 
       withNewGlobalTerm (x.getId, t) do elabRDeclAndRExpr expr rest
     | s => throwErrorAt s m!"{s}"
 
-unsafe def elabRProgram : Syntax → RElabM Expr
+def elabRProgram : Syntax → RElabM Expr
   | `(rise_program| $d:rise_decl* $e:rise_expr) => do
     elabRDeclAndRExpr e d.toList
   | s => throwErrorAt s m!"{s}"
 
-elab "[Rise|" p:rise_program "]" : term => unsafe do
+elab "[Rise|" p:rise_program "]" : term => do
   let p ← liftMacroM <| expandMacros p
   liftToTermElabM <| elabRProgram p
 
@@ -210,7 +210,7 @@ macro_rules
   $e:rise_expr
 )
 
-elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => unsafe do
+elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
   let p ← `(rise_program| import core
             $[$ds:rise_decl]* $e:rise_expr)
   let p ← liftMacroM <| expandMacros p

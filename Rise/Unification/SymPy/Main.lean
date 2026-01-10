@@ -45,7 +45,7 @@ private def l1 : RNat := .plus (.nat 5) (.mvar 55 `x)
 private def r1 : RNat := .bvar 23 `z
 
 open IO
-private unsafe def runSymPy (input : String) : Except Error (String × String) :=
+private unsafe def runSymPyImpl (input : String) : Except Error (String × String) :=
   unsafeIO do
     let child ← do
       let (stdin, child) ← (← IO.Process.spawn {
@@ -62,12 +62,16 @@ private unsafe def runSymPy (input : String) : Except Error (String × String) :
     let stderr ← child.stderr.readToEnd
     return (stdout, stderr)
 
+@[implemented_by runSymPyImpl]
+opaque runSymPy (input : String) : Except Error (String × String)
+
+
 private def pairToSubstitution (ps : List (RNat × RNat)) : Option Substitution :=
   ps |>.mapM (fun (x,v) => match x with
     | .mvar id _ => some (id, .nat v)
     | _ => none)
 
-unsafe def solveWithSymPy (eqs: List (RNat × RNat)) : RElabM Substitution :=
+def solveWithSymPy (eqs: List (RNat × RNat)) : RElabM Substitution :=
   if eqs.length == 0 then return [] else
   let sympyInput := eqs |> listToSymPyProgram
   dbg_trace s!"sympy_input:\n{sympyInput}\n\n"

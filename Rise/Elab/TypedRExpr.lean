@@ -190,7 +190,11 @@ partial def addImplicits (t: RType) : RElabM RType := do
     addImplicits newB
   | x => return x
 
-unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
+/- Lean.Meta.evalExpr is unsafe, but we use it in elabToTypedRExpr -/
+@[implemented_by evalExpr]
+opaque myEvalExpr (α) (expectedType : Expr) (value : Expr) (safety := DefinitionSafety.safe) : MetaM α
+
+partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
   | `(rise_expr| $l:num$[$s:rise_expr_numlit_suffix]?) => do
     match s with
     | .some suffix => match suffix with
@@ -298,7 +302,7 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
             | throwError "definition {name} not found"
           match decl.value? with
           | some v =>
-            let v ← evalExpr TypedRExpr (mkConst ``TypedRExpr) v
+            let v ← myEvalExpr TypedRExpr (mkConst ``TypedRExpr) v
             shiftMVars v
           | none => throwError "?!?"
         | _=> throwError "???"
@@ -306,10 +310,10 @@ unsafe def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     | stx =>
       throwErrorAt stx s!"unexpected rise expr syntax:\n{stx}"
 
-unsafe def elabTypedRExpr (stx : Syntax) : RElabM Expr := do
+def elabTypedRExpr (stx : Syntax) : RElabM Expr := do
   let rexpr ← elabToTypedRExpr stx
   return toExpr rexpr
 
-elab "[RiseTE|" e:rise_expr "]" : term => unsafe do
+elab "[RiseTE|" e:rise_expr "]" : term => do
   let p ← liftMacroM <| expandMacros e
   liftToTermElabM <| elabTypedRExpr p
