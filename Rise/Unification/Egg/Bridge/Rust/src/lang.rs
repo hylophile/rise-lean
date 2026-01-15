@@ -1,7 +1,5 @@
 use egg::*;
 use std::collections::HashMap;
-// use std::time::Duration;
-// use std::time::Duration;
 
 type EGraph = egg::EGraph<RiseType, UnifyAnalysis>;
 type EClass = egg::EClass<RiseType, InnerAnalysis>;
@@ -19,10 +17,10 @@ define_language! {
         "/" = Div([Id; 2]),
         "-" = Sub([Id; 2]),
         "~" = Unify([Id; 2]),
-        "type_mvar" = TypeMVar(Id),
-        "type_bvar" = TypeBVar(Id),
-        "term_mvar" = TermMVar(Id),
-        "term_bvar" = TermBVar(Id),
+        "data_mvar" = DataMVar(Id),
+        "data_bvar" = DataBVar(Id),
+        "nat_mvar" = NatMVar(Id),
+        "nat_bvar" = NatBVar(Id),
         Symbol(Symbol),
     }
 }
@@ -48,7 +46,7 @@ fn dt_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         multi_rewrite!(s(); "?v = (~ (pair ?a ?b) (pair ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (array ?a ?b) (array ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (index ?a) (index ?c))" => "?w = (~ ?a ?c)"),
-        multi_rewrite!(s(); "?a = (type_mvar ?v), ?p = (~ ?a ?b)" => "?a = ?b"), // if no analysis conflict...
+        multi_rewrite!(s(); "?a = (data_mvar ?v), ?p = (~ ?a ?b)" => "?a = ?b"), // if no analysis conflict...
     ]
 }
 
@@ -62,11 +60,11 @@ fn nat_rules_shift() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         rewrite!(s(); "(~ ?c (* ?a ?b))" => "(~ (/ ?c ?b) ?a)" if is_not_zero("?b")),
         rewrite!(s(); "(~ ?c (+ ?a ?b))" => "(~ (- ?c ?b) ?a)"),
         rewrite!(s(); "(~ ?c (- ?a ?b))" => "(~ (+ ?c ?b) ?a)"),
-        multi_rewrite!(s(); "?p=(term_mvar ?a), ?q = (~ (term_mvar ?a) ?b)" => "?p = ?b"),
+        multi_rewrite!(s(); "?p=(nat_mvar ?a), ?q = (~ (nat_mvar ?a) ?b)" => "?p = ?b"),
         // rewrite!("t-comm2"; "(~ ?a ?b)" => "(~ ?b ?a)"),
         // multi_rewrite!(s(); "?p = (~ ?a ?b), ?q = (~ ?a ?c)" => "?r = (~ ?b ?c)"),
-        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) ?b), ?p = (~ (term_mvar ?a) ?c)" => "?b = ?c"),
-        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) (term_mvar ?b))" => "?p = (term_mvar ?a) = (term_mvar ?b)"),
+        // multi_rewrite!(s(); "?q = (~ (nat_mvar ?a) ?b), ?p = (~ (nat_mvar ?a) ?c)" => "?b = ?c"),
+        // multi_rewrite!(s(); "?q = (~ (nat_mvar ?a) (nat_mvar ?b))" => "?p = (nat_mvar ?a) = (nat_mvar ?b)"),
     ]
 }
 
@@ -112,10 +110,10 @@ fn nat_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         rewrite!(s(); "(/ (+ ?a ?b) ?c)" => "(+ (/ ?a ?c) (/ ?b ?c))" if is_not_zero("?b") if is_not_zero("?c")),
         rewrite!(s(); "(+ ?a (/ ?b ?c))" => "(/ (+ (* ?a ?c) ?b) ?c)"),
 
-        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) (term_mvar ?b))" => "?p = (term_mvar ?a) = (term_mvar ?b)"),
+        // multi_rewrite!(s(); "?q = (~ (nat_mvar ?a) (nat_mvar ?b))" => "?p = (nat_mvar ?a) = (nat_mvar ?b)"),
 
-        // multi_rewrite!(s(); "?q = (~ (term_mvar ?a) ?b), ?p = (~ (term_mvar ?a) ?c)" => "?b = ?c"),
-        // multi_rewrite!(s(); "?q = (term_mvar ?a), ?p = (~ ?q ?b)" => "?q = ?b"),
+        // multi_rewrite!(s(); "?q = (~ (nat_mvar ?a) ?b), ?p = (~ (nat_mvar ?a) ?c)" => "?b = ?c"),
+        // multi_rewrite!(s(); "?q = (nat_mvar ?a), ?p = (~ ?q ?b)" => "?q = ?b"),
         
 
         ]
@@ -179,17 +177,17 @@ enum Variant {
 }
 fn get_variant(i: &RiseType) -> Variant {
     match i {
-        RiseType::TermBVar(_)
+        RiseType::NatBVar(_)
         | RiseType::Num(_)
         | RiseType::Add(_)
         | RiseType::Mul(_)
         | RiseType::Div(_)
         | RiseType::Unify(_)
         | RiseType::Sub(_) => Variant::Term,
-        RiseType::TypeMVar(_) => Variant::TypeMVar,
-        RiseType::TermMVar(_) => Variant::TermMVar,
+        RiseType::DataMVar(_) => Variant::TypeMVar,
+        RiseType::NatMVar(_) => Variant::TermMVar,
         RiseType::Symbol(s) => Variant::TypeName(s.to_string()),
-        RiseType::TypeBVar(_) => Variant::TypeName("bvar".to_string()),
+        RiseType::DataBVar(_) => Variant::TypeName("bvar".to_string()),
         RiseType::Array(_) => Variant::TypeName("array".to_string()),
         RiseType::Vector(_) => Variant::TypeName("array".to_string()),
         RiseType::Pair(_) => Variant::TypeName("pair".to_string()),
@@ -310,7 +308,7 @@ impl Analysis<RiseType> for UnifyAnalysis {
 
 fn is_mvar(l: &RiseType) -> bool {
     match l {
-        RiseType::TermMVar(_) | RiseType::TypeMVar(_) => true,
+        RiseType::NatMVar(_) | RiseType::DataMVar(_) => true,
         _ => false,
     }
 }
@@ -323,8 +321,8 @@ fn is_mvar(l: &RiseType) -> bool {
 
 fn pretty_mvar(egraph: &EGraph, l: &RiseType) -> Option<String> {
     let prefix = match l {
-        RiseType::TermMVar(_) => Some("term_"),
-        RiseType::TypeMVar(_) => Some("type_"),
+        RiseType::NatMVar(_) => Some("nat_"),
+        RiseType::DataMVar(_) => Some("data_"),
         _ => None,
     }?;
     let x = l.children().get(0)?;
@@ -342,7 +340,7 @@ impl CostFunction<RiseType> for SillyCostFn {
         C: FnMut(Id) -> Self::Cost,
     {
         let op_cost = match enode {
-            RiseType::TermMVar(_) => 100,
+            RiseType::NatMVar(_) => 100,
             // RiseType::Num(_) => todo!(),
             // RiseType::Add(_) => todo!(),
             // RiseType::Mul(_) => todo!(),
@@ -429,14 +427,14 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         check_no_self_loops(&eg, class)?
     }
 
-    let s3: Pattern<RiseType> = "(~ (term_mvar ?a) ?b)".parse().unwrap();
+    let s3: Pattern<RiseType> = "(~ (nat_mvar ?a) ?b)".parse().unwrap();
     let mut neweg = EGraph::new(UnifyAnalysis::default());
     let p = s3.search(&eg);
     for m in p {
         for s in m.substs {
             let pid_a = s["?a".parse().unwrap()];
             let a = get_repr(&eg, pid_a);
-            let r = RecExpr::from(vec![a.clone(), RiseType::TermMVar(0.into())]);
+            let r = RecExpr::from(vec![a.clone(), RiseType::NatMVar(0.into())]);
             let id_a = neweg.add_expr(&r);
 
             let b = &pq(&eg, s["?b".parse().unwrap()]);
@@ -450,7 +448,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
             // );
         }
     }
-    // let s3: Pattern<RiseType> = "(~ (type_mvar ?a) ?b)".parse().unwrap();
+    // let s3: Pattern<RiseType> = "(~ (data_mvar ?a) ?b)".parse().unwrap();
     // // let mut neweg = EGraph::new(UnifyAnalysis::default());
     // let p = s3.search(&eg);
     // for m in p {
@@ -513,7 +511,7 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         }
     }
 
-    // let s3: Pattern<RiseType> = "(~ (term_mvar n_1) ?b)".parse().unwrap();
+    // let s3: Pattern<RiseType> = "(~ (nat_mvar n_1) ?b)".parse().unwrap();
     // let mut neweg = EGraph::new(UnifyAnalysis::default());
     // let p = s3.search(&eg);
     // for m in p {

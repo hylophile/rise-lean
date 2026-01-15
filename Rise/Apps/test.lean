@@ -1,4 +1,4 @@
 
 import Rise
 
-#eval runEgg "(+ 1 (term_mvar a))=(term_mvar a)"
+#eval runEgg "(+ 1 (nat_mvar a))=(nat_mvar a)"

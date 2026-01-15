@@ -44,8 +44,8 @@ extern_lib egg_unify pkg := do
     let srcPath   := pkg.dir / "Rise" / "Unification" / "Egg"/ "Bridge" / "Rust" / "target" / "release" / name
     let tgtPath   := pkg.sharedLibDir / name
     let traceFile := pkg.buildDir / "rust" / "egg.trace"
-    let _ ← buildUnlessUpToDate? traceFile (← getTrace) traceFile do
-    -- let _ ← buildAction (← getTrace) traceFile do
+    -- let _ ← buildUnlessUpToDate? traceFile (← getTrace) traceFile do
+    let _ ← buildAction (← getTrace) traceFile do
       proc {
         cmd := "cargo",
         -- args := #["build", "--release"]

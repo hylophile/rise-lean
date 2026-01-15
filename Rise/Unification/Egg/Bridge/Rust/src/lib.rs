@@ -2,7 +2,7 @@ use std::ffi::{c_char, CStr, CString};
 pub mod lang;
 
 // Cf. https://doc.rust-lang.org/stable/std/ffi/struct.CStr.html#examples
-fn c_str_to_string(c_str: *const c_char) -> String {
+unsafe fn c_str_to_string(c_str: *const c_char) -> String {
     let str = { CStr::from_ptr(c_str) };
     String::from_utf8_lossy(str.to_bytes()).to_string()
 }
@@ -15,7 +15,7 @@ fn string_to_c_str(str: String) -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn run_egg(input: *const c_char) -> *const c_char {
+pub unsafe extern "C" fn run_egg(input: *const c_char) -> *const c_char {
     let input = c_str_to_string(input);
     let output = run(&input);
     match output {

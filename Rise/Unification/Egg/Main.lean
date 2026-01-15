@@ -4,8 +4,8 @@ import Rise.Unification.MVars
 
 
 def RNat.toEggSExpr : RNat → String
-  | .bvar idx name => s!"(term_bvar {sane name}_{idx})"
-  | .mvar id name => s!"(term_mvar {sane name}_{id})"
+  | .bvar idx name => s!"(nat_bvar {sane name}_{idx})"
+  | .mvar id name => s!"(nat_mvar {sane name}_{id})"
   | .nat n => s!"{n}"
   | .plus n m => s!"(+ {n.toEggSExpr} {m.toEggSExpr})"
   | .minus n m => s!"(- {n.toEggSExpr} {m.toEggSExpr})"
@@ -14,8 +14,8 @@ def RNat.toEggSExpr : RNat → String
   | .pow n m => s!"(^ {n.toEggSExpr} {m.toEggSExpr})"
 
 def RData.toEggSExpr : RData → String
-  | .bvar idx name => s!"(type_bvar {sane name}_{idx})"
-  | .mvar id name  => s!"(type_mvar {sane name}_{id})"
+  | .bvar idx name => s!"(data_bvar {sane name}_{idx})"
+  | .mvar id name  => s!"(data_mvar {sane name}_{id})"
   | .array n d     => s!"(array {n.toEggSExpr} {d.toEggSExpr})"
   | .pair d1 d2    => s!"(pair {d1.toEggSExpr} {d2.toEggSExpr})"
   | .index n       => s!"(index {n.toEggSExpr})"

@@ -9,10 +9,10 @@ syntax "-" : egg_op
 syntax "*" : egg_op
 syntax "/" : egg_op
 syntax "^" : egg_op
-syntax "term_mvar" : egg_op
-syntax "term_bvar" : egg_op
-syntax "type_mvar" : egg_op
-syntax "type_bvar" : egg_op
+syntax "nat_mvar" : egg_op
+syntax "nat_bvar" : egg_op
+syntax "data_mvar" : egg_op
+syntax "data_bvar" : egg_op
 syntax "array" : egg_op
 syntax "vector" : egg_op
 syntax "pair" : egg_op
@@ -75,16 +75,16 @@ private partial def elabEggExpr : Syntax → RElabM SubstEnum
   | `(egg_expr| -$n:num) => do
     let n := n.getNat
     return .nat <| RNat.minus (RNat.nat 0) (RNat.nat n)
-  | `(egg_expr| (term_mvar $x:ident)) => do
+  | `(egg_expr| (nat_mvar $x:ident)) => do
     let (n,id) ← elabName x
     return .nat <| RNat.mvar id n
-  | `(egg_expr| (term_bvar $x:ident)) => do
+  | `(egg_expr| (nat_bvar $x:ident)) => do
     let (n,id) ← elabName x
     return .nat <| RNat.bvar id n
-  | `(egg_expr| (type_mvar $x:ident)) => do
+  | `(egg_expr| (data_mvar $x:ident)) => do
     let (n,id) ← elabName x
     return .data <| RData.mvar id n
-  | `(egg_expr| (type_bvar $x:ident)) => do
+  | `(egg_expr| (data_bvar $x:ident)) => do
     let (n,id) ← elabName x
     return .data <| RData.bvar id n
   | `(egg_expr| (+ $e1:egg_expr $e2:egg_expr)) => do
@@ -196,10 +196,10 @@ def elabEggSolveOutput (s : String) : RElabM (Except String Substitution) := do
     | .error err => return .error err
 
 
- -- #eval liftToTermElabM <| elabEggSolveOutput "(type_mvar s_4)=(pair f32 f32),(type_mvar s_8)=f32,(type_mvar t_5)=f32,(term_mvar n_0)=(term_bvar n_0),(type_mvar d_6)=f32,(type_mvar t_9)=f32,(term_mvar n_7)=(term_bvar n_0),(type_mvar t_1)=f32,(type_mvar t_2)=f32,(term_mvar n_3)=(term_bvar n_0)"
+ -- #eval liftToTermElabM <| elabEggSolveOutput "(data_mvar s_4)=(pair f32 f32),(data_mvar s_8)=f32,(data_mvar t_5)=f32,(nat_mvar n_0)=(nat_bvar n_0),(data_mvar d_6)=f32,(data_mvar t_9)=f32,(nat_mvar n_7)=(nat_bvar n_0),(data_mvar t_1)=f32,(data_mvar t_2)=f32,(nat_mvar n_3)=(nat_bvar n_0)"
 
- -- #eval liftToTermElabM <| elabEggSolveOutput "(type_mvar d_6)=f32,(type_mvar s_8)=f32,(type_mvar t_2)=f32,(term_mvar n_7)=(term_bvar n_0),(type_mvar t_9)=f32,(type_mvar t_1)=f32,(type_mvar s_4)=(pair f32 f32),(type_mvar t_5)=f32,(term_mvar n_0)=(term_bvar n_0),(term_mvar n_3)=(term_bvar n_0)"
+ -- #eval liftToTermElabM <| elabEggSolveOutput "(data_mvar d_6)=f32,(data_mvar s_8)=f32,(data_mvar t_2)=f32,(nat_mvar n_7)=(nat_bvar n_0),(data_mvar t_9)=f32,(data_mvar t_1)=f32,(data_mvar s_4)=(pair f32 f32),(data_mvar t_5)=f32,(nat_mvar n_0)=(nat_bvar n_0),(nat_mvar n_3)=(nat_bvar n_0)"
 
- -- #eval liftToTermElabM <| elabEggSolveOutput "(type_mvar s_8)=f32,(type_mvar t_2)=f32,(type_mvar t_5)=f32,(type_mvar t_1)=f32,(term_mvar n_7)=(term_bvar n_0),(term_mvar n_3)=(term_bvar n_0),(type_mvar t_9)=f32,(term_mvar n_0)=(term_bvar n_0),(type_mvar s_4)=(pair f32 f32),(type_mvar d_6)=f32"
+ -- #eval liftToTermElabM <| elabEggSolveOutput "(data_mvar s_8)=f32,(data_mvar t_2)=f32,(data_mvar t_5)=f32,(data_mvar t_1)=f32,(nat_mvar n_7)=(nat_bvar n_0),(nat_mvar n_3)=(nat_bvar n_0),(data_mvar t_9)=f32,(nat_mvar n_0)=(nat_bvar n_0),(data_mvar s_4)=(pair f32 f32),(data_mvar d_6)=f32"
 
--- #eval liftToTermElabM <| elabEggSolveOutput "(type_mvar s_35)=(array (+ 1 (/ (- (+ (+ 3 (/ (term_bvar w_0) 2)) 1) 2) 1)) (array 2 (array 2 f32))),(type_mvar t_53)=(array 2 f32),(term_mvar n_24)=2,(type_mvar t_29)=f32,(type_mvar t_26)=(array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) f32),(type_mvar t_42)=(array 2 f32),(type_mvar t_54)=(index 2),(type_mvar t_8)=f32,(term_mvar n_60)=(+ (+ (/ (term_bvar h_1) 2) 3) 1),(term_mvar m_13)=(+ (term_mvar n_1) (- (+ 2 (* 2 (/ (term_bvar h_1) 2))) (term_bvar h_1))),(type_mvar s_50)=(array 2 f32),(type_mvar anonymous_12)=(array (+ (/ (term_bvar h_1) 2) 3) (array (+ 3 (/ (term_bvar w_0) 2)) f32)),(type_mvar d_11)=(array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) f32),(term_mvar n_37)=(+ 1 (/ (- (+ (+ 3 (/ (term_bvar w_0) 2)) 1) 2) 1)),(type_mvar t_36)=(array (+ 1 (/ (- (+ (+ 3 (/ (term_bvar w_0) 2)) 1) 2) 1)) (array 2 (array 2 f32))),(term_mvar m_7)=(+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0))),(type_mvar anonymous_47)=(array 2 (array 2 f32)),(type_mvar d_62)=f32,(term_mvar n_48)=2,(type_mvar t_39)=(array 2 (array 2 f32)),(term_mvar n_52)=2,(type_mvar t_55)=(array 2 f32),(type_mvar anonymous_0)=(array (+ (/ (term_bvar h_1) 2) 3) (array(+ 3 (/ (term_bvar w_0) 2)) f32)),(type_mvar d_67)=f32,(term_mvar n_27)=(+ 1 (/ (- (+ (+ 3 (/ (term_bvar w_0) 2)) 1) 2) 1)),(type_mvar t_14)=(array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) f32),(term_mvar n_20)=(+ 1 (/ (- (+ (+ (/ (term_bvar h_1) 2) 3) 1) 2) 1)),(term_mvar m_17)=2,(type_mvar s_2)=(array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) f32),(type_mvar t_32)=(array 2 f32),(type_mvar t_22)=(array 2 (array (+ 1 (+ (term_mvar n_5) (- (+ 2 (* 2 (/ (term_bvar w_0) 2))) (term_bvar w_0)))) f32)),(term_mvar m_31)=2"
+-- #eval liftToTermElabM <| elabEggSolveOutput "(data_mvar s_35)=(array (+ 1 (/ (- (+ (+ 3 (/ (nat_bvar w_0) 2)) 1) 2) 1)) (array 2 (array 2 f32))),(data_mvar t_53)=(array 2 f32),(nat_mvar n_24)=2,(data_mvar t_29)=f32,(data_mvar t_26)=(array (+ 1 (+ (nat_mvar n_5) (- (+ 2 (* 2 (/ (nat_bvar w_0) 2))) (nat_bvar w_0)))) f32),(data_mvar t_42)=(array 2 f32),(data_mvar t_54)=(index 2),(data_mvar t_8)=f32,(nat_mvar n_60)=(+ (+ (/ (nat_bvar h_1) 2) 3) 1),(nat_mvar m_13)=(+ (nat_mvar n_1) (- (+ 2 (* 2 (/ (nat_bvar h_1) 2))) (nat_bvar h_1))),(data_mvar s_50)=(array 2 f32),(data_mvar anonymous_12)=(array (+ (/ (nat_bvar h_1) 2) 3) (array (+ 3 (/ (nat_bvar w_0) 2)) f32)),(data_mvar d_11)=(array (+ 1 (+ (nat_mvar n_5) (- (+ 2 (* 2 (/ (nat_bvar w_0) 2))) (nat_bvar w_0)))) f32),(nat_mvar n_37)=(+ 1 (/ (- (+ (+ 3 (/ (nat_bvar w_0) 2)) 1) 2) 1)),(data_mvar t_36)=(array (+ 1 (/ (- (+ (+ 3 (/ (nat_bvar w_0) 2)) 1) 2) 1)) (array 2 (array 2 f32))),(nat_mvar m_7)=(+ (nat_mvar n_5) (- (+ 2 (* 2 (/ (nat_bvar w_0) 2))) (nat_bvar w_0))),(data_mvar anonymous_47)=(array 2 (array 2 f32)),(data_mvar d_62)=f32,(nat_mvar n_48)=2,(data_mvar t_39)=(array 2 (array 2 f32)),(nat_mvar n_52)=2,(data_mvar t_55)=(array 2 f32),(data_mvar anonymous_0)=(array (+ (/ (nat_bvar h_1) 2) 3) (array(+ 3 (/ (nat_bvar w_0) 2)) f32)),(data_mvar d_67)=f32,(nat_mvar n_27)=(+ 1 (/ (- (+ (+ 3 (/ (nat_bvar w_0) 2)) 1) 2) 1)),(data_mvar t_14)=(array (+ 1 (+ (nat_mvar n_5) (- (+ 2 (* 2 (/ (nat_bvar w_0) 2))) (nat_bvar w_0)))) f32),(nat_mvar n_20)=(+ 1 (/ (- (+ (+ (/ (nat_bvar h_1) 2) 3) 1) 2) 1)),(nat_mvar m_17)=2,(data_mvar s_2)=(array (+ 1 (+ (nat_mvar n_5) (- (+ 2 (* 2 (/ (nat_bvar w_0) 2))) (nat_bvar w_0)))) f32),(data_mvar t_32)=(array 2 f32),(data_mvar t_22)=(array 2 (array (+ 1 (+ (nat_mvar n_5) (- (+ 2 (* 2 (/ (nat_bvar w_0) 2))) (nat_bvar w_0)))) f32)),(nat_mvar m_31)=2"
