@@ -28,6 +28,7 @@ define_language! {
 use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 
+// generate random rule name
 fn s() -> String {
     let rand_string: String = rng()
         .sample_iter(&Alphanumeric)
@@ -46,12 +47,12 @@ fn dt_rules() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
         multi_rewrite!(s(); "?v = (~ (pair ?a ?b) (pair ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (array ?a ?b) (array ?c ?d))" => "?w = (~ ?a ?c), ?x = (~ ?b ?d)"),
         multi_rewrite!(s(); "?v = (~ (index ?a) (index ?c))" => "?w = (~ ?a ?c)"),
-        multi_rewrite!(s(); "?a = (data_mvar ?v), ?p = (~ ?a ?b)" => "?a = ?b"), // if no analysis conflict...
+        multi_rewrite!(s(); "?a = (data_mvar ?v), ?p = (~ ?a ?b)" => "?a = ?b"), // conflict checked by analysis::merge
     ]
 }
 
 #[rustfmt::skip]
-fn nat_rules_shift() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
+fn nat_rules_isolate() -> Vec<Rewrite<RiseType, UnifyAnalysis>> {
     vec![
         rewrite!("add-comm"; "(+ ?a ?b)" => "(+ ?b ?a)"),
         rewrite!("mul-comm"; "(* ?a ?b)" => "(* ?b ?a)"),
@@ -146,7 +147,7 @@ impl Default for UnifyAnalysis {
 fn check_no_self_loops(egraph: &EGraph, class: &EClass) -> Result<(), String> {
     let id = class.id;
     for enode in &class.nodes {
-        if get_variant(enode) == Variant::Term {
+        if get_variant(enode) == Variant::Nat {
             continue;
         }
         for &child_id in enode.children() {
@@ -170,10 +171,10 @@ struct InnerAnalysis {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Variant {
-    Term,
-    TermMVar,
-    TypeMVar,
-    TypeName(String),
+    Nat,
+    NatMVar,
+    DataMVar,
+    DataName(String),
 }
 fn get_variant(i: &RiseType) -> Variant {
     match i {
@@ -183,16 +184,16 @@ fn get_variant(i: &RiseType) -> Variant {
         | RiseType::Mul(_)
         | RiseType::Div(_)
         | RiseType::Unify(_)
-        | RiseType::Sub(_) => Variant::Term,
-        RiseType::DataMVar(_) => Variant::TypeMVar,
-        RiseType::NatMVar(_) => Variant::TermMVar,
-        RiseType::Symbol(s) => Variant::TypeName(s.to_string()),
-        RiseType::DataBVar(_) => Variant::TypeName("bvar".to_string()),
-        RiseType::Array(_) => Variant::TypeName("array".to_string()),
-        RiseType::Vector(_) => Variant::TypeName("array".to_string()),
-        RiseType::Pair(_) => Variant::TypeName("pair".to_string()),
-        RiseType::Index(_) => Variant::TypeName("index".to_string()),
-        RiseType::Fn(_) => Variant::TypeName("fn".to_string()),
+        | RiseType::Sub(_) => Variant::Nat,
+        RiseType::DataMVar(_) => Variant::DataMVar,
+        RiseType::NatMVar(_) => Variant::NatMVar,
+        RiseType::Symbol(s) => Variant::DataName(s.to_string()),
+        RiseType::DataBVar(_) => Variant::DataName("bvar".to_string()),
+        RiseType::Array(_) => Variant::DataName("array".to_string()),
+        RiseType::Vector(_) => Variant::DataName("array".to_string()),
+        RiseType::Pair(_) => Variant::DataName("pair".to_string()),
+        RiseType::Index(_) => Variant::DataName("index".to_string()),
+        RiseType::Fn(_) => Variant::DataName("fn".to_string()),
     }
 }
 
@@ -229,22 +230,20 @@ impl Analysis<RiseType> for UnifyAnalysis {
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
         use Variant::*;
         let (new_val, a_changed, b_changed) = match (a.variant.clone(), b.variant.clone()) {
-            (v @ Term, Term) | (v @ TermMVar, TermMVar) | (v @ TypeMVar, TypeMVar) => {
-                (v, false, false)
-            }
+            (v @ Nat, Nat) | (v @ NatMVar, NatMVar) | (v @ DataMVar, DataMVar) => (v, false, false),
 
-            (Term, TermMVar) => (Term, false, true),
-            (TermMVar, Term) => (Term, true, false),
+            (Nat, NatMVar) => (Nat, false, true),
+            (NatMVar, Nat) => (Nat, true, false),
 
-            (TypeName(s), TypeMVar) => (TypeName(s), false, true),
-            (TypeMVar, TypeName(s)) => (TypeName(s), true, false),
+            (DataName(s), DataMVar) => (DataName(s), false, true),
+            (DataMVar, DataName(s)) => (DataName(s), true, false),
 
-            (TypeName(s1), TypeName(s2)) => {
+            (DataName(s1), DataName(s2)) => {
                 if s1 == s2 {
-                    (TypeName(s1.clone()), false, false)
+                    (DataName(s1.clone()), false, false)
                 } else {
                     self.found_err = Err(format!("merge conflict: {a:?} {b:?}"));
-                    (TypeName(s1.clone()), false, false)
+                    (DataName(s1.clone()), false, false)
                 }
             }
 
@@ -284,24 +283,8 @@ impl Analysis<RiseType> for UnifyAnalysis {
         }
         let data = egraph[id].data.const_prop.clone();
         if let Some(c) = data {
-            // if egraph.are_explanations_enabled() {
-            //     egraph.union_instantiations(
-            //         &pat,
-            //         &format!("{}", c).parse().unwrap(),
-            //         &Default::default(),
-            //         "constant_fold".to_string(),
-            //     );
-            // } else {
             let added = egraph.add(RiseType::Num(c));
             egraph.union(id, added);
-            // }
-            // to not prune, comment this out
-            // egraph[id]
-            //     .nodes
-            //     .retain(|n| n.is_leaf() || is_mvar(n) || is_bvar(n));
-
-            // #[cfg(debug_assertions)]
-            // egraph[id].assert_unique_leaves();
         }
     }
 }
@@ -312,12 +295,6 @@ fn is_mvar(l: &RiseType) -> bool {
         _ => false,
     }
 }
-// fn is_bvar(l: &RiseType) -> bool {
-//     match l {
-//         RiseType::TermBVar(_) | RiseType::TypeBVar(_) => true,
-//         _ => false,
-//     }
-// }
 
 fn pretty_mvar(egraph: &EGraph, l: &RiseType) -> Option<String> {
     let prefix = match l {
@@ -332,8 +309,8 @@ fn pretty_mvar(egraph: &EGraph, l: &RiseType) -> Option<String> {
     }
 }
 
-struct SillyCostFn;
-impl CostFunction<RiseType> for SillyCostFn {
+struct CostFn;
+impl CostFunction<RiseType> for CostFn {
     type Cost = i32;
     fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
     where
@@ -341,52 +318,13 @@ impl CostFunction<RiseType> for SillyCostFn {
     {
         let op_cost = match enode {
             RiseType::NatMVar(_) => 100,
-            // RiseType::Num(_) => todo!(),
-            // RiseType::Add(_) => todo!(),
-            // RiseType::Mul(_) => todo!(),
-            // RiseType::Div(_) => todo!(),
-            // RiseType::Sub(_) => todo!(),
-            // RiseType::TermBVar(id) => todo!(),
             _ => 1,
         };
         enode.fold(op_cost, |sum, id| sum + costs(id))
     }
 }
 
-// struct ExcludingIdCostFn {
-//     top: bool,
-//     id: Id,
-// }
-
-// impl CostFunction<RiseType> for ExcludingIdCostFn {
-//     type Cost = i32;
-//     fn cost<C>(&mut self, enode: &RiseType, mut costs: C) -> Self::Cost
-//     where
-//         C: FnMut(Id) -> Self::Cost,
-//     {
-//         let op_cost = match enode {
-//             RiseType::TermMVar(id) => {
-//                 if &self.id == id {
-//                     i32::MAX
-//                 } else {
-//                     100
-//                 }
-//             }
-//             // RiseType::Num(_) => todo!(),
-//             // RiseType::Add(_) => todo!(),
-//             // RiseType::Mul(_) => todo!(),
-//             // RiseType::Div(_) => todo!(),
-//             // RiseType::Sub(_) => todo!(),
-//             // RiseType::TermBVar(id) => todo!(),
-//             _ => 1,
-//         };
-//         // self.top = false;
-//         enode.fold(op_cost, |sum, id| sum.saturating_add(costs(id)))
-//     }
-// }
-
 pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
-    // let goals: Vec<&str> = input.split(';').filter(|x| *x != "").collect::<Vec<&str>>();
     let goals: Vec<(&str, &str)> = input
         .split(';')
         .filter(|x| *x != "")
@@ -394,25 +332,40 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         .collect::<Result<Vec<(&str, &str)>, String>>()?;
 
     // setup
-    let mut eg: EGraph = EGraph::new(UnifyAnalysis::default()); //.with_explanations_enabled();
+    let mut eg: EGraph = EGraph::new(UnifyAnalysis::default());
     for (s1, s2) in goals {
         let a: RecExpr<RiseType> = (format!("(~ {s1} {s2})")).parse().unwrap();
-        let _id_a = eg.add_expr(&a);
+        let _ = eg.add_expr(&a);
     }
 
     // run
     let mut runner: Runner<RiseType, UnifyAnalysis> =
         Runner::default().with_egraph(eg).run(&dt_rules());
-    // let mut counter = 0;
-    // while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
+
+    #[cfg(feature = "dot")]
+    runner.egraph.dot().to_svg("target/foo.svg").unwrap();
+
+    // let s3: Pattern<RiseType> = "(~ ?a ?b)".parse().unwrap();
+    // let p = s3.search(&runner.egraph);
+    // for m in p {
+    //     for s in m.substs {
+    //         let id_a = s["?a".parse().unwrap()];
+    //         let id_b = s["?b".parse().unwrap()];
+    //         let v = runner.egraph[id_a].data.variant.clone();
+    //         if v == Variant::Nat || v == Variant::NatMVar {
+    //             continue;
+    //         }
+    //         if id_a != id_b {
+    //             return Err(format!(
+    //                 "not all data-unifications point to same eclass! {id_a} {id_b}"
+    //             ));
+    //         }
+    //     }
+    // }
+
     runner = Runner::default()
         .with_egraph(runner.egraph)
-        .with_scheduler(BackoffScheduler::default().do_not_ban("assoc-plus"))
-        // .with_scheduler(SimpleScheduler {})
-        // .with_iter_limit(5)
-        .run(&nat_rules_shift());
-    //     counter += 1;
-    // }
+        .run(&nat_rules_isolate());
 
     let eg = runner.egraph;
 
@@ -437,64 +390,48 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
             let r = RecExpr::from(vec![a.clone(), RiseType::NatMVar(0.into())]);
             let id_a = neweg.add_expr(&r);
 
-            let b = &pq(&eg, s["?b".parse().unwrap()]);
+            let b = &get_repr_recexpr(&eg, s["?b".parse().unwrap()]);
             let id_b = neweg.add_expr(b);
             neweg.union(id_a, id_b);
-            // neweg.add(RiseType::Unify([id_a, id_b]));
-            // eprintln!(
-            //     "{}: {}",
-            //     RecExpr::from(vec![a]).pretty(1000),
-            //     b.pretty(1000)
-            // );
         }
     }
-    // let s3: Pattern<RiseType> = "(~ (data_mvar ?a) ?b)".parse().unwrap();
-    // // let mut neweg = EGraph::new(UnifyAnalysis::default());
-    // let p = s3.search(&eg);
-    // for m in p {
-    //     for s in m.substs {
-    //         let pid_a = s["?a".parse().unwrap()];
-    //         let a = get_repr(&eg, pid_a);
-    //         let r = RecExpr::from(vec![a.clone(), RiseType::TypeMVar(0.into())]);
-    //         let id_a = neweg.add_expr(&r);
 
-    //         let b = &pq(&eg, s["?b".parse().unwrap()]);
-    //         let id_b = neweg.add_expr(b);
-    //         neweg.union(id_a, id_b);
-    //         // neweg.add(RiseType::Unify([id_a, id_b]));
-    //         // eprintln!(
-    //         //     "{}: {}",
-    //         //     RecExpr::from(vec![a]).pretty(1000),
-    //         //     b.pretty(1000)
-    //         // );
-    //     }
-    // }
-    // let neweg = eg;
+    let mut map = HashMap::new();
+    let s4: Pattern<RiseType> = "(~ (data_mvar ?a) ?b)".parse().unwrap();
+    let p = s4.search(&eg);
+    for m in p {
+        for s in m.substs {
+            let pid_a = s["?a".parse().unwrap()];
+            let a = get_repr(&eg, pid_a);
+            let r = RecExpr::from(vec![a.clone(), RiseType::DataMVar(0.into())]);
+            let id_a = neweg.add_expr(&r);
 
-    let iters = std::env::var("SIMP_ITERS")
-        .unwrap_or("3".into())
-        .parse::<usize>()
-        .expect("cant parse usize in iters");
+            let b = &get_repr_recexpr(&eg, s["?b".parse().unwrap()]);
+            let id_b = neweg.add_expr(b);
+            neweg.union(id_a, id_b);
+        }
+    }
+
+    // it seems the env is not read when running via lake, so we can't configure iters like this...
+    // let iters = std::env::var("EGG_SIMP_ITERS")
+    //     .unwrap_or("3".into())
+    //     .parse::<usize>()
+    //     .expect("cant parse usize in iters");
+
+    let simp_iters = 3;
+
     let runner: Runner<RiseType, UnifyAnalysis> = Runner::default()
         .with_egraph(neweg)
         // .with_scheduler(SimpleScheduler {})
-        .with_iter_limit(iters)
+        .with_iter_limit(simp_iters)
         // .with_time_limit(Duration::from_secs(5))
         .run(&nat_rules());
 
-    // while counter < 4 && runner.egraph.analysis.found_err.is_ok() {
-    //     runner = Runner::default()
-    //         .with_egraph(runner.egraph)
-    //         .with_iter_limit(20)
-    //         .run(&nat_rules());
-    //     counter += 1;
-    // }
     let eg = runner.egraph;
     // #[cfg(feature = "dot")]
     // eg.dot().to_svg("target/foo.svg").unwrap();
 
     // dbg!(eg.dump());
-    let mut map = HashMap::new();
     for class in eg.classes() {
         // find repr
         let init = get_repr(&eg, class.id);
@@ -511,54 +448,20 @@ pub fn unify(input: &str) -> Result<HashMap<String, String>, String> {
         }
     }
 
-    // let s3: Pattern<RiseType> = "(~ (nat_mvar n_1) ?b)".parse().unwrap();
-    // let mut neweg = EGraph::new(UnifyAnalysis::default());
-    // let p = s3.search(&eg);
-    // for m in p {
-    //     for s in m.substs {
-    //         // let pid_a = s["?a".parse().unwrap()];
-    //         let pid_a = 0.into();
-    //         let a = get_repr(&eg, pid_a);
-    //         let r = RecExpr::from(vec![a.clone(), RiseType::TermMVar(0.into())]);
-    //         let id_a = neweg.add_expr(&r);
-
-    //         let b = &pq_excl(&eg, s["?b".parse().unwrap()], pid_a);
-    //         let id_b = neweg.add_expr(b);
-    //         neweg.union(id_a, id_b);
-    //         // neweg.add(RiseType::Unify([id_a, id_b]));
-    //         eprintln!(
-    //             "{}: {}",
-    //             RecExpr::from(vec![a]).pretty(1000),
-    //             b.pretty(1000)
-    //         );
-    //     }
-    // }
     Ok(map)
 }
 
-fn pq(eg: &EGraph, id: Id) -> RecExpr<RiseType> {
+fn get_repr_recexpr(eg: &EGraph, id: Id) -> RecExpr<RiseType> {
     let init = get_repr(&eg, id);
     let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
     repr
 }
 
-// fn pq_excl(eg: &EGraph, id: Id, ex: Id) -> RecExpr<RiseType> {
-//     let init = get_repr_excl(&eg, id, ex);
-//     let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr_excl(&eg, n, n));
-//     repr
-// }
-
-// fn ppp(eg: &EGraph, id: Id) -> String {
-//     let init = get_repr(&eg, id);
-//     let repr: RecExpr<RiseType> = init.build_recexpr(|n| get_repr(&eg, n));
-//     repr.pretty(1000)
-// }
-
 fn get_repr(eg: &EGraph, id: Id) -> RiseType {
     let class = eg[id].clone();
     match get_variant(&class.nodes[0]) {
-        Variant::Term | Variant::TermMVar => {
-            let ex = Extractor::new(&eg, SillyCostFn {});
+        Variant::Nat | Variant::NatMVar => {
+            let ex = Extractor::new(&eg, CostFn {});
             let v = ex.find_best_node(id);
             v.clone()
         }
@@ -573,41 +476,11 @@ fn get_repr(eg: &EGraph, id: Id) -> RiseType {
                     // first mvar
                     class.nodes[0].clone()
                 }
-                1 => non_mvars[0].clone(),
-                _ => {
-                    panic!("found multiple non_mvars: {non_mvars:?}")
-                }
+                _ => non_mvars[0].clone(),
+                // _ => {
+                //     panic!("found multiple non_mvars: {non_mvars:?}")
+                // }
             }
         }
     }
 }
-// fn get_repr_excl(eg: &EGraph, id: Id, ex: Id) -> RiseType {
-//     // dbg!(id, &eg[id]);
-//     // dbg!(id);
-//     let class = eg[id].clone();
-//     match get_variant(&class.nodes[0]) {
-//         Variant::Term | Variant::TermMVar => {
-//             let ex = Extractor::new(&eg, SillyCostFn {});
-//             // let ex = Extractor::new(&eg, ExcludingIdCostFn { top: true, id: ex });
-//             let v = ex.find_best_node(id);
-//             v.clone()
-//         }
-//         _ => {
-//             let non_mvars = class
-//                 .nodes
-//                 .iter()
-//                 .filter(|n| !is_mvar(n))
-//                 .collect::<Vec<_>>();
-//             match non_mvars.len() {
-//                 0 => {
-//                     // first mvar
-//                     class.nodes[0].clone()
-//                 }
-//                 1 => non_mvars[0].clone(),
-//                 _ => {
-//                     panic!("found multiple non_mvars: {non_mvars:?}")
-//                 }
-//             }
-//         }
-//     }
-// }

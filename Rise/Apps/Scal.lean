@@ -9,6 +9,7 @@ import Rise
 --     input |> mapSeq (fun x => alpha * x)
 -- ]
 
+set_option egg.debug_enable true in
 def scalIntel := [RiseC|
   fun n : nat =>
   fun input : n·f32 =>
@@ -24,7 +25,7 @@ def scalIntel := [RiseC|
     ) |>
     join
 ]
-#pp scalIntel.type
+#pp scalIntel
 
 -- def scalt := [RiseC|
 --   fun n : nat =>

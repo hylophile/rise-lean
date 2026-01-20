@@ -189,34 +189,14 @@ def stabilizeUnifyResults : RElabM Unit := do
   modify (λ r => {r with unifyResult := new})
   return ()
 
-def applyUnifyResults (t : RType) : RElabM RType := do
+def RType.applyUnifyResults (t : RType) : RElabM RType := do
   let unifyResults : Substitution := (← get).unifyResult
   return t.apply unifyResults
 
-def applyUnifyResultsUntilStable (x : RType) (fuel : Nat := 100) : RElabM RType := do
-  let unifyResults : Substitution := (← get).unifyResult
-  let rec loop (current : RType) (remaining : Nat) : RElabM RType :=
-    if remaining = 0 then throwError "fuel ran out"
-    else
-      let next := current.apply unifyResults
-      if next == current then return current
-      else loop next (remaining - 1)
-  loop x fuel
-
-def applyUnifyResultsUntilStableRNat (x : RNat) (fuel : Nat := 100) : RElabM RNat := do
-  let unifyResults : Substitution := (← get).unifyResult
-  let rec loop (current : RNat) (remaining : Nat) : RElabM RNat :=
-    if remaining = 0 then throwError "fuel ran out"
-    else
-      let next := current.apply unifyResults
-      if next == current then return current
-      else loop next (remaining - 1)
-  loop x fuel
-
-partial def applyUnifyResultsRecursivelyUntilStable (e : TypedRExpr) : RElabM TypedRExpr := do
-  let newt := (← applyUnifyResultsUntilStable e.type)
+partial def TypedRExpr.applyUnifyResults (e : TypedRExpr) : RElabM TypedRExpr := do
+  let newType := (← e.type.applyUnifyResults)
   match e.node with
-  | .app e1 e2 => return ⟨.app (← applyUnifyResultsRecursivelyUntilStable e1) (← applyUnifyResultsRecursivelyUntilStable e2), newt⟩
-  | .lam un t b => return ⟨.lam un (← applyUnifyResultsUntilStable t) (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
-  | .deplam un k b => return ⟨.deplam un k (← applyUnifyResultsRecursivelyUntilStable b), newt⟩
-  | _ => return ⟨e.node, newt⟩
+  | .app e1 e2 => return ⟨.app (← e1.applyUnifyResults) (← e2.applyUnifyResults), newType⟩
+  | .lam un t b => return ⟨.lam un (← t.applyUnifyResults) (← b.applyUnifyResults), newType⟩
+  | .deplam un k b => return ⟨.deplam un k (← b.applyUnifyResults), newType⟩
+  | _ => return ⟨e.node, newType⟩

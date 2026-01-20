@@ -24,12 +24,6 @@ def slide2D4 := [RiseC|
 ]
 -- #pp slide2D4.type
 
--- -- def slideex := [RiseC|
--- --   fun x : 18 · f32 => slide (6 : nat) (6 : nat) x
--- -- ]
--- -- #pp slideex.type
-
-
 def slide2D := [RiseC|
   fun sz st : nat =>
     $slide2D4 (sz : nat) (st : nat) (sz : nat) (st : nat)
@@ -99,7 +93,7 @@ def downSample2D := [RiseC|
   input |>
   $padClamp2D
       (1 : nat) (2 + 2*(1 + h/2 - h/2) : nat) -- 1 - h % 2 -- see comment above
-      (1 : nat) (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2
+      (1 : nat) (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2 -- this is actually wrong, we would need either modulo or a second div operator
       -- (1 : nat) (4 - h%2: nat)
       -- (1 : nat) (4 - w%2: nat)
   >> map (slide (4 : nat) (2 : nat))
@@ -109,6 +103,7 @@ def downSample2D := [RiseC|
 ]
 #pp downSample2D.type
 
+set_option egg.debug_enable true in
 def upsample2D := [RiseC|
   def upsampleWeights1 : 2·f32
   def upsampleWeights2 : 2·f32
@@ -132,7 +127,7 @@ def upsample2D := [RiseC|
   >> map (transpose >> map join)
   >> join
   >> drop (1 : nat)
-  >> $dropLast (2 + 2*(h/2) - h : nat) -- is dropLast different from take? (yes!)
+  >> $dropLast (2 + 2*(h/2) - h : nat)
   >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
 ]
-#pp upsample2D.type
+#pp upsample2D

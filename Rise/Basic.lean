@@ -1,4 +1,5 @@
 import Lean.Data.Json
+import Lean.Elab
 
 --
 -- Kind
@@ -353,3 +354,8 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
 instance : Lean.ToJson TypedRExpr where
   toJson e := e.toJson
 
+register_option egg.debug_enable : Bool := {
+  defValue := false
+  group := "egg"
+  descr := "Enables running egg and comparing results to sympy."
+}

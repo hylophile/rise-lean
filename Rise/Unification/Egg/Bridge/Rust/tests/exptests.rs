@@ -111,6 +111,13 @@ fn t_wtf2() {
 }
 
 #[test]
+fn t_w5() {
+    let goals = "(data_mvar n_0)=f32;(data_mvar n_0)=int";
+    let r = unify(goals).unwrap();
+    assert_eq!(r, map![]);
+}
+
+#[test]
 fn distr() {
     let goals = "(nat_mvar n_0)=(- (* 2 (+ 2 (/ (nat_bvar w_0) 2))) 1)";
     // let goals = "(nat_mvar n_0)=(* 2 (+ 2 (/ (nat_bvar w_0) 2)))";
@@ -181,6 +188,14 @@ fn scalqq() {
     // let goals = "(array (nat_mvar m_8) (vector (nat_mvar n_7) (data_mvar t_9)))=(array (* (nat_mvar n_11) (nat_mvar m_12)) (data_mvar t_13));(array (nat_mvar n_11) (array (nat_mvar m_12) (data_mvar t_13)))=(array (nat_mvar n_15) (data_mvar t_17));(array (nat_mvar n_15) (data_mvar s_16))=(array (nat_mvar m_26) (array 128 (data_mvar t_27)));(array (* (nat_mvar m_26) 128) (data_mvar t_27))=(array (nat_mvar m_28) (vector 4 (data_mvar t_29)))";
     let goals = "(array (* (nat_mvar m_28) 4) (data_mvar t_29))=(data_mvar anonymous_25);(data_mvar anonymous_25)=(data_mvar anonymous_14);(data_mvar anonymous_14)=(data_mvar anonymous_10);(data_mvar anonymous_10)=(data_mvar anonymous_6);(-> (data_mvar s_4) (data_mvar t_5))=(-> (data_mvar anonymous_6) (array (* (nat_mvar m_8) (nat_mvar n_7)) (data_mvar t_9)));(array (nat_mvar n_3) (data_mvar s_4))=(array (nat_mvar m_30) (array (* (* 4 128) 128) (data_mvar t_31)))";
 
+    let r = unify(goals).unwrap();
+    pp(&r);
+    assert_eq!(r, map![]);
+}
+
+#[test]
+fn mm() {
+    let goals = "(array (nat_mvar n_0) (data_mvar s_1))=(array (nat_bvar m_1) (array (nat_bvar n_2) f32));(-> (data_mvar s_1) (data_mvar t_2))=(-> (data_mvar anonymous_3) (array (nat_mvar n_4) (data_mvar t_6)));(array (nat_mvar n_4) (data_mvar s_5))=(array (nat_mvar m_10) (array (nat_mvar n_9) (data_mvar t_11)));(array (nat_mvar n_9) (array (nat_mvar m_10) (data_mvar t_11)))=(array (nat_bvar n_2) (array (nat_bvar p_0) f32));(-> (data_mvar s_5) (data_mvar t_6))=(-> (data_mvar anonymous_7) f32);(array (nat_mvar n_8) f32)=(data_mvar anonymous_7);(array (nat_mvar n_8) f32)=(data_mvar anonymous_3)";
     let r = unify(goals).unwrap();
     pp(&r);
     assert_eq!(r, map![]);

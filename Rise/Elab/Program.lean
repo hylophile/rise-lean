@@ -16,7 +16,7 @@ syntax (rise_decl)* rise_expr : rise_program
 
 def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
   let keys := (s1.map (·.fst) ++ s2.map (·.fst)).eraseDups
-  let header := "id,Subst1,Subst2,naiveEq"
+  let header := "id,mm+sympy,egg,naiveEq"
   let rows := keys.map (fun k =>
     let v1 := s1.lookup k |>.map toString |>.getD "❌"
     let v2 := s2.lookup k |>.map toString |>.getD "❌"
@@ -29,43 +29,41 @@ def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElab
   match decls with
   | [] => do
       let expr ← elabToTypedRExpr expr
-      let beforesubst := expr
-      let expr ← applyUnifyResultsRecursivelyUntilStable expr
-      -- dbg_trace "-------------------"
-      let eqs := (<- get).rnatEqualities
-      let goals := (<- get).unifyGoals
-      dbg_trace (goals,eqs)
-      let stableEqs <- eqs.mapM (fun (l,r) => do
-        let l <- applyUnifyResultsUntilStableRNat l
-        let r <- applyUnifyResultsUntilStableRNat r
-        return (l,r)
-      )
-      -- dbg_trace (eqs, stableEqs)
-      let subst ← solveWithSymPy stableEqs
-      -- dbg_trace subst
-      addSubst (Syntax.missing) subst
-      let expr ← applyUnifyResultsRecursivelyUntilStable expr
-
+      let natGoals := (<- get).rnatEqualities
+      -- dbg_trace natGoals
+      let natSubst ← solveWithSymPy natGoals
+      addSubst Syntax.missing natSubst
       let _ ← stabilizeUnifyResults
-      let goals := (<- get).unifyGoals
-      let goalsStr := (<- get).unifyGoals |> List.map (fun (x,y) => s!"{x.toEggSExpr}={y.toEggSExpr}") |>String.intercalate ";"
-      if goalsStr.length > 0 then
-        let res ← match (← elabEggSolveOutput <| runEgg goalsStr) with
-          | .ok x => pure x
-          | .error e => throwError e
-        let applied: List (RType × RType) := goals.map (fun (l,r) =>
-          let l := l.apply res
-          let r := r.apply res
-          (l,r)
-        )
-        let smt := mkSmtCheck applied
-        -- dbg_trace res
-        let unifyResults : Substitution := (← get).unifyResult
-        -- dbg_trace unifyResults
-        -- dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n{smt}\n\n"
-        dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n"
-        -- dbg_trace s!"egg. Input\n{goalsStr}\n\nbeforesubst:\n{beforesubst.type}\n\nafter:\n{expr.type}\n\n"
-        dbg_trace (compareSubstitutionsCSV unifyResults res)
+      let expr ← expr.applyUnifyResults
+
+      if egg.debug_enable.get (← getOptions) then
+        let initialGoals := (<- get).unifyGoals
+        -- dbg_trace initialGoals
+        let initialGoalsStr := initialGoals |> List.map (fun (x,y) => s!"{x.toEggSExpr}={y.toEggSExpr}") |>String.intercalate ";"
+        dbg_trace "-
+egg input:
+{initialGoalsStr}
+      "
+        if initialGoalsStr.length > 0 then
+          let eggResult ← match (← elabEggSolveOutput <| runEgg initialGoalsStr) with
+            | .ok x => pure x
+            | .error e => throwError e
+          let appliedGoals: List (RType × RType) := initialGoals.map (fun (l,r) =>
+            let l := l.apply eggResult
+            let r := r.apply eggResult
+            (l,r)
+          )
+          let smt := mkSmtCheck appliedGoals
+          let unifyResults : Substitution := (← get).unifyResult
+          dbg_trace s!"-
+SMTLIB program to check satisfiability:
+{smt}
+
+Comparison table, naiveEq is syntactical equality:
+{compareSubstitutionsCSV unifyResults eggResult}
+
+          "
+       
       return toExpr expr
 
   | decl :: rest =>
@@ -210,17 +208,14 @@ macro_rules
   $e:rise_expr
 )
 
+/-- Rise programs with core imported. -/
 elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
   let p ← `(rise_program| import core
             $[$ds:rise_decl]* $e:rise_expr)
   let p ← liftMacroM <| expandMacros p
   liftToTermElabM <| elabRProgram p
 
--- #eval toJson [RiseC| add 0 5]
-
 /-- Command for pretty printing using the ToString instance. -/
 syntax "#pp " term : command
 macro_rules
 | `(#pp $e) => `(#eval IO.print <| toString $e)
-
--- #pp [RiseC| reduce add 0]

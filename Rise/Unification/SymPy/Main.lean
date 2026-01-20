@@ -50,7 +50,8 @@ private unsafe def runSymPyImpl (input : String) : Except Error (String × Strin
     let child ← do
       let (stdin, child) ← (← IO.Process.spawn {
         cmd := "uv",
-        args := #["run" ,"--offline","--with", "sympy", "-"],
+        -- args := #["run" ,"--offline","--with", "sympy", "-"],
+        args := #["run" ,"--with", "sympy", "-"],
         stdin := .piped,
         stdout := .piped,
         stderr := .piped
@@ -74,10 +75,9 @@ private def pairToSubstitution (ps : List (RNat × RNat)) : Option Substitution 
 def solveWithSymPy (eqs: List (RNat × RNat)) : RElabM Substitution :=
   if eqs.length == 0 then return [] else
   let sympyInput := eqs |> listToSymPyProgram
-  dbg_trace s!"sympy_input:\n{sympyInput}\n\n"
+  -- dbg_trace s!"-\nsympy_input:\n{sympyInput}\n\n"
   match sympyInput |> runSymPy with
   | .ok (stdout,_stderr) => do
-    dbg_trace _stderr
     let res ← elabSymPySolveOutput stdout
     match res with
     | .ok res =>

@@ -69,11 +69,8 @@ def mkSmtCheck (appliedGoals : List (RType × RType)) : String :=
     |> String.intercalate "\n"
   s!"
 {vars}
-
 {asserts}
-
 {divs}
-
 (check-sat)
 (get-model)
   "

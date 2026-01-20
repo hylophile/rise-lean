@@ -29,6 +29,10 @@ def dot := [RiseC|
 -- ]
 -- #pp y.type
 
+-- todo: fuel runs out here. probably a bug
+-- #pp [RiseC| fun x => add x (x.2.1)]
+-- 
+-- #pp [RiseC| (generate (fun dummy : idx[64] => 0.0f32))]
 
 def y := [RiseC|
 

@@ -42,9 +42,6 @@ def gemvHighLevel := [RiseC|
 -- #pp gemvHighLevel.type
 
 
--- fuel runs out here. probably a bug?
--- #pp [RiseC| fun x => add x (x.2.1)]
-#pp [RiseC| (generate (fun dummy : idx[64] => 0.0f32))]
 
 def gemvBlastN := [RiseC|
   fun {n m : nat} =>
@@ -66,7 +63,7 @@ def gemvBlastN := [RiseC|
       <| zip (transpose << map (split (64 : nat) << fst) <| matChunk) (split (64 : nat) xs)
       ) << split (64 : nat) <| zip mat ys
 ]
-#pp gemvBlastN.type
+#pp gemvBlastN
 
 def gemvBlastT := [RiseC|
   fun (p q : nat) =>

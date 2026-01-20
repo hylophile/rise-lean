@@ -17,6 +17,7 @@ def dotSeq := [RiseC|
 ]
 -- #pp dot.type
 
+set_option egg.debug_enable true in
 def mmHighLevel := [RiseC|
   fun {n m p : nat} =>
   fun a : m·n·f32 =>
@@ -25,11 +26,4 @@ def mmHighLevel := [RiseC|
       transpose b |> map (fun bCol => $dot aRow bCol)
     )
 ]
-#pp mmHighLevel.type
-
-
-def x := [RiseC|
-  fun x : f32 => id 3
-
-]
-#pp x.type
+#pp mmHighLevel

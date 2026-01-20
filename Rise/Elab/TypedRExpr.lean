@@ -187,7 +187,7 @@ partial def implicitsToMVars (t: RType) : RElabM RType := do
 
 /-- Lean.Meta.evalExpr is unsafe, but we use it in elabToTypedRExpr. -/
 @[implemented_by evalExpr]
-opaque myEvalExpr (α) (expectedType : Expr) (value : Expr) (safety := DefinitionSafety.safe) : MetaM α
+opaque unsafeEvalExpr (α) (expectedType : Expr) (value : Expr) (safety := DefinitionSafety.safe) : MetaM α
 
 /-- Main elaboration function for Rise expressions. -/
 partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
@@ -300,8 +300,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
             | throwError "definition {name} not found"
           match decl.value? with
           | some v =>
-            let v ← myEvalExpr TypedRExpr (mkConst ``TypedRExpr) v
-            -- todo: Shifting mvars is not necessary if we start prohibiting Rise programs that contain mvars.
+            let v ← unsafeEvalExpr TypedRExpr (mkConst ``TypedRExpr) v
+            -- todo: Shifting mvars is not necessary once we start prohibiting Rise programs that contain mvars.
             shiftMVars v
           | none => throwError "?!?"
         | _=> throwError "???"
