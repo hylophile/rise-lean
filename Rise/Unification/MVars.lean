@@ -38,8 +38,6 @@ mutual
 partial def TypedRExprNode.mapMVars (t : TypedRExprNode) (f : RMVarId → RMVarId) : TypedRExprNode :=
   match t with
   | .bvar ..
-  | .fvar ..
-  | .mvar ..
   | .const ..
   | .lit .. => t
   | .app fn arg => .app (fn.mapTypeMVars f) (arg.mapTypeMVars f)
@@ -92,9 +90,7 @@ partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
   let t_mvars := e.type.collectMVarIds
   let n_mvars := match e.node with
     | .bvar ..
-    | .fvar ..
     | .const ..
-    | .mvar .. -- yes, really.
     | .lit .. => {}
     | .app fn arg => fn.collectMVarIds ∪ arg.collectMVarIds
     | .depapp fn arg => match arg with

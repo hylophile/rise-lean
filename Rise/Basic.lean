@@ -1,6 +1,8 @@
 import Lean.Data.Json
 import Lean.Elab
 
+open Lean.Name
+abbrev Name := Lean.Name
 --
 -- Kind
 --   κ ::= nat | data (Natural Number Kind, Datatype Kind)
@@ -14,8 +16,8 @@ deriving BEq, Hashable, Repr
 -- Nat
 --   n ::= 0 | n + n | n · n | ... (Natural Number Literals, Binary Operations)
 inductive RNat
-  | bvar (deBruijnIndex : Nat) (userName : Lean.Name)
-  | mvar (id : Nat) (userName : Lean.Name)
+  | bvar (deBruijnIndex : Nat) (userName : Name)
+  | mvar (id : Nat) (userName : Name)
   | nat  (n : Nat)
   | plus (n : RNat) (m : RNat)
   | minus (n : RNat) (m : RNat)
@@ -46,8 +48,8 @@ deriving Repr, BEq
 -- DataType
 --   δ ::= n.δ | δ × δ | "idx [" n "]" | scalar | n<scalar>  (Array Type, Pair Type, Index Type, Scalar Type, Vector Type)
 inductive RData
-  | bvar (deBruijnIndex : Nat) (userName : Lean.Name)
-  | mvar (id : Nat) (userName : Lean.Name)
+  | bvar (deBruijnIndex : Nat) (userName : Name)
+  | mvar (id : Nat) (userName : Name)
   | array  : RNat → RData → RData
   | pair   : RData → RData → RData
   | index  : RNat → RData
@@ -66,7 +68,7 @@ deriving Repr, BEq
 --   τ ::= δ | τ → τ | (x : κ) → τ (Data Type, Function Type, Dependent Function Type)
 inductive RType where
   | data (dt : RData)
-  | pi (binderKind : RKind) (binderInfo : RBinderInfo) (userName : Lean.Name) (body : RType)
+  | pi (binderKind : RKind) (binderInfo : RBinderInfo) (userName : Name) (body : RType)
   | fn (binderType : RType) (body : RType)
 deriving Repr, BEq
 
@@ -90,26 +92,24 @@ structure TypedRExpr where
 deriving Repr, BEq
 
 inductive TypedRExprNode where
-  | bvar (deBruijnIndex : Nat) (userName: Lean.Name)
-  | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
-  | mvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
-  | const (userName : Lean.Name)
+  | bvar (deBruijnIndex : Nat) (userName: Name)
+  | const (userName : Name)
   | lit (val : RLit)
   | app (fn arg : TypedRExpr)
   | depapp (fn : TypedRExpr) (arg : RWrapper)
-  | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
-  | deplam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
+  | lam (binderName : Name) (binderType : RType) (body : TypedRExpr)
+  | deplam (binderName : Name) (binderKind : RKind) (body : TypedRExpr)
 deriving Repr, BEq
 end
 
-abbrev KindingContextElement := Lean.Name × RKind
+abbrev KindingContextElement := Name × RKind
 abbrev KindingContext := Array KindingContextElement
 
-abbrev TypingContextElement := Lean.Name × RType
+abbrev TypingContextElement := Name × RType
 abbrev TypingContext := Array TypingContextElement
 
 structure MetaVarDeclaration where
-  userName : Lean.Name := Lean.Name.anonymous
+  userName : Name := .anonymous
   kind : RKind
   type : Option RType := none
 
@@ -299,8 +299,6 @@ def RWrapper.render : RWrapper -> Std.Format
 
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
-  | .mvar id      => f!"?{id}"
-  | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
   | .app f e      => match f.node, e.node with
@@ -314,8 +312,6 @@ partial def TypedRExprNode.render : TypedRExprNode → Std.Format
 
 partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
-  | .mvar id      => f!"?{id}"
-  | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
   | .app f e      => match f.node, e.node with

@@ -46,7 +46,7 @@ declare_syntax_cat egg_map
 syntax (egg_pair,*) : egg_map
 
 
-private def elabName (x:Syntax) : RElabM (Name × Nat) :=
+private def elabName (x:Syntax) : RElabM (Lean.Name × Nat) :=
   match x.getId.toString.split (· == '_') with
     | [name,id] => match id.toNat? with
       | some id => pure (name.toName, id)

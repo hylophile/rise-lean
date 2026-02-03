@@ -33,10 +33,6 @@ def TypedRExprNode.toExpr : TypedRExprNode → Expr
         mkAppN (mkConst ``TypedRExprNode.lit) #[toExpr n]
     | .bvar index name =>
         mkAppN (mkConst ``TypedRExprNode.bvar) #[mkNatLit index, toExpr name]
-    | .fvar name =>
-        mkAppN (mkConst ``TypedRExprNode.fvar) #[toExpr name]
-    | .mvar name =>
-        mkAppN (mkConst ``TypedRExprNode.mvar) #[toExpr name]
     | .const name =>
         mkAppN (mkConst ``TypedRExprNode.const) #[toExpr name]
     | .lam name t body =>
