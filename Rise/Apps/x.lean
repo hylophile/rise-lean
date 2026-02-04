@@ -40,7 +40,7 @@ def y := [RiseC|
   fun {p q : nat} =>
   fun xs : p·f32 =>
   fun ys : q·f32 =>
-  take (5 : nat) <| add xs ys
+  take 5 <| add xs ys
 ]
 #pp y.type
 -- def y := [RiseC|
@@ -48,8 +48,8 @@ def y := [RiseC|
 --   fun a b : nat =>
 --   fun {q : nat} =>
 --   fun xs : q·f32 =>
---   add (take (a : nat) xs)
---       (take (b : nat) xs)
+--   add (take a xs)
+--       (take b xs)
 -- ]
 -- #pp y.type
 

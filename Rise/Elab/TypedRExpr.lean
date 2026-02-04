@@ -88,8 +88,10 @@ syntax rise_expr ".1" : rise_expr
 syntax rise_expr ".2" : rise_expr
 
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
-syntax:50 rise_expr:50 "(" rise_nat ":" "nat" ")"             : rise_expr
-syntax:50 rise_expr:50 "(" rise_data ":" "data" ")"           : rise_expr
+syntax:50 rise_expr:50 rise_nat            : rise_expr
+syntax:50 rise_expr:50 rise_data           : rise_expr
+-- syntax:50 rise_expr:50 "(" rise_nat ":" "nat" ")"             : rise_expr
+-- syntax:50 rise_expr:50 "(" rise_data ":" "data" ")"           : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<|" rise_expr:41                    : rise_expr
 syntax:41 rise_expr:41 ">>" rise_expr:42                    : rise_expr
@@ -98,7 +100,7 @@ syntax:60 "(" rise_expr ")"                                 : rise_expr
 
 macro_rules
   | `(rise_expr| let $x:ident := $v:rise_expr in $b:rise_expr) =>
-    `(rise_expr| ((fun $x:ident => $b) $v))
+    `(rise_expr| ((fun $x:ident => $b) $v:rise_expr))
   | `(rise_expr| fun $x:ident => $b:rise_expr) =>
     `(rise_expr| fun ($x:ident) => $b:rise_expr)
 
@@ -262,7 +264,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
           return ⟨.app f e, brt⟩
       | _ => throwErrorAt f_syn s!"expected a function type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
-  | `(rise_expr| $f_syn:rise_expr ($n:rise_nat : nat)) => do
+  | `(rise_expr| $f_syn:rise_expr $n:rise_nat) => do
     let n <- elabToRNat n
     let f <- elabToTypedRExpr f_syn
     let f := {f with type := (← implicitsToMVars f.type)}
@@ -272,7 +274,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       return ⟨.depapp f <| .nat n, bt⟩
     | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
-  | `(rise_expr| $f_syn:rise_expr ($d:rise_data : data)) => do
+  | `(rise_expr| $f_syn:rise_expr $d:rise_data) => do
     let d ← elabToRData d
     let f <- elabToTypedRExpr f_syn
     let f := {f with type := (← implicitsToMVars f.type)}
@@ -280,10 +282,37 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     | .pi .data .explicit _ b =>
       let bt := b.supplyRData d
       return ⟨.depapp f <| .data d, bt⟩
-    | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
+    | _ => throwErrorAt f_syn s!"expected a data pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | stx =>
     match stx with
+    | .node _ `choice choices => do
+      -- dbg_trace choices.map (·.getArgs) |>.map (fun x => x.map (·.getKind.toString))
+      let cs := choices.map (·.getArgs)
+      -- match choices[0]! with
+      -- | `(rise_expr| $e:rise_expr) =>
+      if cs.all (·.size == 2) then -- app ambiguity
+        let e1_syn := cs[0]![0]!
+        let expr ← elabToTypedRExpr e1_syn -- could improve this double elab by refactoring (adding functions which elab nat-app/data-app which left expr already elabbed)
+        let expr := {expr with type := (← implicitsToMVars expr.type)}
+        let seconds := cs.map (·[1]! |>.getKind)
+        let nat_syn := cs.findIdx? (·[1]!.getKind.toString.startsWith "rise_nat")
+        let data_syn := cs.findIdx? (·[1]!.getKind.toString.startsWith "rise_data")
+        let expr_syn := cs.findIdx? (·[1]!.getKind.toString.startsWith "rise_expr")
+        -- dbg_trace nat_syn
+        -- dbg_trace ("aaa", seconds)
+        -- dbg_trace cs
+        -- dbg_trace expr.type
+        -- dbg_trace (nat_syn, data_syn, expr_syn, expr_syn)
+        match expr.type with
+        | .fn .. => elabToTypedRExpr choices[expr_syn.get!]!
+        | .pi .nat .. => elabToTypedRExpr choices[nat_syn.get!]!
+        | .pi .data .. => elabToTypedRExpr choices[data_syn.get!]!
+        | _ =>
+        throwError "bye"
+
+      else
+      throwError "hi"
     -- Use Lean's context to reuse definitions (e.g. $matmul) of other Rise programs.
     | .node _ `rise_expr.pseudo.antiquot xs
     | .node _ `rise_decl.pseudo.antiquot xs =>
@@ -312,3 +341,6 @@ def elabTypedRExpr (stx : Syntax) : RElabM Expr := do
 elab "[RiseTE|" e:rise_expr "]" : term => do
   let p ← liftMacroM <| expandMacros e
   liftToTermElabM <| elabTypedRExpr p
+
+-- #eval [RiseTE| (fun x => x) 3]
+--

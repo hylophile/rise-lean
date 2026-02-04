@@ -60,8 +60,8 @@ def gemvBlastN := [RiseC|
         ) <| zip acc next.1
       )
       (map id (generate (fun dummy : idx[64] => 0.0f32)))
-      <| zip (transpose << map (split (64 : nat) << fst) <| matChunk) (split (64 : nat) xs)
-      ) << split (64 : nat) <| zip mat ys
+      <| zip (transpose << map (split 64 << fst) <| matChunk) (split 64 xs)
+      ) << split 64 <| zip mat ys
 ]
 #pp gemvBlastN
 
@@ -71,7 +71,7 @@ def gemvBlastT := [RiseC|
   fun xs : p·f32 =>
   fun ys : q·f32 =>
   fun alpha beta =>
-  -- $gemvBlastN (p : nat) (q : nat) (transpose mat) xs ys alpha beta
+  -- $gemvBlastN p q (transpose mat) xs ys alpha beta
   $gemvBlastN   (transpose mat) xs ys alpha beta
 ]
 #pp gemvBlastT.type
@@ -86,7 +86,7 @@ def gemvFused := [RiseC|
     |> map -- mapWorkGroup
       (fun t =>
         zip xs t.1
-        |> split (n : nat)
+        |> split n
         |> map -- toLocalFun mapLocal oclReduceSeq
           (reduceSeq (fun a x => (x.1 * x.2) + a) 0.0f32)
         |> map

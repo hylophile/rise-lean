@@ -17,8 +17,8 @@ def scalIntel := [RiseC|
     input |>
     split (4 * 128 * 128 : nat) |>
     mapPar(
-      asVectorAligned (4 : nat) >>
-      split (128 : nat) >>
+      asVectorAligned 4 >>
+      split 128 >>
       mapSeq(mapSeq(fun x =>
         vectorFromScalar alpha |> mul x
       )) >> join >> asScalar
@@ -33,7 +33,7 @@ def scalIntel := [RiseC|
 --   fun alpha : f32 =>
 --     input |>
 --     split (4 * 128 * 128 : nat) |>
---     split (2 : nat) |>
+--     split 2 |>
 
 --     join
 -- ]

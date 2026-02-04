@@ -61,11 +61,11 @@ expr:
                  )) x@0))
               (zip ((λ x : 64·(((n@1/64)*64)·f32 × f32) =>
                 transpose (map (λ x : (((n@1/64)*64)·f32 × f32) =>
-                  split (64 : nat) (fst x@0))
+                  split 64 (fst x@0))
                   x@0))
-                matChunk@0) (split (64 : nat) xs@6)))
+                matChunk@0) (split 64 xs@6)))
              x@0))
-           (split (64 : nat) x@0))
+           (split 64 x@0))
           (zip mat@4 ys@2))
         )
        )
