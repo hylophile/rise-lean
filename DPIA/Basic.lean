@@ -266,7 +266,7 @@ instance : ToString PhraseType where
 -- modified from Nate
 def DWrapper.render : DWrapper -> Std.Format
   | .rise w => w.render
-  | .readWrite v => "" -- FIXME
+  | .readWrite v => toString v ++ " : readWrite"
 
 -- modified from Nate
 partial def DPIAPhraseNode.render : DPIAPhraseNode → Std.Format
