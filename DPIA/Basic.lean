@@ -93,10 +93,10 @@ inductive FunctionalPrimitives where
   | idx         (n : RNat) (t : RData) (idx array : DPIAPhrase)
 
   | depIdx      (n ft idx: RNat) (array : DPIAPhrase)-- TODO (ft : NatToData)
-  | idxVex      (n : RNat) (t : RData) (idx vec : DPIAPhrase)
+  | idxVec      (n : RNat) (t : RData) (idx vec : DPIAPhrase)
 
-  | take      (n m : Nat) (t : RData) (array : DPIAPhrase)
-  | drop      (n m : Nat) (t : RData) (array : DPIAPhrase)
+  | take      (n m : RNat) (t : RData) (array : DPIAPhrase)
+  | drop      (n m : RNat) (t : RData) (array : DPIAPhrase)
   | concat    (n m : RNat) (t : RData) (nArray mArray : DPIAPhrase)
 
   | split     (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase)
@@ -123,7 +123,7 @@ inductive FunctionalPrimitives where
   | unzip     (n : RNat) (s t : RData) (a : DAnnotation) (array : DPIAPhrase)
   | depZip    (n ft1 ft2 : RNat) (e1 e2 : DPIAPhrase) -- TODO (ft1 ft2 : NatToData)
 
-  | makeArray   (n : Nat) (t : RData) (elements : List DPIAPhrase) --- TODO (n : Int)
+  | makeArray   (n : RNat) (t : RData) (elements : List DPIAPhrase) --- TODO (n : Int)
 
   | partition   (n m lenF : RNat) (t : RData) (array : DPIAPhrase) -- TODO (lenF : NatToNat)
 
@@ -201,10 +201,10 @@ inductive ImperativePrimitives where
   | takeAcc     (n m : RNat) (t : RData) (array : DPIAPhrase)
 
   -- map ops
-  | mapAcc        (t2 t2 t3 : RData) (f array : DPIAPhrase)
+  | mapAcc        (n : RNat) (t1 t2 t3 : RData) (f array : DPIAPhrase)
   | mapFstAcc     (t1 t2 t3 : RData) (f record : DPIAPhrase)
   | mapRead       (n : RNat) (t1 t2 t3 : RData) (f input : DPIAPhrase)
-  | mapSndAcc     (d1 d2 d3 : RData) (f record : DPIAPhrase)
+  | mapSndAcc     (t1 t2 t3 : RData) (f record : DPIAPhrase)
 
   -- pair ops
   | mkDPairFstl       (fst : RNat) (a : DPIAPhrase)
@@ -224,7 +224,7 @@ inductive ImperativePrimitives where
   -- ? TODO
   | depIdxAcc     (n idx ft: RNat) (array : DPIAPhrase) -- NatToNat? (ft : natToNat)
   | depJoinAcc    (n lenF : RNat) (t : RData) (array : DPIAPhrase)  -- NatToNat? (lenF : natToNat)
-  | dMatchI       (x : RNat) (eltmT outT : RData) (f input : DPIAPhrase) -- NatIdentifier? (x : natIdentifier)
+  | dMatchI       (x : RNat) (elemT outT : RData) (f input : DPIAPhrase) -- NatIdentifier? (x : natIdentifier)
   | seq           (c1 c2 : DPIAPhrase)
 
 deriving Repr, BEq
