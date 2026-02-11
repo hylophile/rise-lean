@@ -215,7 +215,3 @@ elab "[RiseC|" ds:rise_decl* e:rise_expr "]" : term => do
   let p ← liftMacroM <| expandMacros p
   liftToTermElabM <| elabRProgram p
 
-/-- Command for pretty printing using the ToString instance. -/
-syntax "#pp " term : command
-macro_rules
-| `(#pp $e) => `(#eval IO.print <| toString $e)

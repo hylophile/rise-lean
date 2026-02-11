@@ -355,3 +355,8 @@ register_option egg.debug_enable : Bool := {
   group := "egg"
   descr := "Enables running egg and comparing results to sympy."
 }
+
+/-- Command for pretty printing using the ToString instance. -/
+syntax "#pp " term : command
+macro_rules
+| `(#pp $e) => `(#eval IO.print <| toString $e)
