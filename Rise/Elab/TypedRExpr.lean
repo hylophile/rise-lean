@@ -344,3 +344,4 @@ elab "[RiseTE|" e:rise_expr "]" : term => do
 
 -- #eval [RiseTE| (fun x => x) 3]
 --
+-- #pp [RiseTE| (fun t u : data => (fun v : data => fun x : v×u => x) t)]

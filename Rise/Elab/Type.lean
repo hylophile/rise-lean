@@ -382,10 +382,21 @@ def RType.supplyRNat (t : RType) (rnat : RNat) : RType :=
   | .pi bk pc un b, n, rnat => .pi bk pc un (go b (n+1) rnat)
   | .fn bt b, n, rnat => .fn (go bt n rnat) (go b n rnat)
 
+private def RData.shiftBVars (rdata : RData) (n : Nat) : RData :=
+  match rdata with
+  | .bvar bn un => .bvar (bn + n) un
+  | .scalar .. | .mvar .. | .natType => rdata
+  | .array rn dt => .array rn (dt.shiftBVars n)
+  | .pair dt1 dt2 => .pair (dt1.shiftBVars n) (dt2.shiftBVars n)
+  | .index rn => .index rn
+  | .vector rn dt => .vector rn (dt.shiftBVars n)
+
 private def RData.supplyRData (dt : RData) (n : RBVarId) (rdata : RData) : RData :=
   match dt with
-   -- todo: this is wrong, we need RData.shiftBVars here as in RNat.supplyRNat
-  | .bvar bn .. => if bn == n then rdata else dt
+  | .bvar bn un => if bn == n then rdata.shiftBVars n
+    else if bn > n then
+    .bvar (bn-1) un
+    else dt
   | .array rn dt => .array rn (dt.supplyRData n rdata)
   | .pair dt1 dt2 => .pair (dt1.supplyRData n rdata) (dt2.supplyRData n rdata)
   | .index rn => .index rn
