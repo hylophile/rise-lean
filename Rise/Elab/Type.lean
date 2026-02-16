@@ -6,6 +6,10 @@ open Lean Elab Meta Command
 declare_syntax_cat rise_kind
 syntax "nat"                   : rise_kind
 syntax "data"                  : rise_kind
+syntax "nat2nat"                  : rise_kind
+syntax "nat2data"                  : rise_kind
+syntax "addrSpace"                  : rise_kind
+
 syntax "[RiseK|" rise_kind "]" : term
 
 macro_rules
@@ -13,15 +17,29 @@ macro_rules
   | `([RiseK| data]) => `(RKind.data)
 
 partial def elabToRKind : Syntax -> RElabM RKind
-  | `(rise_kind| nat ) => return RKind.nat
-  | `(rise_kind| data ) => return RKind.data
+  | `(rise_kind| nat) => return RKind.nat
+  | `(rise_kind| data) => return RKind.data
+  | `(rise_kind| nat2nat) => return RKind.nat2nat
+  | `(rise_kind| nat2data) => return RKind.nat2data
+  | `(rise_kind| addrSpace) => return RKind.addrSpace
   | _ => throwUnsupportedSyntax
+
+instance : ToExpr RAddrSpace where
+  toExpr e := match e with
+  | .global => mkConst ``RAddrSpace.global
+  | .local => mkConst ``RAddrSpace.local
+  | .private => mkConst ``RAddrSpace.private
+  | .constant => mkConst ``RAddrSpace.constant
+  toTypeExpr := mkConst ``RAddrSpace
 
 instance : ToExpr RKind where
   toExpr e := match e with
-  | RKind.nat => mkConst ``RKind.nat
-  | RKind.data => mkConst ``RKind.data
-  | RKind.type => mkConst ``RKind.type
+  | .nat => mkConst ``RKind.nat
+  | .data => mkConst ``RKind.data
+  | .type => mkConst ``RKind.type
+  | .nat2nat => mkConst ``RKind.nat2nat
+  | .nat2data => mkConst ``RKind.nat2data
+  | .addrSpace => mkConst ``RKind.addrSpace
   toTypeExpr := mkConst ``RKind
 
 declare_syntax_cat rise_nat

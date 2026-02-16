@@ -112,7 +112,7 @@ macro_rules
 
   -- memory ops
   -- (can't use "let" as identifier)
-  def  rlet : {s t : data} → s → (s → t) → t
+  def «let» : {s t : data} → s → (s → t) → t
   def toMem : {t : data} → t → t
 
   -- foreign functions
@@ -142,7 +142,7 @@ macro_rules
 
   def  gather : {n m : nat} → {t : data} → m·idx[n] → n·t → m·t
   def scatter : {n m : nat} → {t : data} → n·idx[m] → n·t → m·t
-  --def reorder : {t : data} → (n : nat) → (idxF : nat2nat) → (idxFinv : nat2nat) → n·t → n·t
+  def reorder : {t : data} → (n : nat) → (idxF : nat2nat) → (idxFinv : nat2nat) → n·t → n·t
 
   def padCst :   {n : nat} → (l r : nat) → {t : data} → t → n·t → (l+n+r)·t
   def padClamp : {n : nat} → (l r : nat) → {t : data} →     n·t → (l+n+r)·t

@@ -44,7 +44,9 @@ partial def TypedRExprNode.mapMVars (t : TypedRExprNode) (f : RMVarId → RMVarI
   | .depapp fn arg => match arg with
     | .nat v => .depapp (fn.mapTypeMVars f) (.nat <| v.mapMVars f)
     | .data v => .depapp (fn.mapTypeMVars f) (.data <| v.mapMVars f)
-    | .type v => .depapp (fn.mapTypeMVars f) (.type <| v.mapMVars f)
+    | .nat2nat bn b => .depapp (fn.mapTypeMVars f) (.nat2nat bn  <| b.mapMVars f)
+    | .nat2data bn b => .depapp (fn.mapTypeMVars f) (.nat2data bn  <| b.mapMVars f)
+    | .addrSpace a => .depapp (fn.mapTypeMVars f) (.addrSpace a)
   | .lam n t b => .lam n (t.mapMVars f) (b.mapTypeMVars f)
   | .deplam n k b => .deplam n k (b.mapTypeMVars f)
 
@@ -96,7 +98,9 @@ partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
     | .depapp fn arg => match arg with
       | .nat v => v.collectMVarIds ∪ fn.collectMVarIds
       | .data v => v.collectMVarIds ∪ fn.collectMVarIds
-      | .type v => v.collectMVarIds ∪ fn.collectMVarIds
+      | .nat2nat _ b => b.collectMVarIds
+      | .nat2data _ b => b.collectMVarIds
+      | .addrSpace _ => {}
     | .lam _ t b => t.collectMVarIds ∪ b.collectMVarIds
     | .deplam _ _ b => b.collectMVarIds
   t_mvars ∪ n_mvars

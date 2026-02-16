@@ -10,7 +10,9 @@ inductive RKind
   | nat
   | data
   | type
-  -- | etc
+  | nat2nat
+  | nat2data
+  | addrSpace
 deriving BEq, Hashable, Repr
 
 -- Nat
@@ -42,7 +44,6 @@ inductive RScalar
   | f16
   | f32
   | f64
-
 deriving Repr, BEq
 
 -- DataType
@@ -66,17 +67,25 @@ deriving Repr, BEq
 
 -- Types
 --   τ ::= δ | τ → τ | (x : κ) → τ (Data Type, Function Type, Dependent Function Type)
-inductive RType where
+inductive RType
   | data (dt : RData)
   | pi (binderKind : RKind) (binderInfo : RBinderInfo) (userName : Name) (body : RType)
   | fn (binderType : RType) (body : RType)
 deriving Repr, BEq
 
+inductive RAddrSpace
+  | global
+  | local
+  | «private»
+  | constant
+deriving Repr, BEq
 
 inductive RWrapper
   | nat (v: RNat)
   | data (v: RData)
-  | type (v: RType)
+  | nat2nat (binderName : Name) (body : RNat)
+  | nat2data (binderName : Name) (body : RData)
+  | addrSpace (val : RAddrSpace)
 deriving Repr, BEq
 
 inductive RLit
@@ -91,7 +100,7 @@ structure TypedRExpr where
   type: RType
 deriving Repr, BEq
 
-inductive TypedRExprNode where
+inductive TypedRExprNode
   | bvar (deBruijnIndex : Nat) (userName: Name)
   | const (userName : Name)
   | lit (val : RLit)
@@ -210,9 +219,12 @@ def SubstEnum.apply (se : SubstEnum) (subst : Substitution) : SubstEnum :=
 
 instance : ToString RKind where
   toString
-    | RKind.nat => "nat"
-    | RKind.data => "data"
-    | RKind.type => "type"
+    | .nat => "nat"
+    | .data => "data"
+    | .type => "type"
+    | .nat2nat => "nat2nat"
+    | .nat2data => "nat2data"
+    | .addrSpace => "addrSpace"
 
 instance : ToString RNat where
   toString :=
@@ -295,7 +307,10 @@ instance : ToString Substitution where
 def RWrapper.render : RWrapper -> Std.Format
   | .nat v => toString v ++ " : nat"
   | .data v => toString v ++ " : data"
-  | .type v => toString v ++ " : type"
+  | .nat2nat bn b => s!"{bn} ↦ {b} : nat2nat"
+  | .nat2data bn b => s!"{bn} ↦ {b} : nat2data"
+  | .addrSpace a => repr a
+  -- | .type v => toString v ++ " : type"
 
 partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"

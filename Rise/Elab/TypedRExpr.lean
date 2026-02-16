@@ -17,7 +17,9 @@ instance : ToExpr RWrapper where
   toExpr
     | .nat b => mkAppN (mkConst ``RWrapper.nat) #[toExpr b]
     | .data i => mkAppN (mkConst ``RWrapper.data) #[toExpr i]
-    | .type f => mkAppN (mkConst ``RWrapper.type) #[toExpr f]
+    | .nat2nat bn b => mkAppN (mkConst ``RWrapper.nat2nat) #[toExpr bn, toExpr b]
+    | .nat2data bn b => mkAppN (mkConst ``RWrapper.nat2data) #[toExpr bn, toExpr b]
+    | .addrSpace a => mkAppN (mkConst ``RWrapper.addrSpace) #[toExpr a]
   toTypeExpr := mkConst ``RWrapper
 
 mutual
@@ -87,11 +89,14 @@ syntax:20 rise_expr:20 "*" rise_expr:21                     : rise_expr
 syntax rise_expr ".1" : rise_expr
 syntax rise_expr ".2" : rise_expr
 
+
+-- nat2nat
+syntax:50 rise_expr:50 "(" ident "↦" rise_nat ")"           : rise_expr
+syntax:50 rise_expr:50 "(" ident "↦" rise_data ")"          : rise_expr
+
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
-syntax:50 rise_expr:50 rise_nat            : rise_expr
-syntax:50 rise_expr:50 rise_data           : rise_expr
--- syntax:50 rise_expr:50 "(" rise_nat ":" "nat" ")"             : rise_expr
--- syntax:50 rise_expr:50 "(" rise_data ":" "data" ")"           : rise_expr
+syntax:50 rise_expr:50 rise_nat                             : rise_expr
+syntax:50 rise_expr:50 rise_data                            : rise_expr
 syntax:40 rise_expr:40 "|>" rise_expr:41                    : rise_expr
 syntax:40 rise_expr:40 "<|" rise_expr:41                    : rise_expr
 syntax:41 rise_expr:41 ">>" rise_expr:42                    : rise_expr
@@ -239,12 +244,12 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
 
   | `(rise_expr| fun ( $x:ident : $k:rise_kind ) => $b:rise_expr) => do
     let k ← elabToRKind k
-    let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
+    let b ← withNewTypeVar (x.getId, k) do elabToTypedRExpr b
     return ⟨.deplam x.getId k b, .pi k .explicit x.getId b.type⟩
 
   | `(rise_expr| fun { $x:ident : $k:rise_kind } => $b:rise_expr) => do
     let k ← elabToRKind k
-    let b ← withNewTVar (x.getId, k) do elabToTypedRExpr b
+    let b ← withNewTypeVar (x.getId, k) do elabToTypedRExpr b
     return ⟨.deplam x.getId k b, .pi k .implicit x.getId b.type⟩
 
   | `(rise_expr| $f_syn:rise_expr $e_syn:rise_expr) => do
@@ -265,24 +270,46 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       | _ => throwErrorAt f_syn s!"expected a function type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | `(rise_expr| $f_syn:rise_expr $n:rise_nat) => do
-    let n <- elabToRNat n
-    let f <- elabToTypedRExpr f_syn
+    let n ← elabToRNat n
+    let f ← elabToTypedRExpr f_syn
     let f := {f with type := (← implicitsToMVars f.type)}
     match f.type with
     | .pi .nat .explicit _ b =>
       let bt := b.supplyRNat n
       return ⟨.depapp f <| .nat n, bt⟩
-    | _ => throwErrorAt f_syn s!"expected a pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
+    | _ => throwErrorAt f_syn s!"expected a nat pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | `(rise_expr| $f_syn:rise_expr $d:rise_data) => do
     let d ← elabToRData d
-    let f <- elabToTypedRExpr f_syn
+    let f ← elabToTypedRExpr f_syn
     let f := {f with type := (← implicitsToMVars f.type)}
     match f.type with
     | .pi .data .explicit _ b =>
       let bt := b.supplyRData d
       return ⟨.depapp f <| .data d, bt⟩
     | _ => throwErrorAt f_syn s!"expected a data pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
+
+  | `(rise_expr| $f_syn:rise_expr ($x:ident ↦ $n:rise_nat)) => do
+    let f ← elabToTypedRExpr f_syn
+    let f := {f with type := (← implicitsToMVars f.type)}
+    let n ← withNewTypeVar (x.getId, RKind.nat2nat) do elabToRNat n
+    match f.type with
+    | .pi .nat2nat .explicit _ b =>
+      -- let b := b.supplyNat2Nat d
+      return ⟨.depapp f <| .nat2nat x.getId n, b⟩
+    | _ => throwErrorAt f_syn s!"expected a nat2nat pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
+
+  -- TODO: syntax for matching on input of the function? currently we could only return a single rdata for all inputs?
+  | `(rise_expr| $f_syn:rise_expr ($x:ident ↦ $d:rise_data)) => do
+    let f ← elabToTypedRExpr f_syn
+    let f := {f with type := (← implicitsToMVars f.type)}
+    let d ← withNewTypeVar (x.getId, RKind.nat2nat) do elabToRData d
+    match f.type with
+    | .pi .nat2data .explicit _ b =>
+      -- for this function, we may want a "first-class" nat2nat type, i.e. a wrapper for "bindername + nat body". not strictly necessary though
+      -- let b := b.supplyNat2Data d
+      return ⟨.depapp f <| .nat2data x.getId d, b⟩
+    | _ => throwErrorAt f_syn s!"expected a nat2data pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | stx =>
     match stx with
@@ -295,7 +322,7 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         let e1_syn := cs[0]![0]!
         let expr ← elabToTypedRExpr e1_syn -- could improve this double elab by refactoring (adding functions which elab nat-app/data-app which left expr already elabbed)
         let expr := {expr with type := (← implicitsToMVars expr.type)}
-        let seconds := cs.map (·[1]! |>.getKind)
+        -- let seconds := cs.map (·[1]! |>.getKind)
         let nat_syn := cs.findIdx? (·[1]!.getKind.toString.startsWith "rise_nat")
         let data_syn := cs.findIdx? (·[1]!.getKind.toString.startsWith "rise_data")
         let expr_syn := cs.findIdx? (·[1]!.getKind.toString.startsWith "rise_expr")
@@ -308,11 +335,8 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
         | .fn .. => elabToTypedRExpr choices[expr_syn.get!]!
         | .pi .nat .. => elabToTypedRExpr choices[nat_syn.get!]!
         | .pi .data .. => elabToTypedRExpr choices[data_syn.get!]!
-        | _ =>
-        throwError "bye"
-
-      else
-      throwError "hi"
+        | _ => throwError "invalid expr type, unreachable"
+      else throwError "unhandled ambiguous syntax"
     -- Use Lean's context to reuse definitions (e.g. $matmul) of other Rise programs.
     | .node _ `rise_expr.pseudo.antiquot xs
     | .node _ `rise_decl.pseudo.antiquot xs =>

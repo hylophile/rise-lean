@@ -1,3 +1,8 @@
+- what to do with addrspace?
+- fragments?
+
+---
+
 - omg downsample ???? need modulo or something.
 - **ok**
   even the most complex problems are already solved [1] after **only** two iterations! however.
