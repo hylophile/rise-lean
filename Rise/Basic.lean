@@ -52,6 +52,7 @@ inductive RData
   | bvar (deBruijnIndex : Nat) (userName : Name)
   | mvar (id : Nat) (userName : Name)
   | array  : RNat → RData → RData
+  -- | posDepArray : 
   | pair   : RData → RData → RData
   | index  : RNat → RData
   | scalar : RScalar → RData
@@ -80,11 +81,21 @@ inductive RAddrSpace
   | constant
 deriving Repr, BEq
 
+structure RNat2Nat where
+  binderName : Name
+  body : RNat
+deriving Repr, BEq
+
+structure RNat2Data where
+  binderName : Name
+  body : RData
+deriving Repr, BEq
+
 inductive RWrapper
-  | nat (v: RNat)
-  | data (v: RData)
-  | nat2nat (binderName : Name) (body : RNat)
-  | nat2data (binderName : Name) (body : RData)
+  | nat (val: RNat)
+  | data (val: RData)
+  | nat2nat (val: RNat2Nat)
+  | nat2data (val: RNat2Data)
   | addrSpace (val : RAddrSpace)
 deriving Repr, BEq
 
@@ -307,8 +318,8 @@ instance : ToString Substitution where
 def RWrapper.render : RWrapper -> Std.Format
   | .nat v => toString v ++ " : nat"
   | .data v => toString v ++ " : data"
-  | .nat2nat bn b => s!"{bn} ↦ {b} : nat2nat"
-  | .nat2data bn b => s!"{bn} ↦ {b} : nat2data"
+  | .nat2nat v => s!"{v.binderName} ↦ {v.body} : nat2nat"
+  | .nat2data v => s!"{v.binderName} ↦ {v.body} : nat2data"
   | .addrSpace a => repr a
   -- | .type v => toString v ++ " : type"
 

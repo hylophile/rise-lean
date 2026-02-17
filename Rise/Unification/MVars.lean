@@ -28,6 +28,12 @@ def RData.mapMVars (t : RData) (f : RMVarId → RMVarId) : RData :=
   | .natType       => t
   | .vector n d    => .vector (n.mapMVars f) (d.mapMVars f)
 
+def RNat2Nat.mapMVars (t : RNat2Nat) (f : RMVarId → RMVarId) : RNat2Nat :=
+  ⟨t.binderName, t.body.mapMVars f⟩
+
+def RNat2Data.mapMVars (t : RNat2Data) (f : RMVarId → RMVarId) : RNat2Data :=
+  ⟨t.binderName, t.body.mapMVars f⟩
+
 def RType.mapMVars (t : RType) (f : RMVarId → RMVarId) : RType :=
   match t with
   | .data dt => .data <| dt.mapMVars f
@@ -44,8 +50,8 @@ partial def TypedRExprNode.mapMVars (t : TypedRExprNode) (f : RMVarId → RMVarI
   | .depapp fn arg => match arg with
     | .nat v => .depapp (fn.mapTypeMVars f) (.nat <| v.mapMVars f)
     | .data v => .depapp (fn.mapTypeMVars f) (.data <| v.mapMVars f)
-    | .nat2nat bn b => .depapp (fn.mapTypeMVars f) (.nat2nat bn  <| b.mapMVars f)
-    | .nat2data bn b => .depapp (fn.mapTypeMVars f) (.nat2data bn  <| b.mapMVars f)
+    | .nat2nat v => .depapp (fn.mapTypeMVars f) (.nat2nat <| v.mapMVars f)
+    | .nat2data v => .depapp (fn.mapTypeMVars f) (.nat2data <| v.mapMVars f)
     | .addrSpace a => .depapp (fn.mapTypeMVars f) (.addrSpace a)
   | .lam n t b => .lam n (t.mapMVars f) (b.mapTypeMVars f)
   | .deplam n k b => .deplam n k (b.mapTypeMVars f)
@@ -81,6 +87,11 @@ def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
   | .index n       => (n.collectMVarIds)
   | .vector n d    => n.collectMVarIds ∪ d.collectMVarIds
 
+def RNat2Nat.collectMVarIds (t : RNat2Nat) : Std.HashSet RMVarId :=
+  t.body.collectMVarIds
+
+def RNat2Data.collectMVarIds (t : RNat2Data) : Std.HashSet RMVarId :=
+  t.body.collectMVarIds
 
 def RType.collectMVarIds (t : RType) : Std.HashSet RMVarId :=
   match t with
@@ -98,8 +109,8 @@ partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
     | .depapp fn arg => match arg with
       | .nat v => v.collectMVarIds ∪ fn.collectMVarIds
       | .data v => v.collectMVarIds ∪ fn.collectMVarIds
-      | .nat2nat _ b => b.collectMVarIds
-      | .nat2data _ b => b.collectMVarIds
+      | .nat2nat v => v.collectMVarIds
+      | .nat2data v => v.collectMVarIds
       | .addrSpace _ => {}
     | .lam _ t b => t.collectMVarIds ∪ b.collectMVarIds
     | .deplam _ _ b => b.collectMVarIds

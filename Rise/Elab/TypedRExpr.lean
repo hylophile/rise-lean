@@ -13,12 +13,20 @@ instance : ToExpr RLit where
     | .float f => mkAppN (mkConst ``RLit.float) #[toExpr f]
   toTypeExpr := mkConst ``RLit
 
+instance : ToExpr RNat2Nat where
+  toExpr v := mkAppN (mkConst ``RNat2Nat.mk) #[toExpr v.binderName, toExpr v.body]
+  toTypeExpr := mkConst ``RNat2Nat
+
+instance : ToExpr RNat2Data where
+  toExpr v := mkAppN (mkConst ``RNat2Data.mk) #[toExpr v.binderName, toExpr v.body]
+  toTypeExpr := mkConst ``RNat2Data
+
 instance : ToExpr RWrapper where
   toExpr
     | .nat b => mkAppN (mkConst ``RWrapper.nat) #[toExpr b]
     | .data i => mkAppN (mkConst ``RWrapper.data) #[toExpr i]
-    | .nat2nat bn b => mkAppN (mkConst ``RWrapper.nat2nat) #[toExpr bn, toExpr b]
-    | .nat2data bn b => mkAppN (mkConst ``RWrapper.nat2data) #[toExpr bn, toExpr b]
+    | .nat2nat v => toExpr v
+    | .nat2data v => toExpr v
     | .addrSpace a => mkAppN (mkConst ``RWrapper.addrSpace) #[toExpr a]
   toTypeExpr := mkConst ``RWrapper
 
@@ -54,7 +62,6 @@ instance : ToExpr TypedRExpr where
 instance : ToExpr TypedRExprNode where
   toExpr := TypedRExprNode.toExpr
   toTypeExpr := mkConst ``TypedRExprNode
-
 
 declare_syntax_cat rise_expr_numlit_suffix
 syntax "int" : rise_expr_numlit_suffix
@@ -296,19 +303,17 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
     match f.type with
     | .pi .nat2nat .explicit _ b =>
       -- let b := b.supplyNat2Nat d
-      return ⟨.depapp f <| .nat2nat x.getId n, b⟩
+      return ⟨.depapp f <| .nat2nat ⟨x.getId, n⟩, b⟩
     | _ => throwErrorAt f_syn s!"expected a nat2nat pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
-  -- TODO: syntax for matching on input of the function? currently we could only return a single rdata for all inputs?
   | `(rise_expr| $f_syn:rise_expr ($x:ident ↦ $d:rise_data)) => do
     let f ← elabToTypedRExpr f_syn
     let f := {f with type := (← implicitsToMVars f.type)}
     let d ← withNewTypeVar (x.getId, RKind.nat2nat) do elabToRData d
     match f.type with
     | .pi .nat2data .explicit _ b =>
-      -- for this function, we may want a "first-class" nat2nat type, i.e. a wrapper for "bindername + nat body". not strictly necessary though
       -- let b := b.supplyNat2Data d
-      return ⟨.depapp f <| .nat2data x.getId d, b⟩
+      return ⟨.depapp f <| .nat2data ⟨x.getId, d⟩, b⟩
     | _ => throwErrorAt f_syn s!"expected a nat2data pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | stx =>
