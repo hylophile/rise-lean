@@ -96,7 +96,7 @@ def mkCycleAcc (n m : RNat) (t : RData) (input : DPIAPhrase) : DPIAPhrase :=
   let type := PhraseType.acc (RData.array n t)
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 
-def mkReorderAcc (n idxF : RNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase := -- NatToNat? (idxF : natToNat)
+def mkReorderAcc (n : RNat) (idxF : NatToNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase :=
   let node := ImperativePrimitives.reorderAcc n idxF t array
   let type := PhraseType.acc (RData.array n t)
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
@@ -116,7 +116,7 @@ def mkTakeAcc (n m : RNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase :=
 
 -- map ops
 def mkMapAcc (n : RNat) (t1 t2 t3 : RData) (f array : DPIAPhrase) : DPIAPhrase :=
-  let node := ImperativePrimitives.mapAcc t1 t2 t3 f array
+  let node := ImperativePrimitives.mapAcc n t1 t2 t3 f array
   let type := PhraseType.acc (RData.array n t2)
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 
@@ -190,15 +190,16 @@ def mkSkip : DPIAPhrase :=
 
 
   -- ? TODO
-def mkDepIdxAcc (n idx ft: RNat) (array : DPIAPhrase) : DPIAPhrase := -- NatToNat? (ft : natToNat)
+def mkDepIdxAcc (n idx : RNat) (ft : NatToData) (array : DPIAPhrase) : DPIAPhrase :=
   let node := ImperativePrimitives.depIdxAcc n idx ft array
-  let type := PhraseType.acc RData.natType
+  let type := PhraseType.acc (ft.apply idx)
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 
-def mkDepJoinAcc (n lenF : RNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase := -- NatToNat? (lenF : natToNat)
-  let node := ImperativePrimitives.depJoinAcc n lenF t array
-  let type := PhraseType.acc (RData.array n RData.natType)
-  {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
+-- def mkDepJoinAcc (n : RNat) (lenF : NatToNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase := -- NatToNat? (lenF : natToNat)
+--   let node := ImperativePrimitives.depJoinAcc n lenF t array
+--   let type := PhraseType.acc (RData.array n lenf.apply)
+--   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
+--> dependent length
 
 -- def mkDMatchI (x : RNat) (elemT outT : RData) (f input : DPIAPhrase) : DPIAPhrase := -- NatIdentifier? (x : natIdentifier)
 --   let node := ImperativePrimitives.dMatchI x elemT outT f input

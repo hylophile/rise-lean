@@ -1,16 +1,30 @@
 import Rise.Basic
 
+-- NatToNat
+inductive NatToNat where
+  | natToNatIdentifier (userName : Lean.Name)
+  | natToNatLambda (x : Nat) (body : RNat)
+deriving BEq, Repr
+
+inductive NatToData where
+  | natToDataIdentifier (userName : Lean.Name)
+  | natToDataLambda (x : Nat) (body : RData)
+deriving BEq, Repr
+
+
 -- Kind
 --   κ ::= nat | data |  (Natural Number Kind, Datatype Kind) | readWrite
 -- all rise RKinds and readWrite
 inductive DKind
   | rise (k: RKind)
   | readWrite
-deriving BEq, Hashable, Repr
+  | natToNat --(n : NatToNat)
+  | natToData --(n : NatToData)
+deriving BEq, Repr
 
 
 inductive DAnnotation
-  | identifier (userName: Lean.Name) -- for now only a identifier -> gensym
+  | identifier (userName: Lean.Name) -- for now only a identifier
   | read
   | write
 deriving Repr, BEq
@@ -92,7 +106,7 @@ inductive FunctionalPrimitives where
   | generate    (n : RNat) (t : RData) (f : DPIAPhrase)
   | idx         (n : RNat) (t : RData) (idx array : DPIAPhrase)
 
-  | depIdx      (n ft idx: RNat) (array : DPIAPhrase)-- TODO (ft : NatToData)
+  | depIdx      (n idx: RNat) (ft : NatToData) (array : DPIAPhrase)
   | idxVec      (n : RNat) (t : RData) (idx vec : DPIAPhrase)
 
   | take      (n m : RNat) (t : RData) (array : DPIAPhrase)
@@ -101,7 +115,7 @@ inductive FunctionalPrimitives where
 
   | split     (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase)
   | join      (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase)
-  | depJoin   (n lenF : RNat) (t : RData) (array : DPIAPhrase) --TODO (lenF : NatToNat)
+  | depJoin   (n : RNat) (lenF : NatToData) (t : RData) (array : DPIAPhrase)
 
   | slide               (n sz sp : RNat) (t : RData) (array : DPIAPhrase)
   | circularBuffer      (n alloc sz : RNat) (s t : RData) (load array : DPIAPhrase)
@@ -109,8 +123,8 @@ inductive FunctionalPrimitives where
 
   | transpose           (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase)
   | cycle               (n m : RNat) (t : RData) (array : DPIAPhrase)
-  | reorder             (n idxF : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase) -- TODO (idxF : NatToNat)
-  | transposeDepArray   (n m ft : RNat) (array : DPIAPhrase) -- TODO (ft : NatToData)
+  | reorder             (n : RNat) (idxF : NatToNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase)
+  | transposeDepArray   (n m : RNat) (ft : NatToData) (array : DPIAPhrase)
 
   | gather      (n m : RNat) (t : RData) (idx array : DPIAPhrase)
   | scatter     (n m : RNat) (t : RData) (idx array : DPIAPhrase)
@@ -121,11 +135,11 @@ inductive FunctionalPrimitives where
 
   | zip       (n : RNat) (s t : RData) (a : DAnnotation) (sArray tArray : DPIAPhrase)
   | unzip     (n : RNat) (s t : RData) (a : DAnnotation) (array : DPIAPhrase)
-  | depZip    (n ft1 ft2 : RNat) (e1 e2 : DPIAPhrase) -- TODO (ft1 ft2 : NatToData)
+  | depZip    (n : RNat) (ft1 ft2 : NatToData)(e1 e2 : DPIAPhrase)
 
   | makeArray   (n : RNat) (t : RData) (elements : List DPIAPhrase) --- TODO (n : Int)
 
-  | partition   (n m lenF : RNat) (t : RData) (array : DPIAPhrase) -- TODO (lenF : NatToNat)
+  | partition   (n m : RNat) (lenF : NatToNat) (t : RData) (array : DPIAPhrase)
 
   -- pair ops
   | makePair      (s t : RData) (a : DAnnotation) (fst snd : DPIAPhrase)
@@ -144,7 +158,7 @@ inductive FunctionalPrimitives where
   | mapSeq            (unroll : Bool) (n : RNat) (s t : RData) (f array: DPIAPhrase)
   | mapStream         (n : RNat) (s t : RData) (f array: DPIAPhrase)
   | iterateStream     (n : RNat) (s t : RData) (f array: DPIAPhrase)
-  | depMapSeq         (unroll : Bool) (n ft1 ft2 : RNat) (f array: DPIAPhrase) -- TODO (ft1 ft2 : NatToData)
+  | depMapSeq         (unroll : Bool) (n : RNat) (ft1 ft2 : NatToData) (f array: DPIAPhrase)
   | mapVec            (n : RNat) (t1 t2 : RData) (f vec : DPIAPhrase)
 
   | mapFst    (s1 t s2 : RData) (a : DAnnotation) (f pair : DPIAPhrase)
@@ -195,7 +209,7 @@ inductive ImperativePrimitives where
 
   | transposeAcc    (n m : RNat) (t : RData) (array : DPIAPhrase)
   | cycleAcc        (n m : RNat) (t : RData) (input : DPIAPhrase)
-  | reorderAcc      (n idxF : RNat) (t : RData) (array : DPIAPhrase) -- NatToNat? (idxF : natToNat)
+  | reorderAcc      (n : RNat) (idxF : NatToNat) (t : RData) (array : DPIAPhrase)
 
   | dropAcc     (n m : RNat) (t : RData) (array : DPIAPhrase)
   | takeAcc     (n m : RNat) (t : RData) (array : DPIAPhrase)
@@ -222,8 +236,8 @@ inductive ImperativePrimitives where
   | skip
 
   -- ? TODO
-  | depIdxAcc     (n idx ft: RNat) (array : DPIAPhrase) -- NatToNat? (ft : natToNat)
-  | depJoinAcc    (n lenF : RNat) (t : RData) (array : DPIAPhrase)  -- NatToNat? (lenF : natToNat)
+  | depIdxAcc     (n idx : RNat) (ft : NatToData) (array : DPIAPhrase)
+  | depJoinAcc    (n : RNat) (lenF : NatToNat) (t : RData) (array : DPIAPhrase)
   | dMatchI       (x : RNat) (elemT outT : RData) (f input : DPIAPhrase) -- NatIdentifier? (x : natIdentifier)
   | seq           (c1 c2 : DPIAPhrase)
 
@@ -238,6 +252,8 @@ instance : ToString DKind where
   toString
     | DKind.rise k => s!"{k}"
     | DKind.readWrite => "rw"
+    | DKind.natToData => "nat→data"
+    | DKind.natToNat => "nat→nat"
 
 
 instance : ToString DAnnotation where
@@ -245,6 +261,22 @@ instance : ToString DAnnotation where
     | .identifier name => s!"{name}"
     | .read => "rd"
     | .write => "wr"
+
+def NatToNat.apply (nat2nat : NatToNat) (n : RNat) : RNat :=
+  match nat2nat with
+    | NatToNat.natToNatIdentifier userName => RNat.bvar 0 userName --?
+    | NatToNat.natToNatLambda x body => RNat.substNat body x n
+
+def NatToData.apply (nat2nat : NatToData) (n : RNat) : RData :=
+  match nat2nat with
+    | NatToData.natToDataIdentifier userName => RData.bvar 0 userName --?
+    | NatToData.natToDataLambda x body => RData.substNat body x n
+
+def exprTypeToDataType (exprT : RType) : RData :=
+  match exprT with
+    | .data dt => dt
+    | .fn _ bodyType => exprTypeToDataType bodyType -- maybe fail if not data?
+    | .pi _ _ _ bodyType => exprTypeToDataType bodyType -- maybe fail if not data?
 
 -- modified from Nate
 def PhraseType.toString : PhraseType → String
