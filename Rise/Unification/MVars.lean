@@ -17,12 +17,14 @@ def RNat.mapMVars (t : RNat) (f : RMVarId → RMVarId) : RNat :=
   | .div a b    => .div (a.mapMVars f) (b.mapMVars f)
   | .pow a b    => .pow (a.mapMVars f) (b.mapMVars f)
 
-def RData.mapMVars (t : RData) (f : RMVarId → RMVarId) : RData :=
+partial def RData.mapMVars (t : RData) (f : RMVarId → RMVarId) : RData :=
   match t with
   | .bvar ..       => t
   | .mvar id name  => .mvar (f id) name
   | .array n d     => .array (n.mapMVars f) (d.mapMVars f)
+  | .posDepArray n n2d => .posDepArray (n.mapMVars f) ⟨n2d.binderName, n2d.body.mapMVars f⟩ 
   | .pair d1 d2    => .pair (d1.mapMVars f) (d2.mapMVars f)
+  | .depPair id d  => .depPair id (d.mapMVars f)
   | .index n       => .index (n.mapMVars f)
   | .scalar ..     => t
   | .natType       => t
@@ -76,14 +78,16 @@ def RNat.collectMVarIds (t : RNat) : Std.HashSet RMVarId :=
   | .pow a b    => a.collectMVarIds ∪ b.collectMVarIds
 
 
-def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
+partial def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
   match t with
   | .bvar ..       => {}
   | .mvar id _     => {id}
   | .scalar ..     => {}
   | .natType       => {}
   | .array n d     => n.collectMVarIds ∪ d.collectMVarIds
+  | .posDepArray n n2d => n.collectMVarIds ∪ n2d.body.collectMVarIds
   | .pair d1 d2    => d1.collectMVarIds ∪ d2.collectMVarIds
+  | .depPair _ d  => d.collectMVarIds
   | .index n       => (n.collectMVarIds)
   | .vector n d    => n.collectMVarIds ∪ d.collectMVarIds
 

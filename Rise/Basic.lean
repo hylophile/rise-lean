@@ -48,17 +48,30 @@ deriving Repr, BEq
 
 -- DataType
 --   δ ::= n.δ | δ × δ | "idx [" n "]" | scalar | n<scalar>  (Array Type, Pair Type, Index Type, Scalar Type, Vector Type)
+mutual
 inductive RData
   | bvar (deBruijnIndex : Nat) (userName : Name)
   | mvar (id : Nat) (userName : Name)
   | array  : RNat → RData → RData
-  -- | posDepArray : 
+  | posDepArray : RNat → RNat2Data → RData
   | pair   : RData → RData → RData
+  | depPair (binderName : Name) (data : RData) -- binderName is of kind nat
   | index  : RNat → RData
   | scalar : RScalar → RData
   | natType : RData
   | vector : RNat → RData → RData -- NOTE: second param should be scalar, but then we'd also need mvars for scalar, which is annoying, so i'll leave it as is for now.
 deriving Repr, BEq
+
+structure RNat2Nat where
+  binderName : Name
+  body : RNat
+deriving Repr, BEq
+
+structure RNat2Data where
+  binderName : Name
+  body : RData
+deriving Repr, BEq
+end
 
 -- Im-/ex-plicity of parameters
 inductive RBinderInfo
@@ -81,15 +94,6 @@ inductive RAddrSpace
   | constant
 deriving Repr, BEq
 
-structure RNat2Nat where
-  binderName : Name
-  body : RNat
-deriving Repr, BEq
-
-structure RNat2Data where
-  binderName : Name
-  body : RData
-deriving Repr, BEq
 
 inductive RWrapper
   | nat (val: RNat)
@@ -159,21 +163,35 @@ def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
   | .data _ => t
   | .nat s => t.substNat x s
 
-def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
+mutual
+partial def RNat2Data.substNat (t : RNat2Data) (x : RMVarId) (s : RNat) : RNat2Data :=
+ ⟨t.binderName, t.body.substNat x s⟩
+
+partial def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
   match t with
   | .array k d => .array (k.substNat x s) (d.substNat x s)
+  | .posDepArray k n2d => .posDepArray (k.substNat x s) (n2d.substNat x s)
   | .pair l r => .pair (l.substNat x s) (r.substNat x s)
+  | .depPair name d => .depPair name (d.substNat x s)
   | .index k => .index (k.substNat x s)
   | .vector k d => .vector (k.substNat x s) (d.substNat x s)
   | .mvar .. | .bvar .. | .scalar .. | .natType => t
+end
 
-def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
+mutual
+partial def RNat2Data.substData (t : RNat2Data) (x : RMVarId) (s : RData) : RNat2Data :=
+ ⟨t.binderName, t.body.substData x s⟩
+
+partial def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
   match t with
   | .mvar y _ => if x == y then s else t
   | .array k d => .array k (d.substData x s)
+  | .posDepArray k n2d => .posDepArray k (n2d.substData x s)
   | .pair l r => .pair (l.substData x s) (r.substData x s)
+  | .depPair name d => .depPair name (d.substData x s)
   | .vector k d => .vector k (d.substData x s)
   | .index .. | .bvar .. | .scalar .. | .natType => t
+end
 
 def RData.subst (t : RData) (x : RMVarId) (s : SubstEnum) : RData :=
   match s with
@@ -207,10 +225,12 @@ def RNat.has (v : RMVarId) : RNat → Bool
   | .div n m => n.has v || m.has v
   | .pow n m => n.has v || m.has v
 
-def RData.has (v : RMVarId) : RData → Bool
+partial def RData.has (v : RMVarId) : RData → Bool
   | .mvar id _ => id == v
   | .array _ d => d.has v
+  | .posDepArray _ n2d => n2d.body.has v
   | .pair l r => l.has v || r.has v
+  | .depPair _ d => d.has v
   | .vector _ d => d.has v
   | .bvar .. | .index .. | .scalar .. | .natType => false
 
@@ -274,15 +294,26 @@ instance : ToString RScalar where
     | .f32  => "f32"
     | .f64  => "f64"
 
-def RData.toString : RData → String
+instance : ToString RNat2Nat where
+  toString v :=  s!"{v.binderName} ↦ {v.body} : nat2nat"
+
+mutual
+partial def RNat2Data.toString : RNat2Data → String := fun v => s!"{v.binderName} ↦ {v.body.toString} : nat2data"
+partial def RData.toString : RData → String
   | .bvar idx name => s!"{name}@{idx}"
   | .mvar id name  => s!"{name}?{id}"
   | .array n d     => s!"{n}·{d.toString}"
+  | .posDepArray n d     => s!"{n}·{d.toString}"
   | .pair d1 d2    => s!"({d1.toString} × {d2.toString})"
+  | .depPair id d  => s!"({id} ** {d.toString})"
   | .index n       => s!"idx[{n}]"
   | .scalar x      => s!"{x}"
   | .natType       => "natType"
   | .vector n d    => s!"{n}<{d.toString}>"
+end
+
+instance : ToString RNat2Data where
+  toString := RNat2Data.toString
 
 instance : ToString RData where
   toString := RData.toString
@@ -306,7 +337,6 @@ def RType.toString : RType → String
 instance : ToString RType where
   toString := RType.toString
 
-
 instance : ToString SubstEnum where
   toString
     | SubstEnum.data rdata => s!"data({rdata})"
@@ -318,8 +348,8 @@ instance : ToString Substitution where
 def RWrapper.render : RWrapper -> Std.Format
   | .nat v => toString v ++ " : nat"
   | .data v => toString v ++ " : data"
-  | .nat2nat v => s!"{v.binderName} ↦ {v.body} : nat2nat"
-  | .nat2data v => s!"{v.binderName} ↦ {v.body} : nat2data"
+  | .nat2nat v => toString v
+  | .nat2data v => toString v
   | .addrSpace a => repr a
   -- | .type v => toString v ++ " : type"
 

@@ -133,7 +133,9 @@ partial def elabRNat : Syntax → RElabM Expr
 
 declare_syntax_cat rise_data
 syntax:50 rise_nat "·" rise_data:50  : rise_data
+syntax rise_nat "··" "(" ident "↦" rise_data ")" : rise_data -- TODO: we'll need nat2data as its own syntax category
 syntax:10 rise_data "×" rise_data    : rise_data
+syntax "(" ident "**" rise_data ")"  : rise_data
 syntax    ident                      : rise_data
 syntax    "idx[" rise_nat "]"        : rise_data
 syntax    rise_nat "<" rise_data ">" : rise_data
@@ -183,6 +185,11 @@ partial def elabToRData : Syntax → RElabM RData
     let d ← elabToRData d
     return RData.array n d
 
+  | `(rise_data| $n:rise_nat··($x:ident ↦ $d:rise_data)) => do
+    let n ← elabToRNat n
+    let d ← withNewTypeVar (x.getId, .nat) do elabToRData d
+    return RData.posDepArray n ⟨x.getId, d⟩
+
   | `(rise_data| $l:rise_data × $r:rise_data) => do
     let l ← elabToRData l
     let r ← elabToRData r
@@ -203,11 +210,17 @@ partial def elabToRData : Syntax → RElabM RData
 
   | _ => throwUnsupportedSyntax
 
-instance : ToExpr RData where
-  toExpr :=
-    let rec go : RData → Expr
-    | RData.natType => mkConst ``RData.natType
-    | RData.scalar x =>
+instance : ToExpr RNat2Nat where
+  toExpr v := mkAppN (mkConst ``RNat2Nat.mk) #[toExpr v.binderName, toExpr v.body]
+  toTypeExpr := mkConst ``RNat2Nat
+
+mutual
+partial def RNat2Data.toExpr (v : RNat2Data) : Expr :=
+  mkAppN (mkConst ``RNat2Data.mk) #[Lean.toExpr v.binderName, v.body.toExpr]
+
+partial def RData.toExpr : RData → Expr
+    | .natType => mkConst ``RData.natType
+    | .scalar x =>
         let c := mkConst ``RData.scalar
         let v := match x with
         | .bool => mkConst ``RScalar.bool
@@ -225,21 +238,32 @@ instance : ToExpr RData where
         | .f32  => mkConst ``RScalar.f32
         | .f64  => mkConst ``RScalar.f64
         mkAppN c #[v]
-    | RData.bvar deBruijnIndex userName =>
-      mkAppN (mkConst ``RData.bvar) #[mkNatLit deBruijnIndex, toExpr userName]
-    | RData.mvar id userName =>
-      mkAppN (mkConst ``RData.mvar) #[mkNatLit id, toExpr userName]
-    | RData.array n d =>
-      mkAppN (mkConst ``RData.array) #[toExpr n, go d]
-    | RData.pair l r =>
-      mkAppN (mkConst ``RData.pair) #[go l, go r]
-    | RData.index n =>
-      mkAppN (mkConst ``RData.index) #[toExpr n]
-    | RData.vector n d =>
-      mkAppN (mkConst ``RData.vector) #[toExpr n, go d]
-    go
+    | .bvar deBruijnIndex userName =>
+      mkAppN (mkConst ``RData.bvar) #[mkNatLit deBruijnIndex, Lean.toExpr userName]
+    | .mvar id userName =>
+      mkAppN (mkConst ``RData.mvar) #[mkNatLit id, Lean.toExpr userName]
+    | .array n d =>
+      mkAppN (mkConst ``RData.array) #[Lean.toExpr n, d.toExpr]
+    | .posDepArray n n2d =>
+      mkAppN (mkConst ``RData.posDepArray) #[Lean.toExpr n, n2d.toExpr]
+    | .pair l r =>
+      mkAppN (mkConst ``RData.pair) #[l.toExpr, r.toExpr]
+    | .depPair id d =>
+      mkAppN (mkConst ``RData.pair) #[Lean.toExpr id, d.toExpr]
+    | .index n =>
+      mkAppN (mkConst ``RData.index) #[Lean.toExpr n]
+    | .vector n d =>
+      mkAppN (mkConst ``RData.vector) #[Lean.toExpr n, d.toExpr]
+end
+
+instance : ToExpr RData where
+  toExpr := RData.toExpr
   toTypeExpr := mkConst ``RData
 
+instance : ToExpr RNat2Data where
+  toExpr := RNat2Data.toExpr
+  toTypeExpr := mkConst ``RNat2Data
+ 
 partial def elabRData : Syntax → RElabM Expr
   | stx => do
     let d ← elabToRData stx
@@ -342,11 +366,13 @@ private def RNat.supplyMVar (rn : RNat) (n : RBVarId) (m : RMVarId) : RNat :=
   | .div p q => .div (p.supplyMVar n m) (q.supplyMVar n m)
   | .pow p q => .pow (p.supplyMVar n m) (q.supplyMVar n m)
 
-private def RData.supplyMVar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
+private partial def RData.supplyMVar (dt : RData) (n : RBVarId) (m : RMVarId) : RData :=
   match dt with
   | .bvar bn un => if bn == n then .mvar m un else dt
   | .array rn dt => .array (rn.supplyMVar n m) (dt.supplyMVar n m)
+  | .posDepArray rn n2d => .posDepArray (rn.supplyMVar n m) ⟨n2d.binderName, n2d.body.supplyMVar (n+1) m⟩
   | .pair dt1 dt2 => .pair (dt1.supplyMVar n m) (dt2.supplyMVar n m)
+  | .depPair id dt => .depPair id (dt.supplyMVar (n+1) m)
   | .index rn => .index (rn.supplyMVar n m)
   | .vector rn d => .vector (rn.supplyMVar n m) (d.supplyMVar n m)
   | .mvar .. | .scalar .. | .natType => dt
@@ -384,10 +410,12 @@ private def RNat.supplyRNat (rn : RNat) (n : RBVarId) (rnat : RNat) : RNat :=
   | .div p q => .div (p.supplyRNat n rnat) (q.supplyRNat n rnat)
   | .pow p q => .pow (p.supplyRNat n rnat) (q.supplyRNat n rnat)
 
-private def RData.supplyRNat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
+private partial def RData.supplyRNat (dt : RData) (n : RBVarId) (rnat : RNat) : RData :=
   match dt with
   | .array rn dt => .array (rn.supplyRNat n rnat) (dt.supplyRNat n rnat)
+  | .posDepArray rn n2d => .posDepArray (rn.supplyRNat n rnat) ⟨n2d.binderName, n2d.body.supplyRNat (n+1) rnat⟩
   | .pair dt1 dt2 => .pair (dt1.supplyRNat n rnat) (dt2.supplyRNat n rnat)
+  | .depPair id dt => .depPair id (dt.supplyRNat (n+1) rnat)
   | .index rn => .index (rn.supplyRNat n rnat)
   | .vector rn d => .vector (rn.supplyRNat n rnat) (d.supplyRNat n rnat)
   | .scalar .. | .bvar .. | .mvar .. | .natType => dt
@@ -400,23 +428,33 @@ def RType.supplyRNat (t : RType) (rnat : RNat) : RType :=
   | .pi bk pc un b, n, rnat => .pi bk pc un (go b (n+1) rnat)
   | .fn bt b, n, rnat => .fn (go bt n rnat) (go b n rnat)
 
-private def RData.shiftBVars (rdata : RData) (n : Nat) : RData :=
+/-- Shifts bvars in rdata by n, while not shifting bvars below threshold (since .posDepArray and .depPair introduce new binders). -/
+private partial def RData.shiftBVars (rdata : RData) (n : Nat) (threshold : Nat) : RData :=
   match rdata with
-  | .bvar bn un => .bvar (bn + n) un
+  | .bvar bn un => if bn < threshold then
+      .bvar bn un
+    else
+      .bvar (bn + n) un
   | .scalar .. | .mvar .. | .natType => rdata
-  | .array rn dt => .array rn (dt.shiftBVars n)
-  | .pair dt1 dt2 => .pair (dt1.shiftBVars n) (dt2.shiftBVars n)
+  | .array rn dt => .array rn (dt.shiftBVars n threshold)
+  | .posDepArray rn n2d => .posDepArray rn ⟨n2d.binderName, n2d.body.shiftBVars n (threshold + 1)⟩
+  | .pair dt1 dt2 => .pair (dt1.shiftBVars n threshold) (dt2.shiftBVars n threshold)
+  | .depPair idx dt => .depPair idx (dt.shiftBVars n (threshold + 1)) 
   | .index rn => .index rn
-  | .vector rn dt => .vector rn (dt.shiftBVars n)
+  | .vector rn dt => .vector rn (dt.shiftBVars n threshold)
 
-private def RData.supplyRData (dt : RData) (n : RBVarId) (rdata : RData) : RData :=
+private partial def RData.supplyRData (dt : RData) (n : RBVarId) (rdata : RData) : RData :=
   match dt with
-  | .bvar bn un => if bn == n then rdata.shiftBVars n
+  -- we shift rdata's bvars here because we entered n binders of dt, so all bvars of rdata (which refer to binders outside of dt) must skip n additional binders compared to before we supplied it to dt. 
+  -- we also have to *not* shift bvars below a certain threshold, because depPairs and posDepArrays introduce new binders.
+  | .bvar bn un => if bn == n then rdata.shiftBVars n 0
     else if bn > n then
     .bvar (bn-1) un
     else dt
   | .array rn dt => .array rn (dt.supplyRData n rdata)
+  | .posDepArray rn n2d => .posDepArray rn ⟨n2d.binderName, n2d.body.supplyRData n rdata⟩
   | .pair dt1 dt2 => .pair (dt1.supplyRData n rdata) (dt2.supplyRData n rdata)
+  | .depPair idx dt => .depPair idx (dt.supplyRData n rdata)
   | .index rn => .index rn
   | .vector rn d => .vector rn (d.supplyRData n rdata)
   | .scalar .. | .mvar .. | .natType => dt

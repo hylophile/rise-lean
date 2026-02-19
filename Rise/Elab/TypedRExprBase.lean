@@ -10,20 +10,12 @@ instance : ToExpr RLit where
     | .float f => mkAppN (mkConst ``RLit.float) #[toExpr f]
   toTypeExpr := mkConst ``RLit
 
-instance : ToExpr RNat2Nat where
-  toExpr v := mkAppN (mkConst ``RNat2Nat.mk) #[toExpr v.binderName, toExpr v.body]
-  toTypeExpr := mkConst ``RNat2Nat
-
-instance : ToExpr RNat2Data where
-  toExpr v := mkAppN (mkConst ``RNat2Data.mk) #[toExpr v.binderName, toExpr v.body]
-  toTypeExpr := mkConst ``RNat2Data
-
 instance : ToExpr RWrapper where
   toExpr
     | .nat b => mkAppN (mkConst ``RWrapper.nat) #[toExpr b]
     | .data i => mkAppN (mkConst ``RWrapper.data) #[toExpr i]
-    | .nat2nat v => toExpr v
-    | .nat2data v => toExpr v
+    | .nat2nat v =>  mkAppN (mkConst ``RWrapper.nat2nat) #[toExpr v]
+    | .nat2data v => mkAppN (mkConst ``RWrapper.nat2data) #[toExpr v]
     | .addrSpace a => mkAppN (mkConst ``RWrapper.addrSpace) #[toExpr a]
   toTypeExpr := mkConst ``RWrapper
 
@@ -95,8 +87,8 @@ syntax rise_expr ".2" : rise_expr
 
 
 -- nat2nat
-syntax:50 rise_expr:50 "(" ident "↦" rise_nat ")"           : rise_expr
-syntax:50 rise_expr:50 "(" ident "↦" rise_data ")"          : rise_expr
+syntax:50 rise_expr:50 "(" ident "↦" rise_nat ")"           : rise_expr -- TODO: move this to its own category
+-- syntax:50 rise_expr:50 "(" ident "↦" rise_data ")"          : rise_expr
 
 syntax:50 rise_expr:50 rise_expr:51                         : rise_expr
 syntax:50 rise_expr:50 rise_nat                             : rise_expr

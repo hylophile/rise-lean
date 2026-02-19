@@ -27,20 +27,20 @@ private def RNat.toSmtSExpr : RNat → String
   | .div n m => s!"(div {n.toSmtSExpr} {m.toSmtSExpr})"
   | .pow n m => s!"(^ {n.toSmtSExpr} {m.toSmtSExpr})"
 
-private def RData.toSmtSExpr : RData → String
-  | .bvar idx name => s!"b_{sane name}_{idx}"
-  | .mvar id name => s!"m_{sane name}_{id}"
-  | .array n d     => s!"(array {n.toSmtSExpr} {d.toSmtSExpr})"
-  | .pair d1 d2    => s!"(pair {d1.toSmtSExpr} {d2.toSmtSExpr})"
-  | .index n       => s!"(index {n.toSmtSExpr})"
-  | .scalar x      => s!"{x}"
-  | .natType       => "natType"
-  | .vector n d    => s!"(vector {n.toSmtSExpr} {d.toSmtSExpr})"
+-- private def RData.toSmtSExpr : RData → String
+--   | .bvar idx name => s!"b_{sane name}_{idx}"
+--   | .mvar id name => s!"m_{sane name}_{id}"
+--   | .array n d     => s!"(array {n.toSmtSExpr} {d.toSmtSExpr})"
+--   | .pair d1 d2    => s!"(pair {d1.toSmtSExpr} {d2.toSmtSExpr})"
+--   | .index n       => s!"(index {n.toSmtSExpr})"
+--   | .scalar x      => s!"{x}"
+--   | .natType       => "natType"
+--   | .vector n d    => s!"(vector {n.toSmtSExpr} {d.toSmtSExpr})"
 
-private def RType.toSmtSExpr : RType → String
-  | .data dt => dt.toSmtSExpr
-  | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSmtSExpr})"
-  | .fn binderType body => s!"(-> {binderType.toSmtSExpr} {body.toSmtSExpr})"
+-- private def RType.toSmtSExpr : RType → String
+--   | .data dt => dt.toSmtSExpr
+--   | .pi kind _pc un body => s!"(pi {un} {kind} {body.toSmtSExpr})"
+--   | .fn binderType body => s!"(-> {binderType.toSmtSExpr} {body.toSmtSExpr})"
 
 private def RNat.getDivs (n : RNat) : List (RNat × RNat) :=
   match n with

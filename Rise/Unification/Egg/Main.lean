@@ -13,11 +13,13 @@ def RNat.toEggSExpr : RNat → String
   | .div n m => s!"(/ {n.toEggSExpr} {m.toEggSExpr})"
   | .pow n m => s!"(^ {n.toEggSExpr} {m.toEggSExpr})"
 
-def RData.toEggSExpr : RData → String
+partial def RData.toEggSExpr : RData → String
   | .bvar idx name => s!"(data_bvar {sane name}_{idx})"
   | .mvar id name  => s!"(data_mvar {sane name}_{id})"
   | .array n d     => s!"(array {n.toEggSExpr} {d.toEggSExpr})"
+  | .posDepArray n n2d => s!"(posdeparray {n.toEggSExpr} {n2d.binderName} {n2d.body.toEggSExpr})"
   | .pair d1 d2    => s!"(pair {d1.toEggSExpr} {d2.toEggSExpr})"
+  | .depPair id d   => s!"(deppair {id} {d.toEggSExpr})"
   | .index n       => s!"(index {n.toEggSExpr})"
   | .scalar x      => s!"{x}"
   | .natType       => "natType"

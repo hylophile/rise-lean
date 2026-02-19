@@ -128,15 +128,15 @@ partial def elabToTypedRExpr : Syntax → RElabM TypedRExpr
       return ⟨.depapp f <| .nat2nat ⟨x.getId, n⟩, b⟩
     | _ => throwErrorAt f_syn s!"expected a nat2nat pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
-  | `(rise_expr| $f_syn:rise_expr ($x:ident ↦ $d:rise_data)) => do
-    let f ← elabToTypedRExpr f_syn
-    let f := {f with type := (← implicitsToMVars f.type)}
-    let d ← withNewTypeVar (x.getId, RKind.nat2nat) do elabToRData d
-    match f.type with
-    | .pi .nat2data .explicit _ b =>
-      -- let b := b.supplyNat2Data d
-      return ⟨.depapp f <| .nat2data ⟨x.getId, d⟩, b⟩
-    | _ => throwErrorAt f_syn s!"expected a nat2data pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
+  -- | `(rise_expr| $f_syn:rise_expr ($x:ident ↦ $d:rise_data)) => do
+  --   let f ← elabToTypedRExpr f_syn
+  --   let f := {f with type := (← implicitsToMVars f.type)}
+  --   let d ← withNewTypeVar (x.getId, RKind.nat2nat) do elabToRData d
+  --   match f.type with
+  --   | .pi .nat2data .explicit _ b =>
+  --     -- let b := b.supplyNat2Data d
+  --     return ⟨.depapp f <| .nat2data ⟨x.getId, d⟩, b⟩
+  --   | _ => throwErrorAt f_syn s!"expected a nat2data pi type for '{f_syn.raw.prettyPrint}', but found: {toString f.type}"
 
   | stx =>
     match stx with

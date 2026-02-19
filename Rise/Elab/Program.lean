@@ -195,12 +195,12 @@ macro_rules
 
   -- dependent array ops
   -- def depMapSeq : {n : nat} → {ft1 : nat2data} → {ft2 : nat2data} →
-  --     ((k : nat) → ft1(k) → ft2(k)) → n..ft1 → n..ft2
+  --     ((k : nat) → ft1(k) → ft2(k)) → n··ft1 → n··ft2
   -- def depZip : {n : nat} → {ft1 : nat2data} → {ft2 : nat2data} →
-  --     n..ft1 → n..ft2 → n..(i : nat |→ (ft1(i), ft2(i)) )
+  --     n··ft1 → n··ft2 → n··(i : nat |→ (ft1(i), ft2(i)) )
   -- def depJoin : {n : nat} → {lenF : nat2nat} → {t : data} →
-  --     n..(i : nat ↦ lenF(i)·t) → (sum_(i=0)^(n-1) lenF(i))·t
-  -- def partition : {n : nat} → {t : data} → (m : nat) → (lenF : nat2nat) → n·t → m..(i : nat ↦ lenF(i)·t)
+  --     n··(i : nat ↦ lenF(i)·t) → (sum_(i=0)^(n-1) lenF(i))·t
+  -- def partition : {n : nat} → {t : data} → (m : nat) → (lenF : nat2nat) → n·t → m··(i : nat ↦ lenF(i)·t)
 
 
   $[$d]*

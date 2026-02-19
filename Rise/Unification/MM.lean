@@ -78,8 +78,14 @@ partial def unifyOneRData (s t : RData) : RElabM UnificationResult :=
   | .array k1 d1, .array k2 d2 => do
     return (← unifyRNat [(k1, k2)])  |>.merge (← unifyRData [(d1, d2)])
 
+  | .posDepArray k1 d1, .posDepArray k2 d2 => do
+    return (← unifyRNat [(k1, k2)])  |>.merge (← unifyRData [(d1.body, d2.body)])
+
   | .pair l1 r1, .pair l2 r2 =>
     unifyRData [(l1, l2), (r1, r2)]
+
+  | .depPair _ d1, .depPair _ d2 => do
+    return (← unifyRData [(d1, d2)])
 
   | .index k1, .index k2 =>
     unifyOneRNat k1 k2

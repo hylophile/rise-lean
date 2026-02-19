@@ -1,5 +1,9 @@
 - what to do with addrspace?
 - fragments?
+- we'll need .app and .nat2nat variants in RNat
+- we also need type-level application for nat2data
+- [ ] type-level functions (TODO: we wanted to rethink those)
+  - [ ] dependent pair/array ops
 
 ---
 
@@ -53,9 +57,7 @@
 - type ascription: (x : f32)... anywhere
 - [ ] could try eqsat, probably need different substitution data structure. how to substitute there anyways?
 - [ ] foreign func
-- [ ] natType?
-- [ ] type-level functions (TODO: we wanted to rethink those)
-  - [ ] dependent pair/array ops
+- [x] natType?
 - [x] `+-*/^` for nats in expressions, not just types
 - [x] syntax for add/mult (+/\*) in expressions.
 - [x] syntax for .1 .2 (fst/snd)
