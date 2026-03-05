@@ -1,5 +1,5 @@
-import Rise.Elab.Type
-import Rise.Elab.TypedRExpr
+import Rise.Elab.RType
+import Rise.Elab.RExpr
 import Rise.Unification.SymPy.Main
 import Rise.Unification.Egg.Main
 import Rise.Unification.SMT.Check
@@ -28,7 +28,7 @@ def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
 def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
   | [] => do
-      let expr ← elabToTypedRExpr expr
+      let expr ← elabToRExpr expr
       let natGoals := (<- get).rnatEqualities
       -- dbg_trace natGoals
       let natSubst ← solveWithSymPy natGoals

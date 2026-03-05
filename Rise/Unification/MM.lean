@@ -193,7 +193,7 @@ def RType.applyUnifyResults (t : RType) : RElabM RType := do
   let unifyResults : Substitution := (← get).unifyResult
   return t.apply unifyResults
 
-partial def TypedRExpr.applyUnifyResults (e : TypedRExpr) : RElabM TypedRExpr := do
+partial def RExprWith.applyUnifyResults (e : RExpr) : RElabM RExpr := do
   let newType := (← e.type.applyUnifyResults)
   match e.node with
   | .app e1 e2 => return ⟨.app (← e1.applyUnifyResults) (← e2.applyUnifyResults), newType⟩
