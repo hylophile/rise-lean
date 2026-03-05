@@ -5,7 +5,7 @@ import Elevate.Basic
 import Lean
 open Lean Elab Command
 
-def rule.transpose_transpose : Strategy TypedRExpr
+def rule.transpose_transpose : Strategy RExpr
   -- fun e => match e.node with
   | ⟨.app ⟨.const `transpose, _⟩ ⟨.app ⟨.const `transpose, _⟩ x, _⟩, _⟩ =>
     .ok x
@@ -34,7 +34,7 @@ def rule.transpose_transpose : Strategy TypedRExpr
 -- #rule xyz := transpose transpose ?x ~> ?x
 
 -- elab "#rule" n:ident ":=" e1:term "~>" e:term : command => do
---   -- let e1 ← elabToTypedRExpr e1
+--   -- let e1 ← elabToRExpr e1
 --   -- let rhs ← compileRiseRHS e2 ctx
 --   let lhs ← liftTermElabM <| Term.elabTerm e1 none
 --   let lhs := `(⟨.app ⟨.const `transpose, _⟩ ⟨.app ⟨.const `transpose, _⟩ x, _⟩, _⟩)

@@ -25,7 +25,7 @@ syntax "{" (sympy_pair,*,?) "}": sympy_map
 
 private def elabSymPySymb : Syntax → RElabM RNat
   | `(sympy_symb| $x:ident) =>
-    match x.getId.toString.split (· == '_') with
+    match x.getId.toString.split '_' |>.toStringList with
     | ["m",n,id] => match id.toNat? with
       | some id => return RNat.mvar id n.toName
       | none => throwUnsupportedSyntax

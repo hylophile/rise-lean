@@ -17,24 +17,16 @@ def RNat.mapMVars (t : RNat) (f : RMVarId → RMVarId) : RNat :=
   | .div a b    => .div (a.mapMVars f) (b.mapMVars f)
   | .pow a b    => .pow (a.mapMVars f) (b.mapMVars f)
 
-partial def RData.mapMVars (t : RData) (f : RMVarId → RMVarId) : RData :=
+def RData.mapMVars (t : RData) (f : RMVarId → RMVarId) : RData :=
   match t with
   | .bvar ..       => t
   | .mvar id name  => .mvar (f id) name
   | .array n d     => .array (n.mapMVars f) (d.mapMVars f)
-  | .posDepArray n n2d => .posDepArray (n.mapMVars f) ⟨n2d.binderName, n2d.body.mapMVars f⟩ 
   | .pair d1 d2    => .pair (d1.mapMVars f) (d2.mapMVars f)
-  | .depPair id d  => .depPair id (d.mapMVars f)
   | .index n       => .index (n.mapMVars f)
   | .scalar ..     => t
   | .natType       => t
   | .vector n d    => .vector (n.mapMVars f) (d.mapMVars f)
-
-def RNat2Nat.mapMVars (t : RNat2Nat) (f : RMVarId → RMVarId) : RNat2Nat :=
-  ⟨t.binderName, t.body.mapMVars f⟩
-
-def RNat2Data.mapMVars (t : RNat2Data) (f : RMVarId → RMVarId) : RNat2Data :=
-  ⟨t.binderName, t.body.mapMVars f⟩
 
 def RType.mapMVars (t : RType) (f : RMVarId → RMVarId) : RType :=
   match t with
@@ -43,7 +35,7 @@ def RType.mapMVars (t : RType) (f : RMVarId → RMVarId) : RType :=
   | .pi k bi n b => .pi k bi n (b.mapMVars f)
 
 mutual
-partial def TypedRExprNode.mapMVars (t : TypedRExprNode) (f : RMVarId → RMVarId) : TypedRExprNode :=
+partial def RExprNodeWith.mapMVars (t : RExprNode) (f : RMVarId → RMVarId) : RExprNode :=
   match t with
   | .bvar ..
   | .const ..
@@ -52,14 +44,11 @@ partial def TypedRExprNode.mapMVars (t : TypedRExprNode) (f : RMVarId → RMVarI
   | .depapp fn arg => match arg with
     | .nat v => .depapp (fn.mapTypeMVars f) (.nat <| v.mapMVars f)
     | .data v => .depapp (fn.mapTypeMVars f) (.data <| v.mapMVars f)
-    | .nat2nat v => .depapp (fn.mapTypeMVars f) (.nat2nat <| v.mapMVars f)
-    | .nat2data v => .depapp (fn.mapTypeMVars f) (.nat2data <| v.mapMVars f)
-    | .addrSpace a => .depapp (fn.mapTypeMVars f) (.addrSpace a)
   | .lam n t b => .lam n (t.mapMVars f) (b.mapTypeMVars f)
   | .deplam n k b => .deplam n k (b.mapTypeMVars f)
 
 
-partial def TypedRExpr.mapTypeMVars (t : TypedRExpr) (f : RMVarId → RMVarId) : TypedRExpr :=
+partial def RExprWith.mapTypeMVars (t : RExpr) (f : RMVarId → RMVarId) : RExpr :=
   ⟨t.node.mapMVars f, t.type.mapMVars f⟩
 end
 
@@ -78,24 +67,17 @@ def RNat.collectMVarIds (t : RNat) : Std.HashSet RMVarId :=
   | .pow a b    => a.collectMVarIds ∪ b.collectMVarIds
 
 
-partial def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
+def RData.collectMVarIds (t : RData) : Std.HashSet RMVarId :=
   match t with
   | .bvar ..       => {}
   | .mvar id _     => {id}
   | .scalar ..     => {}
   | .natType       => {}
   | .array n d     => n.collectMVarIds ∪ d.collectMVarIds
-  | .posDepArray n n2d => n.collectMVarIds ∪ n2d.body.collectMVarIds
   | .pair d1 d2    => d1.collectMVarIds ∪ d2.collectMVarIds
-  | .depPair _ d  => d.collectMVarIds
   | .index n       => (n.collectMVarIds)
   | .vector n d    => n.collectMVarIds ∪ d.collectMVarIds
 
-def RNat2Nat.collectMVarIds (t : RNat2Nat) : Std.HashSet RMVarId :=
-  t.body.collectMVarIds
-
-def RNat2Data.collectMVarIds (t : RNat2Data) : Std.HashSet RMVarId :=
-  t.body.collectMVarIds
 
 def RType.collectMVarIds (t : RType) : Std.HashSet RMVarId :=
   match t with
@@ -103,7 +85,7 @@ def RType.collectMVarIds (t : RType) : Std.HashSet RMVarId :=
   | .fn a b => a.collectMVarIds ∪ b.collectMVarIds
   | .pi _ _ _ b => (b.collectMVarIds)
 
-partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
+partial def RExprWith.collectMVarIds  (e : RExpr) : Std.HashSet RMVarId :=
   let t_mvars := e.type.collectMVarIds
   let n_mvars := match e.node with
     | .bvar ..
@@ -113,9 +95,6 @@ partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
     | .depapp fn arg => match arg with
       | .nat v => v.collectMVarIds ∪ fn.collectMVarIds
       | .data v => v.collectMVarIds ∪ fn.collectMVarIds
-      | .nat2nat v => v.collectMVarIds
-      | .nat2data v => v.collectMVarIds
-      | .addrSpace _ => {}
     | .lam _ t b => t.collectMVarIds ∪ b.collectMVarIds
     | .deplam _ _ b => b.collectMVarIds
   t_mvars ∪ n_mvars
@@ -151,7 +130,7 @@ def collectVars (eqs : List (RNat × RNat)) : List String :=
   eqs.map (fun (l,r) => l.collectBVars ++ r.collectBVars ++ l.collectMVars ++ r.collectMVars) |> List.flatten |> List.eraseDups
 
 -- takes an expr with possibly conflicting mvarIds and maps them to fresh mvarIds in the current context.
-def shiftMVars (e : TypedRExpr) : RElabM TypedRExpr := do
+def shiftMVars (e : RExpr) : RElabM RExpr := do
   let mvars := e.collectMVarIds
   let map : Std.HashMap RMVarId RMVarId ← mvars.foldM (init := Std.HashMap.emptyWithCapacity)
     (fun m a => do

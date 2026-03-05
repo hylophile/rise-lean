@@ -10,9 +10,6 @@ inductive RKind
   | nat
   | data
   | type
-  | nat2nat
-  | nat2data
-  | addrSpace
 deriving BEq, Hashable, Repr
 
 -- Nat
@@ -48,30 +45,16 @@ deriving Repr, BEq
 
 -- DataType
 --   δ ::= n.δ | δ × δ | "idx [" n "]" | scalar | n<scalar>  (Array Type, Pair Type, Index Type, Scalar Type, Vector Type)
-mutual
 inductive RData
   | bvar (deBruijnIndex : Nat) (userName : Name)
   | mvar (id : Nat) (userName : Name)
   | array  : RNat → RData → RData
-  | posDepArray : RNat → RNat2Data → RData
   | pair   : RData → RData → RData
-  | depPair (binderName : Name) (data : RData) -- binderName is of kind nat
   | index  : RNat → RData
   | scalar : RScalar → RData
   | natType : RData
   | vector : RNat → RData → RData -- NOTE: second param should be scalar, but then we'd also need mvars for scalar, which is annoying, so i'll leave it as is for now.
 deriving Repr, BEq
-
-structure RNat2Nat where
-  binderName : Name
-  body : RNat
-deriving Repr, BEq
-
-structure RNat2Data where
-  binderName : Name
-  body : RData
-deriving Repr, BEq
-end
 
 -- Im-/ex-plicity of parameters
 inductive RBinderInfo
@@ -87,20 +70,10 @@ inductive RType
   | fn (binderType : RType) (body : RType)
 deriving Repr, BEq
 
-inductive RAddrSpace
-  | global
-  | local
-  | «private»
-  | constant
-deriving Repr, BEq
-
 
 inductive RWrapper
   | nat (val: RNat)
   | data (val: RData)
-  | nat2nat (val: RNat2Nat)
-  | nat2data (val: RNat2Data)
-  | addrSpace (val : RAddrSpace)
 deriving Repr, BEq
 
 inductive RLit
@@ -109,22 +82,27 @@ inductive RLit
   | int (val : Int)
 deriving Repr, BEq
 
+
 mutual
-structure TypedRExpr where
-  node: TypedRExprNode
-  type: RType
+/-- Rise expression where each sub-expression has a type annotation. We parameterize on the type annotation, because in the elaboration of Rise, we annotate with RType (so Elevate can utilize the types), but in the DPIA stage, we annotate with Phrase types. -/
+structure RExprWith (α : Type) where
+  node: RExprNodeWith α
+  type: α
 deriving Repr, BEq
 
-inductive TypedRExprNode
+inductive RExprNodeWith (α : Type)
   | bvar (deBruijnIndex : Nat) (userName: Name)
   | const (userName : Name)
   | lit (val : RLit)
-  | app (fn arg : TypedRExpr)
-  | depapp (fn : TypedRExpr) (arg : RWrapper)
-  | lam (binderName : Name) (binderType : RType) (body : TypedRExpr)
-  | deplam (binderName : Name) (binderKind : RKind) (body : TypedRExpr)
+  | app (fn arg : RExprWith α)
+  | depapp (fn : RExprWith α) (arg : RWrapper)
+  | lam (binderName : Name) (binderType : RType) (body : RExprWith α)
+  | deplam (binderName : Name) (binderKind : RKind) (body : RExprWith α)
 deriving Repr, BEq
 end
+
+abbrev RExpr := RExprWith RType
+abbrev RExprNode := RExprNodeWith RType
 
 abbrev KindingContextElement := Name × RKind
 abbrev KindingContext := Array KindingContextElement
@@ -163,35 +141,21 @@ def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
   | .data _ => t
   | .nat s => t.substNat x s
 
-mutual
-partial def RNat2Data.substNat (t : RNat2Data) (x : RMVarId) (s : RNat) : RNat2Data :=
- ⟨t.binderName, t.body.substNat x s⟩
-
 partial def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
   match t with
   | .array k d => .array (k.substNat x s) (d.substNat x s)
-  | .posDepArray k n2d => .posDepArray (k.substNat x s) (n2d.substNat x s)
   | .pair l r => .pair (l.substNat x s) (r.substNat x s)
-  | .depPair name d => .depPair name (d.substNat x s)
   | .index k => .index (k.substNat x s)
   | .vector k d => .vector (k.substNat x s) (d.substNat x s)
   | .mvar .. | .bvar .. | .scalar .. | .natType => t
-end
-
-mutual
-partial def RNat2Data.substData (t : RNat2Data) (x : RMVarId) (s : RData) : RNat2Data :=
- ⟨t.binderName, t.body.substData x s⟩
 
 partial def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
   match t with
   | .mvar y _ => if x == y then s else t
   | .array k d => .array k (d.substData x s)
-  | .posDepArray k n2d => .posDepArray k (n2d.substData x s)
   | .pair l r => .pair (l.substData x s) (r.substData x s)
-  | .depPair name d => .depPair name (d.substData x s)
   | .vector k d => .vector k (d.substData x s)
   | .index .. | .bvar .. | .scalar .. | .natType => t
-end
 
 def RData.subst (t : RData) (x : RMVarId) (s : SubstEnum) : RData :=
   match s with
@@ -225,12 +189,10 @@ def RNat.has (v : RMVarId) : RNat → Bool
   | .div n m => n.has v || m.has v
   | .pow n m => n.has v || m.has v
 
-partial def RData.has (v : RMVarId) : RData → Bool
+def RData.has (v : RMVarId) : RData → Bool
   | .mvar id _ => id == v
   | .array _ d => d.has v
-  | .posDepArray _ n2d => n2d.body.has v
   | .pair l r => l.has v || r.has v
-  | .depPair _ d => d.has v
   | .vector _ d => d.has v
   | .bvar .. | .index .. | .scalar .. | .natType => false
 
@@ -253,9 +215,6 @@ instance : ToString RKind where
     | .nat => "nat"
     | .data => "data"
     | .type => "type"
-    | .nat2nat => "nat2nat"
-    | .nat2data => "nat2data"
-    | .addrSpace => "addrSpace"
 
 instance : ToString RNat where
   toString :=
@@ -294,26 +253,15 @@ instance : ToString RScalar where
     | .f32  => "f32"
     | .f64  => "f64"
 
-instance : ToString RNat2Nat where
-  toString v :=  s!"{v.binderName} ↦ {v.body} : nat2nat"
-
-mutual
-partial def RNat2Data.toString : RNat2Data → String := fun v => s!"{v.binderName} ↦ {v.body.toString} : nat2data"
 partial def RData.toString : RData → String
   | .bvar idx name => s!"{name}@{idx}"
   | .mvar id name  => s!"{name}?{id}"
   | .array n d     => s!"{n}·{d.toString}"
-  | .posDepArray n d     => s!"{n}·{d.toString}"
   | .pair d1 d2    => s!"({d1.toString} × {d2.toString})"
-  | .depPair id d  => s!"({id} ** {d.toString})"
   | .index n       => s!"idx[{n}]"
   | .scalar x      => s!"{x}"
   | .natType       => "natType"
   | .vector n d    => s!"{n}<{d.toString}>"
-end
-
-instance : ToString RNat2Data where
-  toString := RNat2Data.toString
 
 instance : ToString RData where
   toString := RData.toString
@@ -348,12 +296,8 @@ instance : ToString Substitution where
 def RWrapper.render : RWrapper -> Std.Format
   | .nat v => toString v ++ " : nat"
   | .data v => toString v ++ " : data"
-  | .nat2nat v => toString v
-  | .nat2data v => toString v
-  | .addrSpace a => repr a
-  -- | .type v => toString v ++ " : type"
 
-partial def TypedRExprNode.render : TypedRExprNode → Std.Format
+partial def RExprNodeWith.render : RExprNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
   | .const s      => s.toString
   | .lit n        => s!"{n}"
@@ -366,7 +310,7 @@ partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
 
-partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
+partial def RExprNodeWith.renderInline : RExprNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
   | .const s      => s.toString
   | .lit n        => s!"{n}"
@@ -379,20 +323,20 @@ partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInline}"
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInline}"
 
-instance : Std.ToFormat TypedRExprNode where
-  format := TypedRExprNode.render
+instance : Std.ToFormat RExprNode where
+  format := RExprNodeWith.render
 
-instance : ToString TypedRExprNode where
+instance : ToString RExprNode where
   toString e := Std.Format.pretty e.render
 
 private def indent (s : String) : String :=
-  s.trim |>.splitOn "\n" |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
+  s.trimAscii |>.split '\n' |>.toStringList |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
 
-instance : ToString TypedRExpr where
+instance : ToString RExpr where
   toString e := "expr:\n" ++ (indent <| toString e.node) ++ "\ntype:\n" ++ (indent <| toString e.type)
 
 open Lean in
-partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
+partial def RExpr.toJson (e : RExpr) : Json :=
   match e.node with
   | .app e1 e2 => let children := Json.arr <| #[e1, e2].map toJson
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", children)]
@@ -403,12 +347,11 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
   | _ =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type)]
 
-instance : Lean.ToJson TypedRExpr where
+instance : Lean.ToJson RExpr where
   toJson e := e.toJson
 
 register_option egg.debug_enable : Bool := {
   defValue := false
-  group := "egg"
   descr := "Enables running egg and comparing results to sympy."
 }
 

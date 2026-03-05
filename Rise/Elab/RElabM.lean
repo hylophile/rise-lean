@@ -80,7 +80,7 @@ def ur : RElabM Substitution := do
   return (← get).unifyResult
 
 
-def withNewTypeVar (arg : KindingContextElement) : RElabM α → RElabM α :=
+def withNewTVar (arg : KindingContextElement) : RElabM α → RElabM α :=
   withReader (fun ctx => { ctx with kctx := ctx.kctx.push arg })
 
 def withNewType (arg : KindingContextElement) : RElabM α → RElabM α :=

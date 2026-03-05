@@ -1,5 +1,5 @@
-import Rise.Elab.Type
-import Rise.Elab.TypedRExpr
+import Rise.Elab.RType
+import Rise.Elab.RExpr
 import Rise.Unification.SymPy.Main
 import Rise.Unification.Egg.Main
 import Rise.Unification.SMT.Check
@@ -28,7 +28,7 @@ def compareSubstitutionsCSV (s1 s2 : Substitution) : String :=
 def elabRDeclAndRExpr (expr: Syntax) (decls : List (TSyntax `rise_decl)) : RElabM Expr :=
   match decls with
   | [] => do
-      let expr ← elabToTypedRExpr expr
+      let expr ← elabToRExpr expr
       let natGoals := (<- get).rnatEqualities
       -- dbg_trace natGoals
       let natSubst ← solveWithSymPy natGoals
@@ -112,7 +112,7 @@ macro_rules
 
   -- memory ops
   -- (can't use "let" as identifier)
-  def «let» : {s t : data} → s → (s → t) → t
+  def  rlet : {s t : data} → s → (s → t) → t
   def toMem : {t : data} → t → t
 
   -- foreign functions
@@ -142,7 +142,7 @@ macro_rules
 
   def  gather : {n m : nat} → {t : data} → m·idx[n] → n·t → m·t
   def scatter : {n m : nat} → {t : data} → n·idx[m] → n·t → m·t
-  def reorder : {t : data} → (n : nat) → (idxF : nat2nat) → (idxFinv : nat2nat) → n·t → n·t
+  --def reorder : {t : data} → (n : nat) → (idxF : nat2nat) → (idxFinv : nat2nat) → n·t → n·t
 
   def padCst :   {n : nat} → (l r : nat) → {t : data} → t → n·t → (l+n+r)·t
   def padClamp : {n : nat} → (l r : nat) → {t : data} →     n·t → (l+n+r)·t
@@ -195,12 +195,12 @@ macro_rules
 
   -- dependent array ops
   -- def depMapSeq : {n : nat} → {ft1 : nat2data} → {ft2 : nat2data} →
-  --     ((k : nat) → ft1(k) → ft2(k)) → n··ft1 → n··ft2
+  --     ((k : nat) → ft1(k) → ft2(k)) → n..ft1 → n..ft2
   -- def depZip : {n : nat} → {ft1 : nat2data} → {ft2 : nat2data} →
-  --     n··ft1 → n··ft2 → n··(i : nat |→ (ft1(i), ft2(i)) )
+  --     n..ft1 → n..ft2 → n..(i : nat |→ (ft1(i), ft2(i)) )
   -- def depJoin : {n : nat} → {lenF : nat2nat} → {t : data} →
-  --     n··(i : nat ↦ lenF(i)·t) → (sum_(i=0)^(n-1) lenF(i))·t
-  -- def partition : {n : nat} → {t : data} → (m : nat) → (lenF : nat2nat) → n·t → m··(i : nat ↦ lenF(i)·t)
+  --     n..(i : nat |→ lenF(i)·t) → (sum_(i=0)^(n-1) lenF(i))·t
+  -- def partition : {n : nat} → {t : data} → (m : nat) → (lenF : nat2nat) → n·t → m..(i : nat |→ lenF(i)·t)
 
 
   $[$d]*
