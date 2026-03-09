@@ -13,7 +13,7 @@ def dot := [RiseC|
   fun as bs : n·f32 =>
      zip as bs |> map ($prodMult (f32 : data)) |> reduce add 0.0f32
 ]
-#pp dot
+#eval dot
 
 def dot3 := [RiseC|
   fun {n : nat} =>

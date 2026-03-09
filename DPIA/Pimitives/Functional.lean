@@ -140,7 +140,7 @@ def mkSplit (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase) : DP
 
 def mkJoin (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.join n m t a array
-  let type := PhraseType.expr (RData.array (RNat.mult n m) t) DAnnotation.read
+  let type := PhraseType.expr (RData.array (RNat.mult n m) t) a
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
 
@@ -192,7 +192,7 @@ def mkTranspose (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase) 
 
 def mkGather (n m : RNat) (t : RData) (idx array : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.gather n m t idx array
-  let type := PhraseType.expr (RData.array n t) DAnnotation.read
+  let type := PhraseType.expr (RData.array m t) DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
 def mkScatter (n m : RNat) (t : RData) (idx array : DPIAPhrase) : DPIAPhrase :=

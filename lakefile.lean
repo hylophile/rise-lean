@@ -13,6 +13,10 @@ lean_lib Rise where
   -- This enables the interpreter to run functions marked `@[extern]`.
   precompileModules := true
 
+lean_lib DPIA where
+  -- This enables the interpreter to run functions marked `@[extern]`.
+  --precompileModules := true
+
 -- lean_lib Elevate where
 --   -- This enables the interpreter to run functions marked `@[extern]`.
   -- precompileModules := true
@@ -37,23 +41,23 @@ extern_lib ffi pkg := do
   buildStaticLib libFile #[job]
 
 
-extern_lib egg_unify pkg := do
+-- extern_lib egg_unify pkg := do
 
-  pkg.afterBuildCacheAsync do
-    let name      := nameToSharedLib "egg_unify"
-    let srcPath   := pkg.dir / "Rise" / "Unification" / "Egg"/ "Bridge" / "Rust" / "target" / "release" / name
-    let tgtPath   := pkg.sharedLibDir / name
-    let traceFile := pkg.buildDir / "rust" / "egg.trace"
-    -- let _ ← buildUnlessUpToDate? traceFile (← getTrace) traceFile do
-    let _ ← buildAction (← getTrace) traceFile do
-      proc {
-        cmd := "cargo",
-        -- args := #["build", "--release"]
-        args := #["rustc", "--release", "--", "-C", "relocation-model=pic"],
-        cwd := pkg.dir / "Rise" / "Unification" / "Egg" / "Bridge" / "Rust"
-      }
-      IO.FS.createDirAll pkg.sharedLibDir
-      IO.FS.writeBinFile tgtPath (← IO.FS.readBinFile srcPath)
-    -- dbg_trace srcPath
-    -- dbg_trace tgtPath
-    return pure tgtPath
+--   pkg.afterBuildCacheAsync do
+--     let name      := nameToSharedLib "egg_unify"
+--     let srcPath   := pkg.dir / "Rise" / "Unification" / "Egg"/ "Bridge" / "Rust" / "target" / "release" / name
+--     let tgtPath   := pkg.sharedLibDir / name
+--     let traceFile := pkg.buildDir / "rust" / "egg.trace"
+--     -- let _ ← buildUnlessUpToDate? traceFile (← getTrace) traceFile do
+--     let _ ← buildAction (← getTrace) traceFile do
+--       proc {
+--         cmd := "/Users/amelie/.cargo/bin/cargo",
+--         -- args := #["build", "--release"]
+--         args := #["rustc", "--release", "--", "-C", "relocation-model=pic"],
+--         cwd := pkg.dir / "Rise" / "Unification" / "Egg" / "Bridge" / "Rust"
+--       }
+--       IO.FS.createDirAll pkg.sharedLibDir
+--       IO.FS.writeBinFile tgtPath (← IO.FS.readBinFile srcPath)
+--     -- dbg_trace srcPath
+--     -- dbg_trace tgtPath
+--     return pure tgtPath

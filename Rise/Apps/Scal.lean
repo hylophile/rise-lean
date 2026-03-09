@@ -2,14 +2,15 @@ import Rise
 -- from shine/src/test/scala/apps/scal.scala
 
 
--- def simpleScal := [RiseC|
---   fun n : nat =>
---   fun input : n·f32 =>
---   fun alpha : f32 =>
---     input |> mapSeq (fun x => alpha * x)
--- ]
+def simpleScal := [RiseC|
+   fun n : nat =>
+   fun input : n·f32 =>
+   fun alpha : f32 =>
+     input |> mapSeq (fun x => alpha * x)
+ ]
 
-set_option egg.debug_enable true in
+
+--set_option egg.debug_enable true in
 def scalIntel := [RiseC|
   fun n : nat =>
   fun input : n·f32 =>

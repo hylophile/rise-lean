@@ -245,6 +245,19 @@ deriving Repr, BEq
 
 end
 
+------------ inhabited ------------------------- for throwing errors
+instance : Inhabited DPIAPhrase :=
+  ⟨{node := DPIAPhraseNode.bvar 0 (Lean.Name.mkSimple "dummy"), type := PhraseType.comm : DPIAPhrase}⟩
+
+instance : Inhabited PhraseType :=
+  ⟨PhraseType.comm⟩
+
+instance : Inhabited RData :=
+  ⟨RData.natType⟩
+
+instance : Inhabited RType :=
+  ⟨RType.data RData.natType⟩
+
 ------------ Representations ----------------------
 
 -- modified from Nate
@@ -272,11 +285,25 @@ def NatToData.apply (nat2nat : NatToData) (n : RNat) : RData :=
     | NatToData.natToDataIdentifier userName => RData.bvar 0 userName --?
     | NatToData.natToDataLambda x body => RData.substNat body x n
 
-def exprTypeToDataType (exprT : RType) : RData :=
+def assertDataType (exprT: RType) : RData :=
   match exprT with
     | .data dt => dt
-    | .fn _ bodyType => exprTypeToDataType bodyType -- maybe fail if not data?
-    | .pi _ _ _ bodyType => exprTypeToDataType bodyType -- maybe fail if not data?
+    | _ => panic! s!"THis should never happen"
+
+def assertFunctionType (exprT: RType) : RType :=
+  match exprT with
+    | .fn inT _ => inT
+    | _ => panic! s!"THis should never happen"
+
+def assertFunctionTypePt (exprT: PhraseType) : PhraseType :=
+  match exprT with
+    | .fn _ _ => exprT
+    | _ => panic! s!"THis should never happen"
+
+-- def assertDataPt (exprT: PhraseType) : RType :=
+--   match exprT with
+--     | .fn _ _ => exprT
+--     | _ => panic! s!"THis should never happen"
 
 -- modified from Nate
 def PhraseType.toString : PhraseType → String

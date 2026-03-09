@@ -7,14 +7,14 @@ import Lean.Elab
 inductive RKind
   | nat
   | data
-  | type
+  | type -- function types
   -- | etc
 deriving BEq, Hashable, Repr
 
 -- Nat
 --   n ::= 0 | n + n | n · n | ... (Natural Number Literals, Binary Operations)
 inductive RNat
-  | bvar (deBruijnIndex : Nat) (userName : Lean.Name)
+  | bvar (deBruijnIndex : Nat) (userName : Lean.Name) -- natIdentifier
   | mvar (id : Nat) (userName : Lean.Name)
   | nat  (n : Nat)
   | plus (n : RNat) (m : RNat)
@@ -22,7 +22,7 @@ inductive RNat
   | mult (n : RNat) (m : RNat)
   | div (n : RNat) (m : RNat)
   | pow (n : RNat) (m : RNat)
-deriving Repr, BEq, DecidableEq
+deriving Repr, BEq, DecidableEq, Hashable
 
 
 inductive RScalar
@@ -41,7 +41,7 @@ inductive RScalar
   | f32
   | f64
 
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 
 -- DataType
 --   δ ::= n.δ | δ × δ | "idx [" n "]" | scalar | n<scalar>  (Array Type, Pair Type, Index Type, Scalar Type, Vector Type)
@@ -54,13 +54,13 @@ inductive RData
   | scalar : RScalar → RData
   | natType : RData
   | vector : RNat → RData → RData -- NOTE: second param should be scalar, but then we'd also need mvars for scalar, which is annoying, so i'll leave it as is for now.
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 
 -- Im-/ex-plicity of parameters
 inductive RBinderInfo
   | explicit
   | implicit
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 
 -- Types
 --   τ ::= δ | τ → τ | (x : κ) → τ (Data Type, Function Type, Dependent Function Type)
@@ -68,26 +68,26 @@ inductive RType where
   | data (dt : RData)
   | pi (binderKind : RKind) (binderInfo : RBinderInfo) (userName : Lean.Name) (body : RType)
   | fn (binderType : RType) (body : RType)
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 
 
 inductive RWrapper
   | nat (v: RNat)
   | data (v: RData)
   | type (v: RType)
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 
 inductive RLit
   | bool (val : Bool)
   | float (val : String) -- TODO: better representation
   | int (val : Int)
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 
 mutual
 structure TypedRExpr where
   node: TypedRExprNode
   type: RType
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 
 inductive TypedRExprNode where
   | bvar (deBruijnIndex : Nat) (userName: Lean.Name)
@@ -99,7 +99,7 @@ inductive TypedRExprNode where
   | depapp (fn : TypedRExpr) (arg : RWrapper)
   | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
   | deplam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
-deriving Repr, BEq
+deriving Repr, BEq, Hashable
 end
 
 abbrev KindingContextElement := Lean.Name × RKind
