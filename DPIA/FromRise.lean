@@ -21,28 +21,147 @@ def mkDeplam (type : PhraseType) (name : Lean.Name) (binderKind : DKind) (body :
 def mkBvar (index : Nat) (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
   {node := .bvar index name, type := type : DPIAPhrase}
 
+def buildArrayPrimitive (t: PhraseType) ()
+
 
 def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
   match name.toString with
     | "id" => panic! s!"not implemented yet"
-    | "neg" => panic! s!"not implemented yet"
 
-    | "add" => panic! s!"not implemented yet"
-    | "sub" => panic! s!"not implemented yet"
-    | "mul" => panic! s!"not implemented yet"
-    | "div" => panic! s!"not implemented yet"
-    | "mod" => panic! s!"not implemented yet"
+    | "neg" => match type with
+                 | PhraseType.fn (.expr t .read) (.expr _ .read) =>
 
-    | "select" => panic! s!"not implemented yet"
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.expr t .read)) (Name "e") eType
+                            (mkNeg t (mkBvar 0 (Name "e") eType))
+                 | _ => panic! s!"{type} is no valid neg type"
 
-    | "not" => panic! s!"not implemented yet"
-    | "gt"  => panic! s!"not implemented yet"
-    | "lt"  => panic! s!"not implemented yet"
-    | "equal" => panic! s!"not implemented yet"
+    | "add" => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr _ .read)) =>
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkAdd t (mkBvar 1 (Name "e1") eType)
+                                            (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid add type"
 
-    | "cast" => panic! s!"not implemented yet"
+    | "sub" => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr _ .read)) =>
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkSub t (mkBvar 1 (Name "e1") eType)
+                                            (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid sub type"
 
-    | "natAsNat" => panic! s!"not implemented yet"
+    | "mul" => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr _ .read)) =>
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkMul t (mkBvar 1 (Name "e1") eType)
+                                            (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid mul type"
+
+    | "div" => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr _ .read)) =>
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkDiv t (mkBvar 1 (Name "e1") eType)
+                                            (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid div type"
+
+    | "mod" => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr _ .read)) =>
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkMod t (mkBvar 1 (Name "e1") eType)
+                                            (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid mod type"
+
+    | "select" => match type with
+                     | PhraseType.fn (.expr (.scalar .bool) .read)
+                                     (.fn (.expr t .read)
+                                          (.fn (.expr _ .read) (.expr _ .read))) =>
+                            let fExprType := PhraseType.expr t .read
+                            let tExprType := PhraseType.expr t .read
+                            let condType := PhraseType.expr (.scalar .bool) .read
+                            let fExprFunType := PhraseType.fn fExprType (.expr t .read)
+
+                            mkLam (.fn condType (.fn tExprType fExprFunType)) (Name "cond") condType
+                                   (mkLam (.fn tExprType fExprFunType) (Name "tExpr") tExprType
+                                          (mkLam fExprFunType (Name "fExpr") fExprType
+                                                 {node := (.ifThenElse (mkBvar 2 (Name "cond") condType) (mkBvar 1 (Name "tExpr") tExprType) (mkBvar 0 (Name "fExpr") fExprType)), type := .expr t .read : DPIAPhrase}))
+
+                     | _ => panic! s!"{type} is no valid select type"
+
+    | "not" => match type with
+                  | PhraseType.fn (.expr (.scalar .bool) .read) (.expr (.scalar .bool) .read) =>
+
+                            let eType := (.expr (.scalar .bool) .read)
+
+                            mkLam (.fn eType (.expr (.scalar .bool) .read)) (Name "e") eType
+                                   (mkNot (mkBvar 0 (Name "e ") eType))
+                  | _ => panic! s!"{type} is no valid not type"
+
+    | "gt"  => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr (.scalar .bool) .read)) =>
+
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkGt  (mkBvar 1 (Name "e1") eType)
+                                          (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid gt type"
+
+    | "lt"  => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr (.scalar .bool) .read)) =>
+
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkLt  (mkBvar 1 (Name "e1") eType)
+                                          (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid lt type"
+
+    | "equal" => match type with
+                 | PhraseType.fn (.expr t .read)
+                                 (.fn (.expr _ .read) (.expr (.scalar .bool) .read)) =>
+
+                     let eType := PhraseType.expr t .read
+                     mkLam (.fn eType (.fn eType eType)) (Name "e1") eType
+                            (mkLam (.fn eType eType) (Name "e2") eType
+                                   (mkGt (mkBvar 1 (Name "e1") eType)
+                                         (mkBvar 0 (Name "e2") eType)))
+                 | _ => panic! s!"{type} is no valid equal type"
+
+    | "cast" => match type with
+                  | PhraseType.fn  (.expr s .read)
+                                   (.expr t .read) =>
+                            let xType := PhraseType.expr s .read
+
+                            mkLam  (.fn xType (.expr t .read)) (Name "x") xType
+                                   (mkCast s t (mkBvar 0 (Name "x") xType))
+                  | _ => panic! s!"{type} is no valid cast type"
+
+    | "indexAsNat" => match type with
+                        | PhraseType.fn   (.expr (.index n) .read)
+                                          (.expr .natType .read) =>
+                            let eType := PhraseType.expr (.index n) .read
+
+                            mkLam   (.fn eType (.expr (.index n) .read)) (Name "e") eType
+                                    (mkIndexAsNat n (mkBvar 0 (Name "e") eType))
+                        | _ => panic! s!"{type} is no valid indexAsNat type"
+
     | "natAsIndex" => match type with
                       | PhraseType.pi (.rise .nat) name (.fn (.expr .natType .read) (.expr (.index n) .read)) =>
                           let eType := PhraseType.expr (.natType) .read
@@ -56,13 +175,54 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
 
                       | _ => panic! s!"{type} is no valid natAsIndex type"
 
-    | "rlet" => panic! s!"not implemented yet"
-    | "toMem" => panic! s!"not implemented yet"
+    | "rlet" => match type with
+                  | PhraseType.fn  (.expr s .read)
+                                   (.fn   (.fn (.expr _ .read) (.expr t a))
+                                          (.expr _ _)) =>
+                            let fType := PhraseType.fn (.expr s .read) (.expr t .read)
+                            let xType := Phrasetype.expr (.expr s .read)
+                            let fFunType := PhraseType.fn fType (.expr t a)
 
-    | "generate" => panic! s!"not implemented yet"
-    | "idx" => panic! s!"not implemented yet"
+                            mkLam  (.fn xType fFunType) (Name "x") xType
+                                   (mkLam fFunType (Name "f") fType
+                                          (mkRLet s t a
+                                                  (mkBvar 1 (Name "x") xType)
+                                                  (mkBvar 0 (Name "f") fType)))
+                  | _ => panic! s!"{type} is no valid let type"
 
-    | "idxVex" => panic! s!"not implemented yet"
+    | "toMem" => match type with
+                    | PhraseType.fn (.expr t .write) (.expr _ .read) =>
+
+                        let eType := PhraseType.expr t .write
+
+                        mkLam   (.fn eType (.expr t .read)) (Name "e") eType
+                                (mkToMem t (mkBvar 0 (Name "e") eType))
+
+                    | _ => panic! s!"not implemented yet"
+
+    | "generate" => match type with
+                     | PhraseType.fn (.fn (.expr (.index n) .read) (.expr t .read))
+                                     (.expr (.array _ _) .read) =>
+                            let fType := PhraseType.fn (.expr (.index n) .read) (.expr t .read)
+
+                            mkLam  (.fn fType (.expr (.array n t) .read)) (Name "f") fType
+                                   (mkGenerate n t (mkBvar 0 (Name "f") fType))
+                     | _ => panic! s!"{type} is no valid generate type"
+
+    | "idx" => match type with
+                 | PhraseType.fn (.expr (.index n) .read)
+                                 (.fn (.expr (.array _ t) .read)
+                                      (.expr _ .read)) =>
+                     let eType := PhraseType.expr (.array n t) .read
+                     let iType := PhraseType.expr (.index n) .read
+                     let eFunType := PhraseType.fn eType (.expr t .read)
+
+                     mkLam (.fn iType eFunType) (Name "i") iType
+                            (mkLam eFunType (Name "e") eType
+                                   (mkIdx n t
+                                          (mkBvar 1 (Name "i") iType)
+                                          (mkBvar 0 (Name "e") eType)))
+                 | _ => panic! s!"{type} is no valid index type"
 
     | "take" => match type with
                   | PhraseType.pi (.rise .nat) n
@@ -307,9 +467,23 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
                              (mkUnzip n s t a (mkBvar 0 (Name "e") eType))
                    | _ => panic! s!"{type} is no valid type for unzip"
 
-    | "makeArray" => panic! s!"not implemented yet"
+    | "makePair" => match type with
+                     | PhraseType.fn (.expr s a)
+                                     (.fn (.expr t _)
+                                          (.expr (.pair _ _) _)) =>
+                            let yType := PhraseType.expr t a
+                            let xType := PhraseType.expr s a
+                            let yFunType := PhraseType.fn yType (.expr (.pair s t) a)
+                            let xFunType := PhraseType.fn xType yFunType
 
-    | "makePair" => panic! s!"not implemented yet"
+                            mkLam xFunType (Name "x") xType
+                                   (mkLam yFunType (Name "y") yType
+                                          (mkMakePair s t a
+                                                      (mkBvar 1 (Name "x") xType)
+                                                      (mkBvar 0 (Name "y") yType)))
+
+                     | _ => panic! s!"{type} is no valid type for makePair"
+
     | "fst" => match type with
                  | PhraseType.fn (.expr (.pair s t) .read)
                                  (.expr _ .read) =>
@@ -328,10 +502,51 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
                            (mkSnd s t (mkBvar 0 (Name "e") eType))
                  | _ => panic! s!"{type} is no valid type for snd"
 
-    | "vectorFromScalar" => panic! s!"not implemented yet"
-    | "asVector" => panic! s!"not implemented yet"
-    | "asVectorAligned" => panic! s!"not implemented yet"
-    | "asScalar" => panic! s!"not implemented yet"
+    | "vectorFromScalar" => match type with
+                              | PhraseType.fn    (.expr _ .read)
+                                                 (.expr (.vector n t) .read) =>
+                                   let eType := Phrasetype.expr t .read
+                                   let eFunType := PhraseType.fn eType (.expr (.vector n t) .read)
+
+                                   mkLam  eFunType (Name "e") eType
+                                          (mkVectorFromScalar n t (mkBvar 0 (name "e") eType))
+                              | _ => panic! s!"{type} is no valid vectorFromScalar type"
+
+    | "asVector" => match type with
+                     | PhraseType.pi (.rise .nat) n
+                                     (.fn (.expr (.array mn _) a)
+                                          (.expr (.array m (.vector _ t)) _)) =>
+
+                            let eType := PhraseType.expr (.array mn t) a
+                            let eFunType := PhraseType.fn eType (.expr (.array m (.vector (.bvar 0 n) t)) a)
+
+                            mkDeplam      (.pi (.rise .nat) n eFunType) n (.rise .nat)
+                                          (mkLam eFunType (Name "e") eType
+                                                 (mkAsVector (.bvar 1 n) m t a (mkBvar 0 (Name "e") eType)))
+                     | _ => panic! s!"{type} is no valid asVector type"
+
+    | "asVectorAligned" => match type with
+                     | PhraseType.pi (.rise .nat) n
+                                     (.fn (.expr (.array mn _) a)
+                                          (.expr (.array m (.vector _ t)) _)) =>
+                            let eType := PhraseType.expr (.array mn t) a
+                            let eFunType := PhraseType.fn eType (.expr (.array m (.vector (.bvar 0 n) t)) a)
+
+                            mkDeplam      (.pi (.rise .nat) n eFunType) n (.rise .nat)
+                                          (mkLam eFunType (Name "e") eType
+                                                 (mkAsVectorAligned (.bvar 1 n) m t a (mkBvar 0 (Name "e") eType)))
+                     | _ => panic! s!"{type} is no valid asVectorAligned type"
+
+    | "asScalar" => match type with
+                     | PhraseType.fn      (.expr (.array m (.vector n t)) a)
+                                          (.expr (.array _ _) _) =>
+                            let eType := PhraseType.expr (.array m (.vector n t)) a
+                            let eFunType := PhraseType.fn eType (.expr (.array (.mult n m) t) a)
+
+                            mkLam  eFunType (Name "e") eType
+                                   (mkAsScalar n m t a (mkBvar 0 (Name "e") eType))
+
+                     | _ => panic! s!"{type} is no valid asScalar type"
 
     | "map" => match type with
                 | PhraseType.fn (.fn (.expr s ai) (.expr t _)) (.fn (.expr (.array n _) _) (.expr (.array _ _) _)) =>
@@ -407,34 +622,48 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
 
                           | _ => panic! s!"{type} is no valid p type"
 
-    -- | "mapPar" => match type with
-    --                 | PhraseType.fn (.fn (.expr s .read) (.expr t .write)) (.fn (.expr (.array n _) .read) (.expr (.array _ _) .write)) =>
-    --                     let eType := (PhraseType.expr (.array n s) .read)
-    --                     let eTypeOut := (PhraseType.expr (.array n t) .write)
-    --                     let fType := (PhraseType.fn (.expr s .read) (.expr t .write))
-    --                     let eFunType := (PhraseType.fn eType eTypeOut)
-    --                     let type := PhraseType.fn fType eFunType
+    | "mapFst" => match type with
+                     | PhraseType.fn (.fn (.expr s a) (.expr s2 _))
+                                     (.fn (.expr (.pair _ t) _) (.expr (.pair _ _) _)) =>
+                            let fType := PhraseType.fn (.expr s a) (.expr s2 a)
+                            let eType := PhraseType.expr (.pair s t) a
+                            let eFunType := PhraseType.fn eType (.expr (.pair s2 t) a)
+                            let fFunType := PhraseType.fn fType eFunType
 
-    --                     let map := mkMapPar n s t {node := .bvar 1 (Lean.Name.mkSimple "f") , type := fType : DPIAPhrase} {node := .bvar 0 (Lean.Name.mkSimple "array") , type := eType : DPIAPhrase}
-    --                     let arrayNode := DPIAPhraseNode.lam (Lean.Name.mkSimple "array") eType map
-    --                     let funNode := DPIAPhraseNode.lam (Lean.Name.mkSimple "f") fType {node := arrayNode, type := eFunType : DPIAPhrase}
+                            mkLam fFunType (Name "f") fType
+                                   (mkLam eFunType (Name "e") eType
+                                          (mkMapFst s t s2 a
+                                                    (mkBvar 1 (Name "f") fType)
+                                                    (mkBvar 0 (Name "e") eType)))
 
-    --                     {node := funNode, type := type : DPIAPhrase}
-    --                 | _ => panic! s!"{type} is no valid map type"
+                     | _ => panic! s!"{type} is no valid mapFst type"
 
+    | "mapSnd" => match type with
+                     | PhraseType.fn (.fn (.expr t a) (.expr t2 _))
+                                     (.fn (.expr (.pair s _) _) (.expr (.pair _ _) _)) =>
 
-    | "mapFst" => panic! s!"not implemented yet"
-    | "mapSnd" => panic! s!"not implemented yet"
+                            let fType := PhraseType.fn (.expr t a) (.expr t2 a)
+                            let eType := PhraseType.expr (.pair s t) a
+                            let eFunType := PhraseType.fn eType (.expr (.pair s t2) a)
+                            let fFunType := PhraseType.fn fType eFunType
 
-    | "reduce" => panic! s!"not implemented yet"
+                            mkLam fFunType (Name "f") fType
+                                   (mkLam eFunType (Name "e") eType
+                                          (mkMapFst s t t2 a
+                                                    (mkBvar 1 (Name "f") fType)
+                                                    (mkBvar 0 (Name "e") eType)))
+                     | _ => panic! s!"{type} is no valid mapSnd type"
+
+    | "reduce" => panic! s!"reduce has no implementation"
+
     | "reduceSeq" => match type with
                       | PhraseType.fn (.fn (.expr t .read) (.fn (.expr s .read) (.expr _ .write))) (.fn (.expr _ .write) (.fn (.expr (.array n _) .read) (.expr _ .read))) =>
                           let fType := PhraseType.fn (.expr t .read) (.fn (.expr s .read) (.expr t .write))
                           let iType := PhraseType.expr t .write
                           let eType := PhraseType.expr (.array n s) .read
-                          let fFunType := PhraseType.fn fType (.fn iType (.fn eType (.expr t .read)))
-                          let iFunType := PhraseType.fn iType (.fn eType (.expr t .read))
                           let eFunType := PhraseType.fn eType (.expr t .read)
+                          let iFunType := PhraseType.fn iType eFunType
+                          let fFunType := PhraseType.fn fType iFunType
 
                           mkLam fFunType (Lean.Name.mkSimple "f") fType
                                 (mkLam iFunType (Lean.Name.mkSimple "i") iType
@@ -467,6 +696,7 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
 
     | "scanSeq" => match type with
                     | PhraseType.fn (.fn (.expr s .read) (.fn (.expr t .read) (.expr _ .write))) (.fn (.expr _ .write) (.fn (.expr (.array n _) .read) (.expr (.array _ _) .write))) => --should the last one be .read or .write?
+
                         let fType := PhraseType.fn (.expr s .read) (.fn (.expr t .read) (.expr t .write))
                         let iType := PhraseType.expr t .write
                         let iFunType := PhraseType.fn iType (.expr (.array n t) .read)
@@ -483,8 +713,29 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
                     | _ => panic! s!"{type} is no valid scanSeq type" ---should i have the returntype as type?
 
 
-    | "iterate" => panic! s!"not implemented yet"
-    | "oclIterate" => panic! s!"not implemented yet"
+    | "iterate" => match type with
+                     | PhraseType.pi (.rise .nat) k
+                                     (.fn (.pi   (.rise .nat) l
+                                                 (.fn (.expr (.array ln t) .read)
+                                                        (.expr (.array _ _) .write)))
+                                          (.fn   (.expr (.array insz _) .read)
+                                                 (.expr (.array m _) .write))) =>
+
+                            let eType := PhraseType.expr (.array insz t) .read
+                            let fType := PhraseType.pi (.rise .nat) l (.fn (.expr (.array ln t) .read) (.expr (.array (.bvar 0 l) t) .write))
+                            let eFunType := PhraseType.fn eType (.expr (.array m t) .write)
+
+                            mkDeplam      (.pi (.rise .nat) k (.fn fType eFunType)) k (.rise .nat)
+                                          (mkLam (.fn fType eFunType) (Name "f") fType
+                                                 (mkLam eFunType (Name "e") eType
+                                                        (mkIterate    (.div ln (.bvar 0 l)) --> is that correct?
+                                                                      m (.bvar 2 k) t
+                                                                      (mkBvar 1 (Name "f") fType)
+                                                                      (mkBvar 0 (Name "e") eType))))
+
+                     | _ => panic! s!"{type} is no valid iterate type"
+
+    | "oclIterate" => panic! s!"not implemented yet" --> do I need this one?
 
     | x => panic! s!"{x} is no valid primitive"
   --{node := (DPIAPhraseNode.bvar 0 name) , type := type : DPIAPhrase}

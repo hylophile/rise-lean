@@ -1,71 +1,71 @@
 import DPIA.Basic
 
-def mkId (t : RData) (a : DAnnotation) : DPIAPhrase :=
-  let node := FunctionalPrimitives.id t
+def mkId (t : RData) (i : DPIAPhrase) (a : DAnnotation) : DPIAPhrase :=
+  let node := FunctionalPrimitives.id i
   let type := PhraseType.expr t a
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
-def mkNeg (t : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.neg t
+def mkNeg (t : RData) (neg : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.neg neg
   let type := PhraseType.expr t DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
   -- binary ops
-def mkAdd (lhs rhs : RData) : DPIAPhrase :=
+def mkAdd (t : RData) (lhs rhs : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.add lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
-  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
-
-def mkSub (lhs rhs : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.sub lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
-  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
-
-def mkMul (lhs rhs : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.mul lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
-  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
-
-def mkDiv (lhs rhs : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.div lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
-  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
-
-def mkMod (lhs rhs : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.mod lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
-  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
-
--- ternary ops
-def mkSelect (t : RData) (cond : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.select t cond
   let type := PhraseType.expr t DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
+def mkSub (t : RData) (lhs rhs : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.sub lhs rhs
+  let type := PhraseType.expr t DAnnotation.read
+  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
+
+def mkMul (t : RData) (lhs rhs : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.mul lhs rhs
+  let type := PhraseType.expr t DAnnotation.read
+  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
+
+def mkDiv (t : RData) (lhs rhs : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.div lhs rhs
+  let type := PhraseType.expr t DAnnotation.read
+  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
+
+def mkMod (t : RData) (lhs rhs : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.mod lhs rhs
+  let type := PhraseType.expr t DAnnotation.read
+  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
+
+-- ternary ops
+-- def mkSelect (t : RData) (cond : RData) : DPIAPhrase :=
+--   let node := FunctionalPrimitives.select t cond
+--   let type := PhraseType.expr t DAnnotation.read
+--   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
+
 -- comparison ops
-def mkNot (v : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.not v
-  let type := PhraseType.expr v DAnnotation.read
+def mkNot (not : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.not not
+  let type := PhraseType.expr (.scalar .bool) DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
-def mkGt (lhs rhs : RData) : DPIAPhrase :=
+def mkGt (lhs rhs : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.gt lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
+  let type := PhraseType.expr (.scalar .bool) DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
-def mkLt (lhs rhs : RData) : DPIAPhrase :=
+def mkLt (lhs rhs : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.lt lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
+  let type := PhraseType.expr (.scalar .bool) DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
-def mkEqual (lhs rhs : RData) : DPIAPhrase :=
+def mkEqual (lhs rhs : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.equal lhs rhs
-  let type := PhraseType.expr lhs DAnnotation.read
+  let type := PhraseType.expr (.scalar .bool) DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
   -- cast ops
-def mkCast (s t : RData) : DPIAPhrase :=
-  let node := FunctionalPrimitives.cast s t
+def mkCast (s t : RData) (x : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.cast s t x
   let type := PhraseType.expr t DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 

@@ -5,6 +5,12 @@ import DPIA.Basic
 private abbrev Context := Std.HashMap TypedRExpr PhraseType
 private abbrev SubstMap := Std.HashMap Lean.Name DAnnotation
 
+
+def printContext (ctx : List (TypedRExpr × PhraseType)) : String :=
+  match ctx with
+    | [] => ""
+    | (key, val) :: ys => s!"({key},{val}) \n\n" ++ printContext ys
+
 ---------------- substType -----------------
 structure Subst where
   map : SubstMap
@@ -48,6 +54,7 @@ def Subst.applyMap (inner : Context) (outer : Subst)  : Context :=
 structure InferState where
   ptAnnotationMap : Context := {}
   Counter : Nat := 0                                      -- counter for unique names
+  depth : Nat := 0
 
 abbrev InferM := StateT InferState (Except String)
 
@@ -146,102 +153,102 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
     | "mapSeq" | "mapSeqUnroll" | "iterateStream" => match primType with
                                                       | .fn (RType.fn (RType.data s) (RType.data t)) (RType.fn (RType.data (RData.array n _)) (RType.data (RData.array _ _))) =>
                                                               return (PhraseType.fn (PhraseType.fn (PhraseType.expr s DAnnotation.read) (PhraseType.expr t DAnnotation.write)) (PhraseType.fn (PhraseType.expr (RData.array n s) DAnnotation.read) (PhraseType.expr (RData.array n t) DAnnotation.write)))
-                                                      | _ => throw "mapSeq error" -- terminate
+                                                      | _ => throw s!"{primType} is no match for mapSeq / mapSeqUnroll / iterateStream" -- terminate
     | "map" => match primType with
                 | .fn (RType.fn (RType.data s) (RType.data t)) (RType.fn (RType.data (RData.array n _)) (RType.data (RData.array _ _))) =>
                         let name ← getFreshAccessIdentifier
                         let ai := (DAnnotation.identifier (Lean.Name.mkSimple name))
                         return PhraseType.fn (PhraseType.fn (PhraseType.expr s ai) (PhraseType.expr t ai)) (PhraseType.fn (PhraseType.expr (RData.array n s) ai) (PhraseType.expr (RData.array n t) ai))
-                | _ => throw "error" -- terminate
+                | _ => throw s!"{primType} is no match for map" -- terminate
     | "mapFst" => match primType with
                   | .fn (RType.fn (RType.data dt1) (RType.data dt3)) (RType.fn (RType.data (RData.pair _ dt2)) (RType.data (RData.pair _ _))) =>
                           let name ← getFreshAccessIdentifier
                           let ai := (DAnnotation.identifier (Lean.Name.mkSimple name))
                           return PhraseType.fn (PhraseType.fn (PhraseType.expr dt1 ai) (PhraseType.expr dt3 ai)) (PhraseType.fn (PhraseType.expr (RData.pair dt1 dt2) ai) (PhraseType.expr (RData.pair dt3 dt2) ai))
-                  | _ => throw "error" -- terminate
+                  | _ => throw s!"{primType} is no match for mapFst" -- terminate
     | "mapSnd" => match primType with
                   | .fn (RType.fn (RType.data dt2) (RType.data dt3)) (RType.fn (RType.data (RData.pair dt1 _)) (RType.data (RData.pair _ _))) =>
                           let name ← getFreshAccessIdentifier
                           let ai := (DAnnotation.identifier (Lean.Name.mkSimple name))
                           return PhraseType.fn (PhraseType.fn (PhraseType.expr dt2 ai) (PhraseType.expr dt3 ai)) (PhraseType.fn (PhraseType.expr (RData.pair dt1 dt2) ai) (PhraseType.expr (RData.pair dt1 dt3) ai))
-                  | _ => throw "error" -- terminate
+                  | _ => throw s!"{primType} is no match for mapSnd" -- terminate
     | "mapStream" => match primType with
                       | .fn (RType.fn (RType.data s) (RType.data t)) (RType.fn (RType.data (RData.array n _)) (RType.data (RData.array _ _))) =>
                               return PhraseType.fn (PhraseType.fn (PhraseType.expr s DAnnotation.read) (PhraseType.expr t DAnnotation.write)) (PhraseType.fn (PhraseType.expr (RData.array n s) DAnnotation.read) (PhraseType.expr (RData.array n t) DAnnotation.read))
-                      | _ => throw "error" -- terminate
+                      | _ => throw s!"{primType} is no match for mapStream" -- terminate
 
     | "toMem" => match primType with
                   | .fn (RType.data t) (RType.data _) => return PhraseType.fn (PhraseType.expr t DAnnotation.write) (PhraseType.expr t DAnnotation.read)
-                  | _ => throw "error"
+                  | _ => throw s!"{primType} is no match for toMem"
 
     | "join" | "transpose" | "asScalar" | "unzip" => match primType with
                                                       | .fn (RType.data dt1) (RType.data dt2) =>
                                                             let name ← getFreshAccessIdentifier
                                                             let ai := (DAnnotation.identifier (Lean.Name.mkSimple name))
                                                             return PhraseType.fn (PhraseType.expr dt1 ai) (PhraseType.expr dt2 ai)
-                                                      |_ => throw "error" -- terminate
+                                                      |_ => throw s!"{primType} is no match for join / transpose / asScalar / unzip" -- terminate
 
     | "vectorFromScalar" | "neg" | "not" | "indexAsNat" | "fst" | "snd" | "cast" => match primType with
                                                                                       | .fn (RType.data dt1) (RType.data dt2) =>
                                                                                             return PhraseType.fn (PhraseType.expr dt1 DAnnotation.read) (PhraseType.expr dt2 DAnnotation.read)
-                                                                                      | _ => throw "error" -- terminate
+                                                                                      | _ => throw s!"{primType} is no match for vectorFromScalar / neg / not / indexAsnat / fst / snd / cast" -- terminate
 
     | "concat" => match primType with
                     | .fn (RType.data dt1) (RType.fn (RType.data dt2) (RType.data dt3)) =>
                           return PhraseType.fn (PhraseType.expr dt1 DAnnotation.write) (PhraseType.fn (PhraseType.expr dt2 DAnnotation.write) (PhraseType.expr dt3 DAnnotation.write))
-                    | _ => throw "error" -- terminate
+                    | _ => throw s!"{primType} is no match for concat" -- terminate
 
     | "rlet" => match primType with
                   | .fn (RType.data s) (RType.fn (RType.fn (RType.data _) (RType.data t)) (RType.data _)) =>
                         let name ← getFreshAccessIdentifier
                         let ai := (DAnnotation.identifier (Lean.Name.mkSimple name))
                         return PhraseType.fn (PhraseType.expr s DAnnotation.read) (PhraseType.fn (PhraseType.fn (PhraseType.expr s DAnnotation.read) (PhraseType.expr t ai)) (PhraseType.expr t ai))
-                  | _ => throw "error"
+                  | _ => throw s!"{primType} is no match for rlet"
 
     | "split" | "asVector" | "asVectorAligned" => match primType with
                                                     | .pi .nat _ userName (.fn (.data dt1) (.data dt2)) => let name ← getFreshAccessIdentifier
                                                                                                            let ai := (DAnnotation.identifier (Lean.Name.mkSimple name))
                                                                                                            return PhraseType.pi (.rise .nat) userName (.fn (.expr dt1 ai) (.expr dt2 ai))
-                                                    | _ => throw "error" -- terminate
+                                                    | _ => throw s!"{primType} is no match for split / asVector / asVector Aligned" -- terminate
 
     | "zip" | "makePair" => match primType with
                               | .fn (RType.data dt1) (RType.fn (RType.data dt2) (RType.data dt3)) =>
                                   let name ← getFreshAccessIdentifier
                                   let ai := (DAnnotation.identifier (Lean.Name.mkSimple name))
                                   return PhraseType.fn (PhraseType.expr dt1 ai) (PhraseType.fn (PhraseType.expr dt2 ai) (PhraseType.expr dt3 ai))
-                              | _ => throw "error" -- terminate
+                              | _ => throw s!"{primType} is no match for zip / makPair" -- terminate
 
-    | "idx" | "add" | "sub" | "mult" | "div" | "gt" | "lt" | "equal" | "mod" | "gather" => match primType with
+    | "idx" | "add" | "sub" | "mul" | "div" | "gt" | "lt" | "equal" | "mod" | "gather" => match primType with
                                                                                             | .fn (RType.data dt1) (RType.fn (RType.data dt2) (RType.data dt3)) =>
                                                                                                   return PhraseType.fn (PhraseType.expr dt1 DAnnotation.read) (PhraseType.fn (PhraseType.expr dt2 DAnnotation.read) (PhraseType.expr dt3 DAnnotation.read))
-                                                                                            | _ => throw "error" --TODO: terminate
+                                                                                            | _ => throw s!"{primType} is no match for idx / add / sub / mult / div / gt / lt / equal / mod / gather" -- terminate
 
     | "scatter" => match primType with
                     | .fn (RType.data dt1) (RType.fn (RType.data dt2) (RType.data dt3)) =>
                           return PhraseType.fn (PhraseType.expr dt1 DAnnotation.read) (PhraseType.fn (PhraseType.expr dt2 DAnnotation.write) (PhraseType.expr dt3 DAnnotation.write))
-                    | _ => throw "error" -- terminate
+                    | _ => throw s!"{primType} is no match for scatter" -- terminate
 
     | "natAsIndex" | "take" | "drop" => match primType with
                                         | .pi .nat _ userName (.fn (.data dt1) (.data dt2)) => return PhraseType.pi (.rise .nat) userName (.fn (.expr dt1 .read) (.expr dt2 .read))
-                                        | _ => throw "error" -- terminate
+                                        | _ => throw s!"{primType} is no match for natAsIndex" -- terminate
 
     | "reduceSeq" | "reduceSeqUnroll" => match primType with
                                           | .fn (RType.fn (RType.data t) (RType.fn (RType.data s) (RType.data _))) (RType.fn (RType.data _) (RType.fn (RType.data (RData.array n _)) (RType.data _))) =>
                                                   return PhraseType.fn
                                                           (PhraseType.fn (PhraseType.expr t DAnnotation.read) (PhraseType.fn (PhraseType.expr s DAnnotation.read) (PhraseType.expr t DAnnotation.write)))
                                                           (PhraseType.fn (PhraseType.expr t DAnnotation.write) (PhraseType.fn (PhraseType.expr (RData.array n s) DAnnotation.read) (PhraseType.expr t DAnnotation.read)))
-                                          | _ => throw "error" -- terminate
+                                          | _ => throw s!"{primType} is no match for reduceSeq / reduceSeqUnroll" -- terminate
 
     | "scanSeq" => match primType with
                     | .fn (RType.fn (RType.data s) (RType.fn (RType.data t) (RType.data _))) (RType.fn (RType.data _) (RType.fn (RType.data (RData.array n _)) (RType.data _))) =>
                           return PhraseType.fn
                                   (PhraseType.fn (PhraseType.expr s DAnnotation.read) (PhraseType.fn (PhraseType.expr t DAnnotation.read) (PhraseType.expr t DAnnotation.write)))
                                   (PhraseType.fn (PhraseType.expr t DAnnotation.write) (PhraseType.fn (PhraseType.expr (RData.array n s) DAnnotation.read) (PhraseType.expr (RData.array n t) DAnnotation.write)))
-                    | _ => throw "error"  -- terminate
+                    | _ => throw s!"{primType} is no match for scanSeq"  -- terminate
 
     | "rotateValue" => match primType with
                         | .pi .nat _ sz (.fn (.fn (.data s) (.data _)) (.fn (.data (.array nIn dtIn)) (.data (.array nOut dtOut)))) => return PhraseType.pi (.rise .nat) sz (.fn (.fn (.expr s .read) (.expr s .write)) (.fn (.expr (.array nIn dtIn) .read) (.expr (.array nOut dtOut) .read)))
-                        | _ => throw "error" -- terminate
+                        | _ => throw s!"{primType} is no match for rotateValue" -- terminate
 
     | "circularBuffer" =>  match primType with
                             | .pi .nat _ alloc
@@ -254,7 +261,7 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
                                                              (.fn (.fn (.expr s .read) (.expr s .write))
                                                                   (.fn (.expr (.array nIn dtIn) .read)
                                                                        (.expr (.array nOut dtOut) .read))))
-                            | _ => throw "error" -- terminate
+                            | _ => throw s!"{primType} is no match for circularBuffer" -- terminate
 
     | "slide" | "padClamp" =>  match primType with
                                 | .pi .nat _ sz
@@ -263,7 +270,7 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
                                 => return PhraseType.pi (.rise .nat) sz
                                                         (.pi (.rise .nat) sp
                                                              (.fn (.expr dt1 .read) (.expr dt2 .read)))
-                                | _ => throw "error" -- terminate
+                                | _ => throw s!"{primType} is no match for slide / padClamp" -- terminate
 
     | "iterate" =>  match primType with
                       | .pi .nat _ k
@@ -274,16 +281,16 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
                                                  (.fn (.pi (.rise .nat) l
                                                            (.fn (.expr (.array n1 at1) .read) (.expr (.array n2 at2) .write)))
                                                       (.fn (.expr (.array n3 at3) .read) (.expr (.array n4 at4) .write)))
-                      | _ => throw "error" -- terminate
+                      | _ => throw s!"{primType} is no match for iterate" -- terminate
 
     | "oclIterate" =>  match primType with
                         | .fn _ _ => return PhraseType.comm --TODO look at it again -> no address
-                        | _ => throw "error" -- terminate
+                        | _ => throw s!"{primType} is no match for oclIterate" -- terminate
 
     | "select" => match primType with
                     | .fn (RType.data (RData.scalar RScalar.bool)) (RType.fn (RType.data t) (RType.fn (RType.data _) (RType.data _))) =>
                           return PhraseType.fn (PhraseType.expr (RData.scalar RScalar.bool) DAnnotation.read) (PhraseType.fn (PhraseType.expr t DAnnotation.read) (PhraseType.fn (PhraseType.expr t DAnnotation.read) (PhraseType.expr t DAnnotation.read)))
-                    | _ => throw "error"  -- terminate
+                    | _ => throw s!"{primType} is no match for select"  -- terminate
 
     | "padEmpty" =>  match primType with
                       | .pi .nat _ r (.fn (.data (.array n t))
@@ -291,7 +298,7 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
                         => return PhraseType.pi (.rise .nat) r
                                                 (.fn (.expr (.array n t) .write)
                                                      (.expr (.array (.plus n (.bvar 2 r)) t) .write)) ---> is that correct with the bvar?
-                      | _ => throw "error" -- terminate
+                      | _ => throw s!"{primType} is no match for padEmpty" -- terminate
 
     | "padCst" =>  match primType with
                     | .pi .nat _ l
@@ -304,14 +311,14 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
                                                    (.fn (.expr t .read)
                                                         (.fn (.expr (.array n t) .read)
                                                              (.expr (.array (.plus (.bvar 3 l) (.plus (.bvar 2 q) n)) t) .read)))) -- is that correct with the b vars?
-                    | _ => throw "error" -- terminate
+                    | _ => throw s!"{primType} is no match for padCast" -- terminate
 
     | "generate" => match primType with
                       | .fn (RType.fn (RType.data (RData.index n)) (RType.data t)) (RType.data (RData.array _ _)) =>
                             return PhraseType.fn (PhraseType.fn (PhraseType.expr (RData.index n) DAnnotation.read) (PhraseType.expr t DAnnotation.read)) (PhraseType.expr (RData.array n t) DAnnotation.read)
-                      | _ => throw "error"  -- terminate
+                      | _ => throw "generate"  -- terminate
 
-    | _ => throw "error"  -- terminate
+    | _ => throw s!"no match for {prim}"  -- terminate
 
 
 ---------------- Infer functions ----------------------
@@ -323,7 +330,7 @@ partial def inferPhraseTypesMonadic (e : TypedRExpr) (ctx : Context) (isKernelPa
       match pt with
         | .expr dt  _ => match subUnifyPhraseType pt (PhraseType.expr dt DAnnotation.write) with
                           | some subst => return ((Subst.applyPt subst pt), (Subst.applySubst s subst))
-                          | none => throw "The program does not specify how to write the result of the program into its output" --panic! "This should never happen"
+                          | none => throw "The program does not specify how to write the result of the program into its output"
         | _ => return (pt, s)
   else return (pt, s)
 
@@ -336,7 +343,7 @@ partial def inferPhraseTypesHelper (e : TypedRExpr) (ctx : Context) (isKernelPar
         match val with
           | some pt =>  ptAnnotationMap.put e pt
                         return (pt, {map := {} : Subst})
-          | none => throw "this should never happen"
+          | none => throw s!"{e} was not found in the context {printContext ctx.toList}"
     | .const userName => inferPrimitive e e.type userName
     | .lit _ =>
         let lpt := PhraseType.expr (assertDataType e.type) DAnnotation.read

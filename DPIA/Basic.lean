@@ -74,27 +74,27 @@ deriving Repr, BEq
 
 inductive FunctionalPrimitives where
   -- unary ops
-  | id      (t : RData)
-  | neg     (t : RData)
+  | id      (t : DPIAPhrase)
+  | neg     (t : DPIAPhrase)
 
   -- binary ops
-  | add     (lhs rhs : RData)
-  | sub     (lhs rhs : RData)
-  | mul     (lhs rhs : RData)
-  | div     (lhs rhs : RData)
-  | mod     (lhs rhs : RData)
+  | add     (lhs rhs : DPIAPhrase)
+  | sub     (lhs rhs : DPIAPhrase)
+  | mul     (lhs rhs : DPIAPhrase)
+  | div     (lhs rhs : DPIAPhrase)
+  | mod     (lhs rhs : DPIAPhrase)
 
   -- ternary ops
-  | select  (t : RData) (cond : RData) -- TODO select : {t : data} → bool → t → t → t
+  --| select  (t : RData) (cond : RData) -- TODO select : {t : data} → bool → t → t → t
 
   -- comparison ops
-  | not     (v : RData) -- TODO not   :               bool → bool
-  | gt      (lhs rhs : RData)
-  | lt      (lhs rhs : RData)
-  | equal   (lhs rhs : RData)
+  | not     (v : DPIAPhrase)
+  | gt      (lhs rhs : DPIAPhrase)
+  | lt      (lhs rhs : DPIAPhrase)
+  | equal   (lhs rhs : DPIAPhrase)
 
   -- cast ops
-  | cast          (s t : RData)
+  | cast          (s t : RData) (x : DPIAPhrase)
   | indexAsNat    (n : RNat) (idx : DPIAPhrase)
   | natAsIndex    (n : RNat) (idx : DPIAPhrase)
 
@@ -137,13 +137,13 @@ inductive FunctionalPrimitives where
   | unzip     (n : RNat) (s t : RData) (a : DAnnotation) (array : DPIAPhrase)
   | depZip    (n : RNat) (ft1 ft2 : NatToData)(e1 e2 : DPIAPhrase)
 
-  | makeArray   (n : RNat) (t : RData) (elements : List DPIAPhrase) --- TODO (n : Int)
+  -- | makeArray   (n : RNat) (t : RData) (elements : List DPIAPhrase) --- TODO (n : Int)
 
   | partition   (n m : RNat) (lenF : NatToNat) (t : RData) (array : DPIAPhrase)
 
   -- pair ops
   | makePair      (s t : RData) (a : DAnnotation) (fst snd : DPIAPhrase)
-  | makeDepPair   (fst : RNat) (sndT : RData) (a : DAnnotation) (snd : DPIAPhrase)  -- TODO (fst : NatIdentifier)
+  -- | makeDepPair   (fst : RNat) (sndT : RData) (a : DAnnotation) (snd : DPIAPhrase)  -- TODO (fst : NatIdentifier)
   | fst           (s t : RData) (pair : DPIAPhrase)
   | snd           (s t : RData) (pair : DPIAPhrase)
 
@@ -175,7 +175,7 @@ inductive FunctionalPrimitives where
 
   -- ? TODO
   | depTile       (n tileSize haloSize : RNat) (t1 t2 : RData) (processTiles array : DPIAPhrase)
-  | dMatch        (x : RNat) (elemT outT : RData) (a : DAnnotation) (f array : DPIAPhrase) -- TODO (x : NatIdentifier)
+  -- | dMatch        (x : RNat) (elemT outT : RData) (a : DAnnotation) (f array : DPIAPhrase) -- TODO (x : NatIdentifier)
   | printType     (msg : String) (t : RData) (a : DAnnotation) (input : DPIAPhrase)
 deriving Repr, BEq
 
