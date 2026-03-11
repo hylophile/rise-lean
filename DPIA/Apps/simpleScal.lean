@@ -12,7 +12,7 @@ def simpleScal := [RiseC|
 def firstElem :=  let first := (inferAccess simpleScal).toList.head?
                   match first with
                     | some y => y
-                    | none => ({node:= .bvar 0 (Lean.Name.mkSimple "failed"), type := (.data .natType) : TypedRExpr}, PhraseType.comm)
+                    | none => ({node:= .bvar 0 (Lean.Name.mkSimple "failed"), type := (.data .natType) : RExpr}, PhraseType.comm)
 
 #pp simpleScal
 #eval inferAccess simpleScal
