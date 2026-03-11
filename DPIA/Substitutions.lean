@@ -101,13 +101,12 @@ def phraseTypeSize (pt : PhraseType) : Nat :=
     | .phrasePair p1 p2 => 1 + phraseTypeSize p1 + phraseTypeSize p2
 
 
-def TypedRExprSize (rt : TypedRExpr) : Nat :=
+def RExprSize (rt : RExpr) : Nat :=
   match rt with
     | ⟨.bvar _ _,_⟩ => 1
     | ⟨.const _,_⟩ => 1
     | ⟨.lit _, _⟩ => 1
-    | ⟨.app fn arg,_⟩ => 1 + TypedRExprSize fn + TypedRExprSize arg
-    | ⟨.depapp fn _,_⟩ => 1 + TypedRExprSize fn
-    | ⟨.lam _ _ body,_⟩ => 1 + TypedRExprSize body
-    | ⟨.deplam _ _ body,_⟩ => 1 + TypedRExprSize body
-    | _ => 1
+    | ⟨.app fn arg,_⟩ => 1 + RExprSize fn + RExprSize arg
+    | ⟨.depapp fn _,_⟩ => 1 + RExprSize fn
+    | ⟨.lam _ _ body,_⟩ => 1 + RExprSize body
+    | ⟨.deplam _ _ body,_⟩ => 1 + RExprSize body

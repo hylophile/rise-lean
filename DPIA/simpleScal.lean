@@ -1,4 +1,4 @@
-import DPIA.InferAccessAnnotation
+import DPIA.inferAccessAnnotation
 import Rise
 
 def simpleScal := [RiseC|

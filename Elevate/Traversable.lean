@@ -5,7 +5,7 @@ namespace Traversable
 
 -- TODO: check types after rewriting
 
-def TypedRExpr.all (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
+def RExpr.all (s: Strategy RExpr) : Strategy RExpr :=
   fun expr => match expr.node with
     | .lit _ | .nat _ | .bvar _ | .fvar _ | .const _ | .mvar _ => .ok expr
     | .app f e => do
@@ -19,7 +19,7 @@ def TypedRExpr.all (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
       let e' <- s e
       return ⟨.deplam bn bt e', expr.type⟩
 
-def TypedRExpr.some (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
+def RExpr.some (s: Strategy RExpr) : Strategy RExpr :=
   fun expr => match expr.node with
     | .lit _ | .nat _ | .bvar _ | .fvar _ | .const _ | .mvar _ => .error ""
     | .app f e =>
@@ -31,7 +31,7 @@ def TypedRExpr.some (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
     | .lam bn bt e => (s e).map (⟨.lam bn bt ·, expr.type⟩)
     | .deplam bn bt e => (s e).map (⟨.deplam bn bt ·, expr.type⟩)
 
-def TypedRExpr.one (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
+def RExpr.one (s: Strategy RExpr) : Strategy RExpr :=
   fun expr => match expr.node with
   | .lit _ | .nat _ | .bvar _ | .fvar _ | .const _ | .mvar _ => .error ""
   | .app f e => match s f with
@@ -40,7 +40,7 @@ def TypedRExpr.one (s: Strategy TypedRExpr) : Strategy TypedRExpr :=
   | .lam bn bt e => (s e).map (⟨.lam bn bt ·, expr.type⟩)
   | .deplam bn bt e => (s e).map (⟨.deplam bn bt ·, expr.type⟩)
 
-instance : Traversable TypedRExpr where
-  all := TypedRExpr.all
-  some := TypedRExpr.some
-  one := TypedRExpr.one
+instance : Traversable RExpr where
+  all := RExpr.all
+  some := RExpr.some
+  one := RExpr.one

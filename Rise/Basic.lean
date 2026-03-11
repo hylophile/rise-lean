@@ -1,6 +1,8 @@
 import Lean.Data.Json
 import Lean.Elab
 
+open Lean.Name
+abbrev Name := Lean.Name
 --
 -- Kind
 --   κ ::= nat | data (Natural Number Kind, Datatype Kind)
@@ -46,8 +48,8 @@ deriving Repr, BEq, Hashable
 -- DataType
 --   δ ::= n.δ | δ × δ | "idx [" n "]" | scalar | n<scalar>  (Array Type, Pair Type, Index Type, Scalar Type, Vector Type)
 inductive RData
-  | bvar (deBruijnIndex : Nat) (userName : Lean.Name)
-  | mvar (id : Nat) (userName : Lean.Name)
+  | bvar (deBruijnIndex : Nat) (userName : Name)
+  | mvar (id : Nat) (userName : Name)
   | array  : RNat → RData → RData
   | pair   : RData → RData → RData
   | index  : RNat → RData
@@ -64,9 +66,9 @@ deriving Repr, BEq, Hashable
 
 -- Types
 --   τ ::= δ | τ → τ | (x : κ) → τ (Data Type, Function Type, Dependent Function Type)
-inductive RType where
+inductive RType
   | data (dt : RData)
-  | pi (binderKind : RKind) (binderInfo : RBinderInfo) (userName : Lean.Name) (body : RType)
+  | pi (binderKind : RKind) (binderInfo : RBinderInfo) (userName : Name) (body : RType)
   | fn (binderType : RType) (body : RType)
 deriving Repr, BEq, Hashable
 
@@ -74,7 +76,6 @@ deriving Repr, BEq, Hashable
 inductive RWrapper
   | nat (v: RNat)
   | data (v: RData)
-  | type (v: RType)
 deriving Repr, BEq, Hashable
 
 inductive RLit
@@ -83,33 +84,36 @@ inductive RLit
   | int (val : Int)
 deriving Repr, BEq, Hashable
 
+
 mutual
-structure TypedRExpr where
-  node: TypedRExprNode
-  type: RType
+/-- Rise expression where each sub-expression has a type annotation. We parameterize on the type annotation, because in the elaboration of Rise, we annotate with RType (so Elevate can utilize the types), but in the DPIA stage, we annotate with Phrase types. -/
+structure RExprWith (α : Type) where
+  node: RExprNodeWith α
+  type: α
 deriving Repr, BEq, Hashable
 
-inductive TypedRExprNode where
-  | bvar (deBruijnIndex : Nat) (userName: Lean.Name)
-  | fvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
-  | mvar (userName : Lean.Name) -- this is a problem when multiple idents have the same name?
-  | const (userName : Lean.Name)
+inductive RExprNodeWith (α : Type)
+  | bvar (deBruijnIndex : Nat) (userName: Name)
+  | const (userName : Name)
   | lit (val : RLit)
-  | app (fn arg : TypedRExpr)
-  | depapp (fn : TypedRExpr) (arg : RWrapper)
-  | lam (binderName : Lean.Name) (binderType : RType) (body : TypedRExpr)
-  | deplam (binderName : Lean.Name) (binderKind : RKind) (body : TypedRExpr)
+  | app (fn arg : RExprWith α)
+  | depapp (fn : RExprWith α) (arg : RWrapper)
+  | lam (binderName : Name) (binderType : RType) (body : RExprWith α)
+  | deplam (binderName : Name) (binderKind : RKind) (body : RExprWith α)
 deriving Repr, BEq, Hashable
 end
 
-abbrev KindingContextElement := Lean.Name × RKind
+abbrev RExpr := RExprWith RType
+abbrev RExprNode := RExprNodeWith RType
+
+abbrev KindingContextElement := Name × RKind
 abbrev KindingContext := Array KindingContextElement
 
-abbrev TypingContextElement := Lean.Name × RType
+abbrev TypingContextElement := Name × RType
 abbrev TypingContext := Array TypingContextElement
 
 structure MetaVarDeclaration where
-  userName : Lean.Name := Lean.Name.anonymous
+  userName : Name := .anonymous
   kind : RKind
   type : Option RType := none
 
@@ -139,7 +143,7 @@ def RNat.subst (t : RNat) (x : RMVarId) (s : SubstEnum) : RNat :=
   | .data _ => t
   | .nat s => t.substNat x s
 
-def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
+partial def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
   match t with
   | .array k d => .array (k.substNat x s) (d.substNat x s)
   | .pair l r => .pair (l.substNat x s) (r.substNat x s)
@@ -147,7 +151,7 @@ def RData.substNat (t : RData) (x : RMVarId) (s : RNat) : RData :=
   | .vector k d => .vector (k.substNat x s) (d.substNat x s)
   | .mvar .. | .bvar .. | .scalar .. | .natType => t
 
-def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
+partial def RData.substData (t : RData) (x : RMVarId) (s : RData) : RData :=
   match t with
   | .mvar y _ => if x == y then s else t
   | .array k d => .array k (d.substData x s)
@@ -210,9 +214,9 @@ def SubstEnum.apply (se : SubstEnum) (subst : Substitution) : SubstEnum :=
 
 instance : ToString RKind where
   toString
-    | RKind.nat => "nat"
-    | RKind.data => "data"
-    | RKind.type => "type"
+    | .nat => "nat"
+    | .data => "data"
+    | .type => "type"
 
 instance : ToString RNat where
   toString :=
@@ -251,7 +255,7 @@ instance : ToString RScalar where
     | .f32  => "f32"
     | .f64  => "f64"
 
-def RData.toString : RData → String
+partial def RData.toString : RData → String
   | .bvar idx name => s!"{name}@{idx}"
   | .mvar id name  => s!"{name}?{id}"
   | .array n d     => s!"{n}·{d.toString}"
@@ -283,7 +287,6 @@ def RType.toString : RType → String
 instance : ToString RType where
   toString := RType.toString
 
-
 instance : ToString SubstEnum where
   toString
     | SubstEnum.data rdata => s!"data({rdata})"
@@ -295,12 +298,9 @@ instance : ToString Substitution where
 def RWrapper.render : RWrapper -> Std.Format
   | .nat v => toString v ++ " : nat"
   | .data v => toString v ++ " : data"
-  | .type v => toString v ++ " : type"
 
-partial def TypedRExprNode.render : TypedRExprNode → Std.Format
+partial def RExprNodeWith.render : RExprNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
-  | .mvar id      => f!"?{id}"
-  | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
   | .app f e      => match f.node, e.node with
@@ -312,10 +312,8 @@ partial def TypedRExprNode.render : TypedRExprNode → Std.Format
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
 
-partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
+partial def RExprNodeWith.renderInline : RExprNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
-  | .mvar id      => f!"?{id}"
-  | .fvar s       => s.toString
   | .const s      => s.toString
   | .lit n        => s!"{n}"
   | .app f e      => match f.node, e.node with
@@ -327,20 +325,20 @@ partial def TypedRExprNode.renderInline : TypedRExprNode → Std.Format
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInline}"
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInline}"
 
-instance : Std.ToFormat TypedRExprNode where
-  format := TypedRExprNode.render
+instance : Std.ToFormat RExprNode where
+  format := RExprNodeWith.render
 
-instance : ToString TypedRExprNode where
+instance : ToString RExprNode where
   toString e := Std.Format.pretty e.render
 
 private def indent (s : String) : String :=
-  s.trim |>.splitOn "\n" |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
+  s.trimAscii |>.split '\n' |>.toStringList |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
 
-instance : ToString TypedRExpr where
+instance : ToString RExpr where
   toString e := "expr:\n" ++ (indent <| toString e.node) ++ "\ntype:\n" ++ (indent <| toString e.type)
 
 open Lean in
-partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
+partial def RExpr.toJson (e : RExpr) : Json :=
   match e.node with
   | .app e1 e2 => let children := Json.arr <| #[e1, e2].map toJson
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type), ("children", children)]
@@ -351,11 +349,15 @@ partial def TypedRExpr.toJson (e : TypedRExpr) : Json :=
   | _ =>
     Json.mkObj [("expr", e.node.renderInline.pretty), ("type", toString e.type)]
 
-instance : Lean.ToJson TypedRExpr where
+instance : Lean.ToJson RExpr where
   toJson e := e.toJson
 
 register_option egg.debug_enable : Bool := {
   defValue := false
-  group := "egg"
   descr := "Enables running egg and comparing results to sympy."
 }
+
+/-- Command for pretty printing using the ToString instance. -/
+syntax "#pp " term : command
+macro_rules
+| `(#pp $e) => `(#eval IO.print <| toString $e)

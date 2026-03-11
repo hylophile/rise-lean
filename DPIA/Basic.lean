@@ -373,7 +373,7 @@ instance : ToString DPIAPhraseNode where
 
 -- copied from Nate
 private def indent (s : String) : String :=
-  s.trim |>.splitOn "\n" |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
+  s.trimAscii |>.split '\n' |>.toStringList |>.map (λ s => "  " ++ s) |> String.intercalate "\n"
 
 -- modified from Nate
 instance : ToString DPIAPhrase where

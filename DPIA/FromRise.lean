@@ -8,7 +8,7 @@ import DPIA.Pimitives.Functional
 
 
 --- expression --
-private abbrev Context := Std.HashMap TypedRExpr PhraseType
+private abbrev Context := Std.HashMap RExpr PhraseType
 private abbrev Name := Lean.Name.mkSimple
 
 --mkMap (n : RNat) (s t : RData) (a : DAnnotation) (f array: DPIAPhrase)
@@ -740,7 +740,7 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
     | x => panic! s!"{x} is no valid primitive"
   --{node := (DPIAPhraseNode.bvar 0 name) , type := type : DPIAPhrase}
 
-partial def expression (expr : TypedRExpr) (ptMap : Context) : DPIAPhrase :=
+partial def expression (expr : RExpr) (ptMap : Context) : DPIAPhrase :=
   let node := expr.node
   let val := ptMap.get? expr
   match val with
@@ -760,7 +760,7 @@ partial def expression (expr : TypedRExpr) (ptMap : Context) : DPIAPhrase :=
                               let node := DPIAPhraseNode.depapp eFn eArg
                               {node := node, type := type : DPIAPhrase}
           | .lam binderName binderType body =>  let ptBody := expression body ptMap
-                                                let binderVal := ptMap.get? {node := (TypedRExprNode.bvar 0 binderName), type := binderType : TypedRExpr}
+                                                let binderVal := ptMap.get? {node := (RExprNode.bvar 0 binderName), type := binderType : RExpr}
                                                 match binderVal with
                                                   | some ptBinderType => let node := DPIAPhraseNode.lam binderName ptBinderType ptBody
                                                                          {node := node, type := type : DPIAPhrase}
@@ -771,8 +771,8 @@ partial def expression (expr : TypedRExpr) (ptMap : Context) : DPIAPhrase :=
                                                   {node := node, type := type :DPIAPhrase}
           | _ => panic! s!"Missing rule for mvar ond fvar"
     | none => panic! s!"something went wrong, cannot find {expr} in ptMap"
---termination_by TypedRExprSize expr
+--termination_by RExprSize expr
 
-def fromRise (expr : TypedRExpr) : DPIAPhrase :=
+def fromRise (expr : RExpr) : DPIAPhrase :=
   let rwMap := {} --inferAccess expr
   expression expr rwMap

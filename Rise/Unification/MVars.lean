@@ -35,23 +35,20 @@ def RType.mapMVars (t : RType) (f : RMVarId → RMVarId) : RType :=
   | .pi k bi n b => .pi k bi n (b.mapMVars f)
 
 mutual
-partial def TypedRExprNode.mapMVars (t : TypedRExprNode) (f : RMVarId → RMVarId) : TypedRExprNode :=
+partial def RExprNodeWith.mapMVars (t : RExprNode) (f : RMVarId → RMVarId) : RExprNode :=
   match t with
   | .bvar ..
-  | .fvar ..
-  | .mvar ..
   | .const ..
   | .lit .. => t
   | .app fn arg => .app (fn.mapTypeMVars f) (arg.mapTypeMVars f)
   | .depapp fn arg => match arg with
     | .nat v => .depapp (fn.mapTypeMVars f) (.nat <| v.mapMVars f)
     | .data v => .depapp (fn.mapTypeMVars f) (.data <| v.mapMVars f)
-    | .type v => .depapp (fn.mapTypeMVars f) (.type <| v.mapMVars f)
   | .lam n t b => .lam n (t.mapMVars f) (b.mapTypeMVars f)
   | .deplam n k b => .deplam n k (b.mapTypeMVars f)
 
 
-partial def TypedRExpr.mapTypeMVars (t : TypedRExpr) (f : RMVarId → RMVarId) : TypedRExpr :=
+partial def RExprWith.mapTypeMVars (t : RExpr) (f : RMVarId → RMVarId) : RExpr :=
   ⟨t.node.mapMVars f, t.type.mapMVars f⟩
 end
 
@@ -88,19 +85,16 @@ def RType.collectMVarIds (t : RType) : Std.HashSet RMVarId :=
   | .fn a b => a.collectMVarIds ∪ b.collectMVarIds
   | .pi _ _ _ b => (b.collectMVarIds)
 
-partial def TypedRExpr.collectMVarIds  (e : TypedRExpr) : Std.HashSet RMVarId :=
+partial def RExprWith.collectMVarIds  (e : RExpr) : Std.HashSet RMVarId :=
   let t_mvars := e.type.collectMVarIds
   let n_mvars := match e.node with
     | .bvar ..
-    | .fvar ..
     | .const ..
-    | .mvar .. -- yes, really.
     | .lit .. => {}
     | .app fn arg => fn.collectMVarIds ∪ arg.collectMVarIds
     | .depapp fn arg => match arg with
       | .nat v => v.collectMVarIds ∪ fn.collectMVarIds
       | .data v => v.collectMVarIds ∪ fn.collectMVarIds
-      | .type v => v.collectMVarIds ∪ fn.collectMVarIds
     | .lam _ t b => t.collectMVarIds ∪ b.collectMVarIds
     | .deplam _ _ b => b.collectMVarIds
   t_mvars ∪ n_mvars
@@ -136,7 +130,7 @@ def collectVars (eqs : List (RNat × RNat)) : List String :=
   eqs.map (fun (l,r) => l.collectBVars ++ r.collectBVars ++ l.collectMVars ++ r.collectMVars) |> List.flatten |> List.eraseDups
 
 -- takes an expr with possibly conflicting mvarIds and maps them to fresh mvarIds in the current context.
-def shiftMVars (e : TypedRExpr) : RElabM TypedRExpr := do
+def shiftMVars (e : RExpr) : RElabM RExpr := do
   let mvars := e.collectMVarIds
   let map : Std.HashMap RMVarId RMVarId ← mvars.foldM (init := Std.HashMap.emptyWithCapacity)
     (fun m a => do

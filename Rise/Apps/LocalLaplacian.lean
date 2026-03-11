@@ -8,7 +8,7 @@ def padClamp2D := [RiseC|
   fun {d : data} =>
   fun xs : n·m·d =>
     xs |>
-    map (padClamp (lInner : nat) (rInner : nat)) >> padClamp (lOuter : nat) (rOuter : nat)
+    map (padClamp lInner rInner) >> padClamp lOuter rOuter
 ]
 -- #pp padClamp2D.type
 
@@ -18,24 +18,24 @@ def slide2D4 := [RiseC|
   fun {d : data} =>
   fun xs : n·m·d =>
     xs |>
-    map (slide (szInner : nat) (stInner : nat))
-    >> slide (szOuter : nat) (stOuter : nat)
+    map (slide szInner stInner)
+    >> slide szOuter stOuter
     >> map transpose
 ]
 -- #pp slide2D4.type
 
 def slide2D := [RiseC|
   fun sz st : nat =>
-    $slide2D4 (sz : nat) (st : nat) (sz : nat) (st : nat)
+    $slide2D4 sz st sz st
 ]
 
 def dropLast := [RiseC|
-  -- fun (m : nat) {n : nat} {d : data} (xs : (n+m)·d) =>
+  -- fun m {n : nat} {d : data} (xs : (n+m)·d) =>
   fun m : nat =>
   fun {n : nat} =>
   fun {d : data} =>
   fun xs : (n+m)·d =>
-    take (n : nat) xs
+    take n xs
 ]
 -- -- #pp dropLast.type
 
@@ -69,8 +69,8 @@ def dot := [RiseC|
 -- -- def /^(that: ArithExpr): ArithExpr with SimplifiedExpr = this * that.pow(-1)
 --
 --
--- -- (1 : nat) (2 + 2*(1 + h/2 - h/^2) : nat) -- 1 - h % 2
--- -- (1 : nat) (2 + 2*(1 + w/2 - w/^2) : nat) -- 1 - w % 2
+-- -- 1 (2 + 2*(1 + h/2 - h/^2) : nat) -- 1 - h % 2
+-- -- 1 (2 + 2*(1 + w/2 - w/^2) : nat) -- 1 - w % 2
 -- -- it seems the comments here are wrong and should be "2*(1 + h/2 - h/^2) = 2 - h % 2" ?
 -- -- 2*(5/2 - 5/^2)
 -- -- 2*(1+2  -5/^2)
@@ -92,12 +92,12 @@ def downSample2D := [RiseC|
   fun input : h+3·w+3·f32 =>
   input |>
   $padClamp2D
-      (1 : nat) (2 + 2*(1 + h/2 - h/2) : nat) -- 1 - h % 2 -- see comment above
-      (1 : nat) (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2 -- this is actually wrong, we would need either modulo or a second div operator
-      -- (1 : nat) (4 - h%2: nat)
-      -- (1 : nat) (4 - w%2: nat)
-  >> map (slide (4 : nat) (2 : nat))
-  >> slide (4 : nat) (2 : nat)
+      1 (2 + 2*(1 + h/2 - h/2) : nat) -- 1 - h % 2 -- see comment above
+      1 (2 + 2*(1 + w/2 - w/2) : nat) -- 1 - w % 2 -- this is actually wrong, we would need either modulo or a second div operator
+      -- 1 (4 - h%2: nat)
+      -- 1 (4 - w%2: nat)
+  >> map (slide 4 2)
+  >> slide 4 2
   >> map transpose
   >> map (map (map ($dot downSampleWeights) >> $dot downSampleWeights))
 ]
@@ -112,22 +112,22 @@ def upsample2D := [RiseC|
   fun h w : nat =>
   fun input : (h/2)+3·(w/2)+3·f32 =>
   input |>
-  $padClamp2D (1 : nat) (0 : nat)
-              (1 : nat) (0 : nat)
-  >> $slide2D (2 : nat) (1 : nat)
+  $padClamp2D 1 0
+              1 0
+  >> $slide2D 2 1
   >> map (map (fun nbh =>
       generate (fun yi : idx[2] =>
           generate (fun xi : idx[2] =>
-            let wy := (select (equal xi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
-            let wx := (select (equal yi <| lidx (0 : nat) (2 : nat)) upsampleWeights1 upsampleWeights2) in
+            let wy := (select (equal xi <| lidx 0 2) upsampleWeights1 upsampleWeights2) in
+            let wx := (select (equal yi <| lidx 0 2) upsampleWeights1 upsampleWeights2) in
             nbh
             |> map ($dot wx)
                >> $dot wy
           ))))
   >> map (transpose >> map join)
   >> join
-  >> drop (1 : nat)
+  >> drop 1
   >> $dropLast (2 + 2*(h/2) - h : nat)
-  >> map (drop (1 : nat) >> $dropLast (2 + 2*(w/2) - w : nat))
+  >> map (drop 1 >> $dropLast (2 + 2*(w/2) - w : nat))
 ]
 #pp upsample2D
