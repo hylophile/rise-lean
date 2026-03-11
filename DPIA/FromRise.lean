@@ -21,8 +21,6 @@ def mkDeplam (type : PhraseType) (name : Lean.Name) (binderKind : DKind) (body :
 def mkBvar (index : Nat) (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
   {node := .bvar index name, type := type : DPIAPhrase}
 
-def buildArrayPrimitive (t: PhraseType) ()
-
 
 def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
   match name.toString with
