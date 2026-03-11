@@ -1,5 +1,6 @@
 import DPIA.InferAccessAnnotation
 import Rise
+import DPIA.Printing
 
 def add := [RiseC|
   fun x :  f32 =>
@@ -9,3 +10,4 @@ def add := [RiseC|
 
 #pp add
 #eval inferAccess add
+#pp printList (inferAccess add).toList
