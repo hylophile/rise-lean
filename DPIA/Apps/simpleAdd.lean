@@ -15,5 +15,4 @@ def add2 := [RiseC|
 
 #pp add
 #eval inferAccess add
-#pp printList (inferAccess add).toList
 #eval add2

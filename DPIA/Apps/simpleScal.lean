@@ -9,15 +9,10 @@ def simpleScal := [RiseC|
      input |> mapSeq (fun x => alpha * x)
  ]
 
-def firstElem :=  let first := (inferAccess simpleScal).toList.head?
-                  match first with
-                    | some y => y
-                    | none => ({node:= .bvar 0 (Lean.Name.mkSimple "failed"), type := (.data .natType) : RExpr}, PhraseType.comm)
 
 #pp simpleScal
 #eval inferAccess simpleScal
-#eval firstElem
-#pp printList (inferAccess simpleScal).toList
+
 
 def complexScal := [RiseC|
    fun n : nat =>
@@ -27,4 +22,3 @@ def complexScal := [RiseC|
  ]
 
 #pp complexScal
-#pp printList (inferAccess complexScal).toList

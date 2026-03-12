@@ -260,6 +260,9 @@ instance : Inhabited RData :=
 instance : Inhabited RType :=
   ⟨RType.data RData.natType⟩
 
+instance : Inhabited (RExprWith PhraseType) :=
+  ⟨{node := .lit (.bool false), type := PhraseType.comm : RExprPt}⟩
+
 ------------ Representations ----------------------
 
 -- modified from Nate

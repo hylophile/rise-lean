@@ -93,6 +93,18 @@ def getFromCtx (idx : Nat) (name : Lean.Name) (ctx : FunctionContext) : InferM P
 
 -------------- helper functions ----------------------------
 
+def mkApp (fNode argNode : RExprNodePt) (fType argType : PhraseType) : RExprNodePt :=
+    .app {node := fNode, type := fType : RExprPt} {node:= argNode, type := argType: RExprPt}
+
+def mkDepApp (fNode : RExprNodePt) (fType : PhraseType) (arg : RWrapper) : RExprNodePt :=
+    .depapp {node := fNode, type := fType} arg
+
+def mkLam (name : Name) (binderType : RType) (fNode : RExprNodePt) (fType : PhraseType) : RExprNodePt :=
+    .lam name binderType {node := fNode, type := fType : RExprPt}
+
+def mkDepLam (name : Name) (kind : RKind) (fNode : RExprNodePt) (fType : PhraseType) : RExprNodePt :=
+    .deplam name kind {node := fNode, type := fType : RExprPt}
+
 def type (ty : RType) : InferM PhraseType := do
   match ty with
     | .data dt => let name ← getFreshAccessIdentifier
@@ -122,14 +134,14 @@ private def addsKernelParam (expr : RType) (kernelParamFun : Bool) : Bool :=
                 | _ => false
     | false => false
 
-partial def subUnifyPhraseType (T1 T2 : PhraseType) : Option Subst :=
-  match (T1, T2) with
+partial def subUnifyPhraseType (subType superType : PhraseType) : Option Subst :=
+  match (subType, superType) with
     | (PhraseType.expr ldt la, PhraseType.expr rdt ra) =>
         if ldt == rdt
           then match (la, ra) with
                 | (DAnnotation.identifier i, _) => some {map := Std.HashMap.ofList [(i,ra)] : Subst}
                 | (_, DAnnotation.identifier i) => some {map := Std.HashMap.ofList [(i,la)] : Subst}
-                | _ => if (subTypeCheck T1 T2) then some {map := {} : Subst}
+                | _ => if (subTypeCheck subType superType) then some {map := {} : Subst}
                         else none
           else none
 
@@ -362,52 +374,49 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
 ---------------- Infer functions ----------------------
 
 mutual
-partial def inferPhraseTypesMonadic (e : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × Subst) := do
-  let (pt, s) ← inferPhraseTypesHelper e ctx isKernelParamFun
+partial def inferPhraseTypesMonadic (e : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × RExprNodePt × Subst) := do
+  let (pt, rPt, s) ← inferPhraseTypesHelper e ctx isKernelParamFun
   if isKernelParamFun then
       match pt with
         | .expr dt  _ => match subUnifyPhraseType pt (PhraseType.expr dt DAnnotation.write) with
-                          | some subst => return ((Subst.applyPt subst pt), (Subst.applySubst s subst))
+                          | some subst => return ((Subst.applyPt subst pt), rPt, (Subst.applySubst s subst))
                           | none => throw "The program does not specify how to write the result of the program into its output"
-        | _ => return (pt, s)
-  else return (pt, s)
+        | _ => return (pt, rPt, s)
+  else return (pt, rPt, s)
 
 
 
-partial def inferPhraseTypesHelper (e : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × Subst) := do
+partial def inferPhraseTypesHelper (e : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × RExprNodePt × Subst) := do
   let node := e.node
   match node with
     | .bvar idx name =>
         let val ← getFromCtx idx name ctx
-        ptAnnotationMap.put e val
-        return (val, {map := {} : Subst})
-    | .const userName => inferPrimitive e e.type userName
-    | .lit _ =>
+        return (val, .bvar idx name ,{map := {} : Subst})
+    | .const userName => inferPrimitive e.type userName
+    | .lit v =>
         let lpt := PhraseType.expr (assertDataType e.type) DAnnotation.read
-        ptAnnotationMap.put e lpt
-        return (lpt, {map := {} : Subst})
-    | .app fn arg => inferApp e fn arg ctx (addsKernelParam e.type isKernelParamFun)
-    | .depapp fn arg => inferDepApp e fn arg ctx isKernelParamFun
+        return (lpt, .lit v,{map := {} : Subst})
+    | .app fn arg => inferApp fn arg ctx (addsKernelParam e.type isKernelParamFun)
+    | .depapp fn arg => inferDepApp fn arg ctx isKernelParamFun
     | .lam binderName binderType body => let inT := assertFunctionType e.type
-                                         inferLambda e binderName binderType body inT ctx isKernelParamFun  --- look at atgain
-    | .deplam binderName binderKind body => inferDepLambda e binderName binderKind body ctx isKernelParamFun
+                                         inferLambda binderName binderType body inT ctx isKernelParamFun  --- look at atgain
+    | .deplam binderName binderKind body => inferDepLambda binderName binderKind body ctx isKernelParamFun
 
 
 
 ----- infer Primitive PhraseTypes -------------------
 
-partial def inferPrimitive (primNode : RExpr) (primType : RType) (prim : Lean.Name) : InferM (PhraseType × Subst) := do
+partial def inferPrimitive (primType : RType) (prim : Lean.Name) : InferM (PhraseType × RExprNodePt × Subst) := do
   let primitiveType ← matchPrimitiveType prim primType
   let _ := checkConsistency primType primitiveType
-  ptAnnotationMap.put primNode primitiveType
-  return (primitiveType, {map := {} : Subst})
+  return (primitiveType, .const prim,{map := {} : Subst})
 
 
 --- infer application PhraseTypes -------------------
 
-partial def inferApp (app : RExpr) (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool ) : InferM (PhraseType × Subst) := do
-  let (fType, fSubst) ← inferPhraseTypesMonadic fn ctx isKernelParamFun
-  let (argType, argSubst) ← inferPhraseTypesMonadic arg ctx isKernelParamFun
+partial def inferApp (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool ) : InferM (PhraseType × RExprNodePt × Subst) := do
+  let (fType, fNode, fSubst) ← inferPhraseTypesMonadic fn ctx isKernelParamFun
+  let (argType, argNode, argSubst) ← inferPhraseTypesMonadic arg ctx isKernelParamFun
   let argSubstFType := assertFunctionTypePt (Subst.applyPt argSubst fType)
   match argSubstFType with
     | .fn binderType body => let subst  ← match subUnifyPhraseType argType binderType with
@@ -415,65 +424,59 @@ partial def inferApp (app : RExpr) (fn arg : RExpr) (ctx : FunctionContext) (isK
                                 | none => throw s!"subUnifyPhraseType failed for {argType} and {binderType}"
                              let appType := Subst.applyPt subst body
                              let resSubst := Subst.applySubst subst (Subst.applySubst argSubst fSubst)
-                             ptAnnotationMap.put app appType
-                             return (appType, resSubst)
+                             return (appType, mkApp fNode argNode argSubstFType binderType, resSubst)
     | _ => throw s!"{fn} is no function type"
 
 
 --- infer dependent application PhraseTypes -------------------
 
-partial def inferDepApp (depApp : RExpr) (fn : RExpr) (arg : RWrapper) (ctx : FunctionContext) (isKernelParamFun : Bool ) : InferM (PhraseType × Subst) := do
-  let (fType, fSubst) ← inferPhraseTypesMonadic fn ctx isKernelParamFun
+partial def inferDepApp (fn : RExpr) (arg : RWrapper) (ctx : FunctionContext) (isKernelParamFun : Bool ) : InferM (PhraseType × RExprNodePt × Subst) := do
+  let (fType, fNode, fSubst) ← inferPhraseTypesMonadic fn ctx isKernelParamFun
   let depAppType ← match (arg, fType) with
                           | (.nat n, .pi (.rise .nat) userName body) => pure (substituteNatInPhraseType n userName body)
                           | (.data dt, .pi (.rise .data) userName body)  => pure (substituteDataInPhraseType dt userName body)
                           | (_ , _) => throw s!"the argument does not match with the function type " --- access identifier is missing yet
-  ptAnnotationMap.put depApp depAppType
-  return (depAppType, fSubst)
+
+  return (depAppType, mkDepApp fNode fType arg,fSubst)
 
 
 
 
 --- infer Lambda PhraseTypes -------------------
 
-partial def inferLambda (lam : RExpr) (binderName : Lean.Name) (binderType : RType) (body : RExpr) (inT : RType) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × Subst) := do
+partial def inferLambda (binderName : Lean.Name) (binderType : RType) (body : RExpr) (inT : RType) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × RExprNodePt × Subst) := do
   let xType ← if isKernelParamFun
                   then pure (PhraseType.expr (assertDataType inT) DAnnotation.read)
                   else type binderType
-  let node :=  {node := (RExprNodeWith.bvar 0 binderName), type := binderType : RExpr} --- that is not nice
   let ctxWithX ← insertInCtx ctx binderName xType
-  let (eType, eSubst) ← inferPhraseTypesMonadic body ctxWithX isKernelParamFun
+  let (eType, eNode,eSubst) ← inferPhraseTypesMonadic body ctxWithX isKernelParamFun
   let lambdaType := PhraseType.fn (Subst.applyPt eSubst xType) eType
-
-  ptAnnotationMap.put node xType
-  ptAnnotationMap.put lam lambdaType
 
   -- set depth like before
   let cstate ← get
   set { cstate with depth := cstate.depth - 1}
 
-  return (lambdaType, eSubst)
+  return (lambdaType, mkLam binderName binderType eNode eType, eSubst)
 
 
 
 --- infer dependent Lambda Phrasetypes -------------------
 
-partial def inferDepLambda (depLam : RExpr) (binderName : Lean.Name) (binderKind : RKind) (body : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × Subst) := do
-  let (bodyType, bodySubst) ← inferPhraseTypesMonadic body ctx isKernelParamFun
+partial def inferDepLambda (binderName : Lean.Name) (binderKind : RKind) (body : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × RExprNodePt × Subst) := do
+  let (bodyType, bodyNode, bodySubst) ← inferPhraseTypesMonadic body ctx isKernelParamFun
   let depLamType := PhraseType.pi (DKind.rise binderKind) binderName bodyType
-  ptAnnotationMap.put depLam depLamType
-  return (depLamType, bodySubst)
+  return (depLamType, mkDepLam binderName binderKind bodyNode bodyType, bodySubst)
 
 end
 
 --- outer call
-def inferPhraseTypes (e : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : (PhraseType × Subst × Context) :=
+def inferPhraseTypes (e : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : (PhraseType × RExprNodePt × Subst) :=
   let result := (inferPhraseTypesMonadic e ctx isKernelParamFun).run {Counter := 0, ptAnnotationMap := {}}
   match result with
-    | .ok ((pt, s), state) => (pt, s, state.ptAnnotationMap)
+    | .ok ((pt, node,s), _) => (pt, node ,s)
     | .error msg => dbg_trace msg
-                    (PhraseType.comm, {map := {} : Subst} , {}) --- want it to fail
+                    (PhraseType.comm, .lit (.bool false) ,{map := {} : Subst}) --- want it to fail
 
-def inferAccess (expr : RExpr) : Context :=
-  let (_, subst, ptAnnotationMap) := inferPhraseTypes expr {} true
-  Subst.applyMap ptAnnotationMap subst
+def inferAccess (expr : RExpr) : RExprPt :=
+  let (pt, node, subst) := inferPhraseTypes expr {} true
+  {node := node, type := Subst.applyPt subst pt}
