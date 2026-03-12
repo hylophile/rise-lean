@@ -12,7 +12,10 @@ def foo := [RiseC| fun y : f32 => (fun x : f32 =>  x * y) y ]
 def dot := [RiseC|
   fun {n : nat} =>
   fun as bs : n·f32 =>
-     zip as bs |> mapSeq ($prodMult f32) |> reduceSeq add 0.0f32
+     zip as bs |> mapSeq ($prodMult f32)|> toMem |> reduceSeq add 0.0f32
 ]
+
+def applyInferAccessToDot := inferAccess dot
+
 #pp dot
-#eval inferAccess dot
+#eval applyInferAccessToDot

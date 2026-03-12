@@ -93,16 +93,16 @@ def getFromCtx (idx : Nat) (name : Lean.Name) (ctx : FunctionContext) : InferM P
 
 -------------- helper functions ----------------------------
 
-def mkApp (fNode argNode : RExprNodePt) (fType argType : PhraseType) : RExprNodePt :=
+def mkAppNode (fNode argNode : RExprNodePt) (fType argType : PhraseType) : RExprNodePt :=
     .app {node := fNode, type := fType : RExprPt} {node:= argNode, type := argType: RExprPt}
 
-def mkDepApp (fNode : RExprNodePt) (fType : PhraseType) (arg : RWrapper) : RExprNodePt :=
+def mkDepAppNode (fNode : RExprNodePt) (fType : PhraseType) (arg : RWrapper) : RExprNodePt :=
     .depapp {node := fNode, type := fType} arg
 
-def mkLam (name : Name) (binderType : RType) (fNode : RExprNodePt) (fType : PhraseType) : RExprNodePt :=
+def mkLamNode (name : Name) (binderType : RType) (fNode : RExprNodePt) (fType : PhraseType) : RExprNodePt :=
     .lam name binderType {node := fNode, type := fType : RExprPt}
 
-def mkDepLam (name : Name) (kind : RKind) (fNode : RExprNodePt) (fType : PhraseType) : RExprNodePt :=
+def mkDepLamNode (name : Name) (kind : RKind) (fNode : RExprNodePt) (fType : PhraseType) : RExprNodePt :=
     .deplam name kind {node := fNode, type := fType : RExprPt}
 
 def type (ty : RType) : InferM PhraseType := do
@@ -409,7 +409,7 @@ partial def inferPhraseTypesHelper (e : RExpr) (ctx : FunctionContext) (isKernel
 partial def inferPrimitive (primType : RType) (prim : Lean.Name) : InferM (PhraseType × RExprNodePt × Subst) := do
   let primitiveType ← matchPrimitiveType prim primType
   let _ := checkConsistency primType primitiveType
-  return (primitiveType, .const prim,{map := {} : Subst})
+  return (primitiveType, .const prim, {map := {} : Subst})
 
 
 --- infer application PhraseTypes -------------------
@@ -421,10 +421,10 @@ partial def inferApp (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun 
   match argSubstFType with
     | .fn binderType body => let subst  ← match subUnifyPhraseType argType binderType with
                                 | some y => pure  y
-                                | none => throw s!"subUnifyPhraseType failed for {argType} and {binderType}"
+                                | none => throw s!"subUnifyPhraseType failed for the argument type: {argType} \n and the binder type {binderType}"
                              let appType := Subst.applyPt subst body
                              let resSubst := Subst.applySubst subst (Subst.applySubst argSubst fSubst)
-                             return (appType, mkApp fNode argNode argSubstFType binderType, resSubst)
+                             return (appType, mkAppNode fNode argNode argSubstFType binderType, resSubst)
     | _ => throw s!"{fn} is no function type"
 
 
@@ -437,7 +437,7 @@ partial def inferDepApp (fn : RExpr) (arg : RWrapper) (ctx : FunctionContext) (i
                           | (.data dt, .pi (.rise .data) userName body)  => pure (substituteDataInPhraseType dt userName body)
                           | (_ , _) => throw s!"the argument does not match with the function type " --- access identifier is missing yet
 
-  return (depAppType, mkDepApp fNode fType arg,fSubst)
+  return (depAppType, mkDepAppNode fNode fType arg, fSubst)
 
 
 
@@ -456,7 +456,7 @@ partial def inferLambda (binderName : Lean.Name) (binderType : RType) (body : RE
   let cstate ← get
   set { cstate with depth := cstate.depth - 1}
 
-  return (lambdaType, mkLam binderName binderType eNode eType, eSubst)
+  return (lambdaType, mkLamNode binderName binderType eNode eType, eSubst)
 
 
 
@@ -465,7 +465,7 @@ partial def inferLambda (binderName : Lean.Name) (binderType : RType) (body : RE
 partial def inferDepLambda (binderName : Lean.Name) (binderKind : RKind) (body : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool) : InferM (PhraseType × RExprNodePt × Subst) := do
   let (bodyType, bodyNode, bodySubst) ← inferPhraseTypes body ctx isKernelParamFun
   let depLamType := PhraseType.pi (DKind.rise binderKind) binderName bodyType
-  return (depLamType, mkDepLam binderName binderKind bodyNode bodyType, bodySubst)
+  return (depLamType, mkDepLamNode binderName binderKind bodyNode bodyType, bodySubst)
 
 end
 

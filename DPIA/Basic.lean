@@ -383,3 +383,39 @@ private def indent (s : String) : String :=
 -- modified from Nate
 instance : ToString DPIAPhrase where
   toString e := "expr:\n" ++ (indent <| toString e.node) ++ "\ntype:\n" ++ (indent <| toString e.type)
+
+
+partial def RExprNodeWith.renderPt : RExprNodePt → Std.Format
+  | .bvar id n    => f!"{n}@{id}"
+  | .const s      => s.toString
+  | .lit n        => s!"{n}"
+  | .app f e      => match f.node, e.node with
+    | .app .. , .app .. => f.node.renderPt ++ " " ++ Std.Format.paren e.node.renderPt
+    | .app .. , _       => f.node.renderPt ++ " " ++ e.node.renderPt
+    | _       , .app .. => f.node.renderPt ++ " " ++ Std.Format.paren e.node.renderPt
+    | _       , _       => f.node.renderPt ++ " " ++ e.node.renderPt
+  | .depapp f e   => f.node.renderPt ++ " " ++ Std.Format.paren e.render
+  | .lam s t b    => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.renderPt}" ++ Std.Format.line
+  | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.renderPt}" ++ Std.Format.line
+
+partial def RExprNodeWith.renderInlinePt : RExprNodePt → Std.Format
+  | .bvar id n    => f!"{n}@{id}"
+  | .const s      => s.toString
+  | .lit n        => s!"{n}"
+  | .app f e      => match f.node, e.node with
+    | .app .. , .app .. => f.node.renderInlinePt ++ " " ++ Std.Format.paren e.node.renderInlinePt
+    | .app .. , _       => f.node.renderInlinePt ++ " " ++ e.node.renderInlinePt
+    | _       , .app .. => f.node.renderInlinePt ++ " " ++ Std.Format.paren e.node.renderInlinePt
+    | _       ,       _ => f.node.renderInlinePt ++ " " ++ e.node.renderInlinePt
+  | .depapp f e   => f.node.renderInlinePt ++ " " ++ Std.Format.paren e.render
+  | .lam s t b    => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInlinePt}"
+  | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInlinePt}"
+
+instance : Std.ToFormat RExprNodePt where
+  format := RExprNodeWith.renderPt
+
+instance : ToString RExprNodePt where
+  toString e := Std.Format.pretty e.renderPt
+
+instance : ToString RExprPt where
+  toString e := "expr:\n" ++ (indent <| toString e.node) ++ "\ntype:\n" ++ (indent <| toString e.type)

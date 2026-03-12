@@ -13,6 +13,7 @@ def applyInferAccess := inferAccess simpleScal
 
 #pp simpleScal
 #eval applyInferAccess
+#pp applyInferAccess
 
 
 def complexScal := [RiseC|

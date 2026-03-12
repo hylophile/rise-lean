@@ -16,3 +16,4 @@ def add2 := [RiseC|
 #pp add
 #eval inferAccess add
 #eval add2
+#pp inferAccess add
