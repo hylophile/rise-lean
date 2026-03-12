@@ -9,9 +9,10 @@ def simpleScal := [RiseC|
      input |> mapSeq (fun x => alpha * x)
  ]
 
+def applyInferAccess := inferAccess simpleScal
 
 #pp simpleScal
-#eval inferAccess simpleScal
+#eval applyInferAccess
 
 
 def complexScal := [RiseC|
