@@ -8,6 +8,12 @@ def add := [RiseC|
         (fun x : f32 => x + y + x )(x)
 ]
 
+def add2 := [RiseC|
+  fun x :  f32 =>
+    (fun x : f32 => x + x )(x)
+]
+
 #pp add
 #eval inferAccess add
 #pp printList (inferAccess add).toList
+#eval add2

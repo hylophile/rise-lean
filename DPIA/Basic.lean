@@ -47,6 +47,8 @@ inductive DWrapper
   | readWrite (v: DAnnotation)
 deriving Repr, BEq
 
+abbrev RExprPt := RExprWith PhraseType
+abbrev RExprNodePt := RExprNodeWith PhraseType
 
 mutual
 structure DPIAPhrase where
