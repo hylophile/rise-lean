@@ -28,6 +28,7 @@ def applyInferAccessToDot := inferAccess dot
 #pp dot
 #pp fromRise dot
 
+#pp simpleZip
 #pp fromRise simpleZip
 #pp inferAccess simpleZip
 
