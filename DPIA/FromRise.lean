@@ -2,8 +2,7 @@ import DPIA.Basic
 import Lean.Exception
 import DPIA.Substitutions
 import DPIA.Pimitives.Functional
-
---import DPIA.InferAccessAnnotation
+import DPIA.InferAccessAnnotation
 
 
 
@@ -28,7 +27,6 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
 
     | "neg" => match type with
                  | PhraseType.fn (.expr t .read) (.expr _ .read) =>
-
                      let eType := PhraseType.expr t .read
                      mkLam (.fn eType (.expr t .read)) (mkName "e") eType
                             (mkNeg t (mkBvar 0 (mkName "e") eType))
@@ -447,7 +445,7 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
                      let yFunType := PhraseType.fn yType (.expr (.array n (.pair s t)) a)
                      let xType := PhraseType.expr (.array n s) a
 
-                     mkLam (.fn xType yFunType) (mkName "y") yType
+                     mkLam (.fn xType yFunType) (mkName "x") yType
                            (mkLam yFunType (mkName "y") yType
                                   (mkZip n s t a
                                          (mkBvar 1 (mkName "x") xType)
@@ -738,38 +736,34 @@ def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
     | x => panic! s!"{x} is no valid primitive"
   --{node := (DPIAPhraseNode.bvar 0 name) , type := type : DPIAPhrase}
 
-partial def expression (expr : RExpr) (ptMap : Context) : DPIAPhrase :=
+partial def expression (expr : RExprPt) : DPIAPhrase :=
   let node := expr.node
-  let val := ptMap.get? expr
-  match val with
-    | some type =>
-        match node with
-          | .bvar deBruijnIndex userName => let node := DPIAPhraseNode.bvar deBruijnIndex userName
-                                            {node := node, type := type : DPIAPhrase}
-          | .const userName =>  primitives userName type
-          | .lit val => let node := DPIAPhraseNode.lit val
-                        {node := node, type := type : DPIAPhrase}
-          | .app fn arg =>  let eFn := expression fn ptMap -- do i need an instance of?
-                            let eArg := expression arg ptMap
-                            let node := DPIAPhraseNode.app eFn eArg
-                            {node := node, type := type : DPIAPhrase}
-          | .depapp fn arg => let eArg := DWrapper.rise arg
-                              let eFn := expression fn ptMap -- do i need an instance of?
-                              let node := DPIAPhraseNode.depapp eFn eArg
-                              {node := node, type := type : DPIAPhrase}
-          | .lam binderName binderType body =>  let ptBody := expression body ptMap
-                                                let binderVal := ptMap.get? {node := (RExprNodeWith.bvar 0 binderName), type := binderType : RExpr}
-                                                match binderVal with
-                                                  | some ptBinderType => let node := DPIAPhraseNode.lam binderName ptBinderType ptBody
-                                                                         {node := node, type := type : DPIAPhrase}
-                                                  | none => panic! s!"something went wrong, cannot find {binderName} in ptMap"
-          | .deplam binderName binderKind body => let ptBinderKind := DKind.rise binderKind
-                                                  let ptBody := expression body ptMap
-                                                  let node := DPIAPhraseNode.deplam binderName ptBinderKind ptBody
-                                                  {node := node, type := type :DPIAPhrase}
-    | none => panic! s!"something went wrong, cannot find {expr} in ptMap"
+  let pt := expr.type
+  match node with
+        | .bvar deBruijnIndex userName => let node := DPIAPhraseNode.bvar deBruijnIndex userName
+                                          {node := node, type := pt : DPIAPhrase}
+        | .const userName =>  primitives userName pt
+        | .lit val => let node := DPIAPhraseNode.lit val
+                      {node := node, type := pt : DPIAPhrase}
+        | .app fn arg => let eFn := expression fn
+                         let eArg := expression arg
+                         let node := DPIAPhraseNode.app eFn eArg
+                         {node := node, type := pt : DPIAPhrase}
+        | .depapp fn arg => let eArg := DWrapper.rise arg
+                            let eFn := expression fn -- do i need an instance of?
+                            let node := DPIAPhraseNode.depapp eFn eArg
+                            {node := node, type := pt : DPIAPhrase}
+        | .lam binderName _ body =>let ptBody := expression body
+                                   match pt with
+                                          | .fn binderType _ => let node := (DPIAPhraseNode.lam binderName binderType ptBody)
+                                                                {node := node, type := pt : DPIAPhrase}
+                                          | _ => panic! s!"something went wrong, the expected type for a lamda is a function type"
+        | .deplam binderName binderKind body => let ptBinderKind := DKind.rise binderKind
+                                                let ptBody := expression body
+                                                let node := DPIAPhraseNode.deplam binderName ptBinderKind ptBody
+                                                {node := node, type := pt :DPIAPhrase}
 --termination_by RExprSize expr
 
 def fromRise (expr : RExpr) : DPIAPhrase :=
-  let rwMap := {} --inferAccess expr
-  expression expr rwMap
+  let rExprPt := inferAccess expr
+  expression rExprPt

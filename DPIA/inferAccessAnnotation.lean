@@ -3,15 +3,14 @@ import DPIA.Basic
 import DPIA.TypeCheck
 
 -- helper type
-private abbrev Context := Std.HashMap RExpr PhraseType
 private abbrev SubstMap := Std.HashMap Lean.Name DAnnotation
 private abbrev FunctionContext := Std.HashMap (Lean.Name × Nat) PhraseType
 
 
-def printContext (ctx : List ((Lean.Name × Nat) × PhraseType)) : String :=
+def printFunctionContext (ctx : List ((Lean.Name × Nat) × PhraseType)) : String :=
   match ctx with
     | [] => ""
-    | (key, val) :: ys => s!"({key},{val}) \n\n" ++ printContext ys
+    | (key, val) :: ys => s!"({key},{val}) \n\n" ++ printFunctionContext ys
 
 
 ---------------- substType -----------------
@@ -44,7 +43,7 @@ def traverseList (pt : PhraseType) (outer : List (Lean.Name × DAnnotation)) : P
     | (key, value) :: ys => let SubstPt := substituteAnnotationPt pt key value
                             traverseList SubstPt ys
 
-def Subst.applyMap (inner : Context) (outer : Subst)  : Context :=
+def Subst.applyMap (inner : FunctionContext) (outer : Subst)  : FunctionContext :=
   let outerList := outer.map.toList
   inner.fold
     (fun acc key value =>
@@ -59,7 +58,6 @@ def printSubst (subst : List (Lean.Name × DAnnotation)) : String :=
 
 ---------------- modifyable state --------------------
 structure InferState where
-  ptAnnotationMap : Context := {}
   Counter : Nat := 0                                      -- counter for unique names
   depth : Nat := 0
 
@@ -70,8 +68,6 @@ def getFreshAccessIdentifier (name : String := "tmp") : InferM String := do
   set { cstate with Counter := cstate.Counter + 1}
   return s!"{name}_{cstate.Counter}"
 
-def ptAnnotationMap.put (node : RExpr) (pt : PhraseType) : InferM Unit :=
-  modify (fun cstate => { cstate with ptAnnotationMap := cstate.ptAnnotationMap.insert node pt})
 
 
 def insertInCtx (ctx : FunctionContext) (name : Lean.Name) (type : PhraseType) : InferM FunctionContext := do
@@ -88,7 +84,7 @@ def getRec (idx depth : Nat) (name : Lean.Name) (ctx : List ((Lean.Name × Nat) 
 
 def getFromCtx (idx : Nat) (name : Lean.Name) (ctx : FunctionContext) : InferM PhraseType := do
   let cstate : InferState ← get
-  if cstate.depth == 0 then throw s!"cannot find identifier {name}@{idx} because there are no functions yet\n {printContext ctx.toList}"
+  if cstate.depth == 0 then throw s!"cannot find identifier {name}@{idx} because there are no functions yet\n {printFunctionContext ctx.toList}"
   getRec idx (cstate.depth-1) name ctx.toList
 
 -------------- helper functions ----------------------------
@@ -416,7 +412,8 @@ partial def inferPrimitive (primType : RType) (prim : Lean.Name) : InferM (Phras
 
 partial def inferApp (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun : Bool ) : InferM (PhraseType × RExprNodePt × Subst) := do
   let (fType, fNode, fSubst) ← inferPhraseTypes fn ctx isKernelParamFun
-  let (argType, argNode, argSubst) ← inferPhraseTypes arg ctx isKernelParamFun
+  let (argType, argNode, argSubst) ← inferPhraseTypes arg (Subst.applyMap ctx fSubst) isKernelParamFun
+  dbg_trace s!"\nfType : {fType} for {fNode} with fSubst {printSubst fSubst.map.toList} and argSubst {printSubst argSubst.map.toList} and ctx {printFunctionContext ctx.toList}\n"
   let argSubstFType := assertFunctionTypePt (Subst.applyPt argSubst fType)
   match argSubstFType with
     | .fn binderType body => let subst  ← match subUnifyPhraseType argType binderType with
@@ -424,7 +421,7 @@ partial def inferApp (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun 
                                 | none => throw s!"subUnifyPhraseType failed for the argument type: {argType} \n and the binder type {binderType}"
                              let appType := Subst.applyPt subst body
                              let resSubst := Subst.applySubst subst (Subst.applySubst argSubst fSubst)
-                             return (appType, mkAppNode fNode argNode argSubstFType binderType, resSubst)
+                             return (appType, mkAppNode fNode argNode argSubstFType argType, resSubst)
     | _ => throw s!"{fn} is no function type"
 
 
@@ -482,7 +479,7 @@ end
 --   {node := node, type := Subst.applyPt subst pt}
 
 def inferAccess (expr : RExpr) : RExprPt :=
-    let result := (inferPhraseTypes expr {} true).run {Counter := 0, ptAnnotationMap := {}}
+    let result := (inferPhraseTypes expr {} true).run {Counter := 0, depth := 0}
     match result with
         | .ok ((pt, node, subst), _) => {node := node, type := Subst.applyPt subst pt}
         | .error msg => panic! s!"error ocurred during inferAccess: \n {msg}"

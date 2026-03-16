@@ -167,7 +167,7 @@ inductive FunctionalPrimitives where
   | mapSnd    (s t1 t2 : RData) (a : DAnnotation) (f pair : DPIAPhrase)
 
   -- reduce
-  | reduceSeq (unroll : Bool) (n : RNat) (s t : RData) (f init array : DPIAPhrase )
+  | reduceSeq (unroll : Bool) (n : RNat) (s t : RData) (f init array : DPIAPhrase)
 
   -- scan
   | scanSeq (n :RNat) (s t : RData) (f init array : DPIAPhrase)
@@ -332,11 +332,76 @@ def DWrapper.render : DWrapper -> Std.Format
   | .rise w => w.render
   | .readWrite v => toString v ++ " : readWrite"
 
+mutual
+partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
+  | .id val => s!"id {val.node.render}"
+  | .neg val => s!"neg {val.node.render}"
+  | .add lhs rhs => s!"add {lhs.node.render} {rhs.node.render}"
+  | .sub lhs rhs => s!"sub {lhs.node.render} {rhs.node.render}"
+  | .mul lhs rhs => s!"mul {lhs.node.render} {rhs.node.render}"
+  | .div lhs rhs => s!"div {lhs.node.render} {rhs.node.render}"
+  | .mod lhs rhs => s!"mod {lhs.node.render} {rhs.node.render}"
+  | .not val => s!"not {val.node.render}"
+  | .gt lhs rhs => s!"gt {lhs.node.render} {rhs.node.render}"
+  | .lt lhs rhs => s!"lt {lhs.node.render} {rhs.node.render}"
+  | .equal lhs rhs => s!"equal {lhs.node.render} {rhs.node.render}"
+  | .cast s t x => s!"cast {s} {t} {x.node.render}"
+  | .indexAsNat n idx => s!"indexAsNat {n} {idx.node.render}"
+  | .natAsIndex n idx => s!"natAsIndex {n} {idx.node.render}"
+  | .rlet s t a f val => s!"rlet {s} {t} {a} {f.node.render} {val.node.render}"
+  | .toMem t input => s!"toMem {t} {input.node.render}"
+  | .generate n t f  => s!"generate {n} {t} {f.node.render}"
+  | .idx n t idx array => s!"idx {n} {t} {idx.node.render} {array.node.render}"
+  | .depIdx ..  => s!"string for functional is not defined yet"
+  | .idxVec n t idx vec  => s!"idxVec {n} {t} {idx.node.render} {vec.node.render}"
+  | .take n m t array => s!"take {n} {m} {t} {array.node.render}"
+  | .drop n m t array => s!"drop {n} {m} {t} {array.node.render}"
+  | .concat n m t nArray mArray => s!"concat {n} {m} {t} {nArray.node.render} {mArray.node.render}"
+  | .split n m t a array => s!"split {n} {m} {t} {a} {array.node.render}"
+  | .join n m t a array => s!"join {n} {m} {t} {a} {array.node.render}"
+  | .depJoin .. => s!"string for functional is not defined yet"
+  | .slide n sz sp t array => s!"slide {n} {sz} {sp} {t} {array.node.render}"
+  | .circularBuffer n alloc sz s t load array => s!"circularBuffer {n} {alloc} {sz} {s} {t} {load.node.render} {array.node.render}"
+  | .rotateValues n sz t wrt array => s!"rotateValues {n} {sz} {t} {wrt.node.render} {array.node.render}"
+  | .transpose n m t a array => s!"transpose {n} {m} {t} {a} {array.node.render}"
+  | .cycle n m  t array  => s!"cycle {n} {m} {t} {array.node.render}"
+  | .reorder .. => s!"string for functional is not defined yet"
+  | .transposeDepArray .. => s!"string for functional is not defined yet"
+  | .gather n m t idx array => s!"gather {n} {m} {t} {idx.node.render} {array.node.render}"
+  | .scatter n m t idx array => s!"scatter {n} {m} {t} {idx.node.render} {array.node.render}"
+  | .padCst n l r t padExpr array => s!"padCst {n} {l} {r} {t} {padExpr.node.render} {array.node.render}"
+  | .padClamp n l r t array => s!"padClamp {n} {l} {r} {t} {array.node.render}"
+  | .padEmpty n r t array => s!"padEmpty {n} {r} {t} {array.node.render}"
+  | .zip n s t a sArray tArray => s!"zip {n} {s} {t} {a} {sArray.node.render} {tArray.node.render}"
+  | .unzip n s t a array  => s!"unzip {n} {s} {t} {a} {array.node.render}"
+  | .depZip ..  => s!"string for functional is not defined yet"
+  | .partition .. => s!"string for functional is not defined yet"
+  | .makePair s t a fst snd  => s!"makePair {s} {t} {a} {fst.node.render} {snd.node.render}"
+  | .fst s t pair => s!"fst {s} {t} {pair.node.render}"
+  | .snd s t pair => s!"snd {s} {t} {pair.node.render}"
+  | .vectorFromScalar n t arg  => s!"vectorFromScalar {n} {t} {arg.node.render}"
+  | .asVector n m t a array  => s!"asVector {n} {m} {t} {a} {array.node.render}"
+  | .asVectorAligned n m t a array  => s!"asVectorAligned {n} {m} {t} {a} {array.node.render}"
+  | .asScalar n m t a array => s!"asScalar {n} {m} {t} {a} {array.node.render}"
+  | .map n s t a f array => s!"map {n} {s} {t} {a} {f.node.render} {array.node.render}"
+  | .mapSeq unroll n s t f array => s!"mapSeq {unroll} {n} {s} {t} {f.node.render} {array.node.render}"
+  | .mapStream n s t f array  => s!"mapStream {n} {s} {t} {f.node.render} {array.node.render}"
+  | .iterateStream n s t f array => s!"iterateStream {n} {s} {t} {f.node.render} {array.node.render}"
+  | .depMapSeq .. => s!"string for functional is not defined yet"
+  | .mapVec n t1 t2 f vec  => s!"mapVec {n} {t1} {t2} {f.node.render} {vec.node.render}"
+  | .mapFst s1 t s2 a f pair => s!"mapFst {s1} {t} {s2} {a} {f.node.render} {pair.node.render}"
+  | .mapSnd s t1 t2 a f pair => s!"mapSnd {s} {t1} {t2} {a} {f.node.render} {pair.node.render}"
+  | .reduceSeq unroll n  s t f init array  => s!"reduceSeq {unroll} {n} {s} {t} {f.node.render} {init.node.render} {array.node.render}"
+  | .scanSeq n s t f init array => s!"scanSeq {n} {s} {t} {f.node.render} {init.node.render} {array.node.render}"
+  | .iterate n m k t f array => s!"iterate {n} {m} {k} {t} {f.node.render} {array.node.render}"
+  | .depTile n tileSize haloSize t1 t2 processTiles array  => s!"depTile {n} {tileSize} {haloSize} {t1} {t2} {processTiles.node.render} {array.node.render}"
+  | .printType msg t a input  => s!"printType {msg} {t} {a} {input.node.render}"
+
 -- modified from Nate
 partial def DPIAPhraseNode.render : DPIAPhraseNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
   | .imperative _ => s!"imperative is not defiend yet" --TODO | .imperative i
-  | .functional _ => s!"functional is not defined yet" --TODO | .functional f
+  | .functional f => s!"{f.render}" --TODO | .functional f
   | .lit n        => s!"{n}"
   | .app f e      => match f.node, e.node with
     | .app .. , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
@@ -369,6 +434,8 @@ partial def DPIAPhraseNode.renderInline : DPIAPhraseNode → Std.Format
   | .proj1 _ => s!"proj1 not implemented yet" --TODO | .proj1 p
   | .proj2 _ => s!"proj2 not implemented yet" --TODO | .proj2 p
   | .ifThenElse cond thenP elseP => s!"if {cond.node.renderInline}: \n {thenP.node.renderInline}\n else: \n {elseP.node.renderInline}" --TODO
+
+end
 
 instance : Std.ToFormat DPIAPhraseNode where
   format := DPIAPhraseNode.render

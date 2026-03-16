@@ -1,7 +1,7 @@
 import DPIA.Basic
 import Rise.Basic
 
--- substitute annotations in Dannotations
+-- substitute annotations in DAnnotations
 def substituteAnnotationA (a : DAnnotation) (name : Lean.Name) (key : DAnnotation) : DAnnotation :=
   match a with
     | .identifier userName => if userName == name then key else a

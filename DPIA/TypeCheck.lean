@@ -2,7 +2,7 @@ import DPIA.Basic
 
 def notContainingArrayType (composed : RData) : Bool :=
     match composed with
-        | .scalar _ | .index _ | .bvar _ _ | .natType | .vector _ _=> true
+        | .scalar _ | .index _ | .natType | .vector _ _=> true
         | .pair fst snd => notContainingArrayType fst && notContainingArrayType snd
         | _ => false
 
