@@ -439,8 +439,8 @@ partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
 -- modified from Nate
 partial def DPIAPhraseNode.render : DPIAPhraseNode → Std.Format
   | .bvar id n    => f!"{n}@{id}"
-  | .imperative _ => s!"imperative is not defiend yet" --TODO | .imperative i
-  | .functional f => s!"{f.render}" --TODO | .functional f
+  | .imperative i => s!"{i.render}"
+  | .functional f => s!"{f.render}"
   | .lit n        => s!"{n}"
   | .app f e      => match f.node, e.node with
     | .app .. , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
@@ -480,6 +480,18 @@ instance : Std.ToFormat DPIAPhraseNode where
   format := DPIAPhraseNode.render
 
 instance : ToString DPIAPhraseNode where
+  toString e := Std.Format.pretty e.render
+
+instance : Std.ToFormat ImperativePrimitives where
+  format := ImperativePrimitives.render
+
+instance : ToString ImperativePrimitives where
+  toString e := Std.Format.pretty e.render
+
+instance : Std.ToFormat FunctionalPrimitives where
+  format := FunctionalPrimitives.render
+
+instance : ToString FunctionalPrimitives where
   toString e := Std.Format.pretty e.render
 
 -- copied from Nate
