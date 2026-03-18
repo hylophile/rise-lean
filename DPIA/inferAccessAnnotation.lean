@@ -421,12 +421,12 @@ partial def inferApp (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun 
   let (fExpr, fSubst) ← inferPhraseTypes fn ctx isKernelParamFun
   let (argExpr, argSubst) ← inferPhraseTypes arg (Subst.applyMap ctx fSubst) isKernelParamFun
   --dbg_trace s!"\nfType : {fExpr.type} for {fExpr.node} with fSubst {printSubst fSubst.map.toList} and argSubst {printSubst argSubst.map.toList} and ctx {printFunctionContext ctx.toList}\n"
-  let argSubstFExpr := Subst.applyR argSubst fExpr -- applyPt still needs to be changed
+  let argSubstFExpr := Subst.applyR argSubst fExpr
   match (assertFunctionTypePt argSubstFExpr.type) with
     | .fn binderType body => let subst  ← match subUnifyPhraseType argExpr.type binderType with
                                 | some y => pure  y
                                 | none => throw s!"subUnifyPhraseType failed for the argument type: {argExpr.type} \n and the binder type {binderType}"
-                             let appType := Subst.applyPt subst body -- need the applyPt as it is as well
+                             let appType := Subst.applyPt subst body
                              let resSubst := Subst.applySubst subst (Subst.applySubst argSubst fSubst)
                              return ({node := .app argSubstFExpr argExpr, type := appType : RExprPt}, resSubst)
     | _ => throw s!"{fn} is no function type"
@@ -441,8 +441,8 @@ partial def inferDepApp (fn : RExpr) (arg : RWrapper) (ctx : FunctionContext) (i
                           | (.data dt, .pi (.rise .data) userName body)  => pure (substituteDataInPhraseType dt userName body)
                           | (_ , _) => throw s!"the argument does not match with the function type " --- access identifier is missing yet
 
-  return ({type := depAppType, node := .depapp fExpr arg : RExprPt}, fSubst)
-
+  return ({type := depAppType, node := .depapp fExpr arg : RExprPt}, fSubst) -- return new fExpr with fExpr.node and fExpr.type[e=arg]
+-- return ({type := depAppType, node := fExpr.node.body},fSubst) something like
 
 
 
