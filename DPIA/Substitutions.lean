@@ -144,12 +144,9 @@ def substituteAnnotationPt (pt : PhraseType) (name : Lean.Name) (key : DAnnotati
 
 def substituteDataInData (dt : RData) (For : Lean.Name) (In : RData) (depth : Nat): RData :=
   match In with
-    | .bvar index userName => dbg_trace s!"for is {For} with depth {depth} and name is {userName} with index {index}"
-                              if userName.toString == For.toString && depth == index
-                              then dbg_trace s!"i chose true and return {dt}"
-                                   dt
-                              else dbg_trace s!"i chose false"
-                                   In --> not sure how to include deBruijnIndex yet --> need to take a look at it again
+    | .bvar index userName => if userName.toString == For.toString && depth == index
+                              then dt
+                              else In
     | .array n aDt => RData.array n (substituteDataInData dt For aDt depth)
     | .pair p1 p2 => RData.pair (substituteDataInData dt For p1 depth) (substituteDataInData dt For p2 depth)
     | .index _ => In
@@ -272,52 +269,6 @@ partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.
 
 def substitutePhraseInPhrase (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
   substitutePhraseInPhraseHelper phrase In For 0
-
-partial def substituteNatInRExprPtHelper (nat : RNat) (In : RExprPt) (For : Lean.Name) (depth : Nat): RExprPt :=
-  let type := substituteNatInPhraseType nat For In.type
-  let node := match In.node with
-              | .app fn arg => .app (substituteNatInRExprPtHelper nat fn For depth) (substituteNatInRExprPtHelper nat arg For depth)
-              | .depapp fn arg => .depapp (substituteNatInRExprPtHelper nat fn For depth) arg
-              | .lam binderName binderType body => .lam binderName
-                                                        (substituteNatInRType nat For binderType depth)
-                                                        (substituteNatInRExprPtHelper nat body For depth)
-              | .deplam binderName binderKind body => .deplam   binderName
-                                                                binderKind
-                                                                (substituteNatInRExprPtHelper nat body For (depth+1))
-              | _ => In.node
-  {node := node, type:=type}
-
-partial def substituteDataInRExprPtHelper (data : RData) (In : RExprPt) (For : Lean.Name) (depth : Nat): RExprPt :=
-  let type := substituteDataInPhraseType data For In.type
-  let node := match In.node with
-              | .app fn arg => .app (substituteDataInRExprPtHelper data fn For depth) (substituteDataInRExprPtHelper data arg For depth)
-              | .depapp fn arg => .depapp (substituteDataInRExprPtHelper data fn For depth) arg
-              | .lam binderName binderType body => .lam binderName
-                                                        (substituteDataInRType data For binderType depth)
-                                                        (substituteDataInRExprPtHelper data body For depth)
-              | .deplam binderName binderKind body => .deplam   binderName
-                                                                binderKind
-                                                                (substituteDataInRExprPtHelper data body For (depth+1))
-              | _ => In.node
-  {node := node, type:=type}
-
--- def matchTypeDependentOnKind (k : DKind) : Type :=
---   match k with
---     | .rise r => match r with
---                   | .data => RData
---                   | .nat => RNat
---                   | _ => panic! s!"cannot return a Type"
---     | .readWrite => DAnnotation
---     | _ => panic! s!"cannot return a Type"
-
-
--- substitute kinds in PhraseTypes
--- def substituteKindsPt {T : Type} (binderKind : DKind) (x : matchTypeDependentOnKind binderKind) (For : Lean.Name) (In : PhraseType) : PhraseType :=
---   match binderKind, x with
---     | DKind.rise RKind.data , (x : RData) => substituteDataPt x For In
---     | DKind.rise RKind.nat , (x : RNat) => substituteNatPt x For In
---     | DKind.readWrite, (x : DAnnotation) => substituteAnnotationPt In For x
---     | _, _ => panic! s!"could not substitute x in {For}"
 
 def phraseTypeSize (pt : PhraseType) : Nat :=
   match pt with

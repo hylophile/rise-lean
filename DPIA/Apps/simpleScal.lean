@@ -1,6 +1,7 @@
 import DPIA.InferAccessAnnotation
 import Rise
 import DPIA.Printing
+import DPIA.FromRise
 
 def simpleScal := [RiseC|
    fun n : nat =>
@@ -14,6 +15,7 @@ def applyInferAccess := inferAccess simpleScal
 #pp simpleScal
 #eval applyInferAccess
 #pp applyInferAccess
+#pp fromRise simpleScal
 
 
 def complexScal := [RiseC|

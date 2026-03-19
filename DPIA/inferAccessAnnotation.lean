@@ -434,6 +434,17 @@ partial def inferApp (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun 
 
 --- infer dependent application PhraseTypes -------------------
 
+-- partial def inferDepApp (fn : RExpr) (arg : RWrapper) (ctx : FunctionContext) (isKernelParamFun : Bool ) : InferM (RExprPt × Subst) := do
+--   let (fExpr, fSubst) ← inferPhraseTypes fn ctx isKernelParamFun
+--   --dbg_trace s!" starting now "
+--   let body ← match (arg, fExpr.node) with
+--                           | (.nat n, .deplam userName .nat body) => pure (substituteNatInRExprPt n body userName) --pure (substituteNatInPhraseType n userName body) -- is it okay to use node instead of type for the matching
+--                           | (.data dt, .deplam userName .data body)  => pure (substituteDataInRExprPt dt body userName) --pure (substituteDataInPhraseType dt userName body)
+--                           | (_ , _) => throw s!"the argument does not match with the function type " --- access identifier is missing yet
+--   --dbg_trace s!"fExpr {fExpr} \n is now \n {depAppType}"
+--   return (body, fSubst) -- return new fExpr with fExpr.node and fExpr.type[e=arg]
+-- -- return ({type := depAppType, node := fExpr.node.body},fSubst) something like
+
 partial def inferDepApp (fn : RExpr) (arg : RWrapper) (ctx : FunctionContext) (isKernelParamFun : Bool ) : InferM (RExprPt × Subst) := do
   let (fExpr, fSubst) ← inferPhraseTypes fn ctx isKernelParamFun
   let depAppType ← match (arg, fExpr.type) with
@@ -441,9 +452,7 @@ partial def inferDepApp (fn : RExpr) (arg : RWrapper) (ctx : FunctionContext) (i
                           | (.data dt, .pi (.rise .data) userName body)  => pure (substituteDataInPhraseType dt userName body)
                           | (_ , _) => throw s!"the argument does not match with the function type " --- access identifier is missing yet
 
-  return ({type := depAppType, node := .depapp fExpr arg : RExprPt}, fSubst) -- return new fExpr with fExpr.node and fExpr.type[e=arg]
--- return ({type := depAppType, node := fExpr.node.body},fSubst) something like
-
+  return ({type := depAppType, node := .depapp fExpr arg : RExprPt}, fSubst)
 
 
 --- infer Lambda PhraseTypes -------------------
