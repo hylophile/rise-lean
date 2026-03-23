@@ -11,3 +11,12 @@ def mkDeplam (type : PhraseType) (name : Lean.Name) (binderKind : DKind) (body :
 
 def mkBvar (index : Nat) (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
   {node := .bvar index name, type := type : DPIAPhrase}
+
+def mkProj1 (type : PhraseType) (p : DPIAPhrase) : DPIAPhrase :=
+  {node := .proj1 p, type := type : DPIAPhrase}
+
+def mkProj2 (type : PhraseType) (p : DPIAPhrase) : DPIAPhrase :=
+  {node := .proj2 p, type := type : DPIAPhrase}
+
+def mkFunctional (type : PhraseType) (func : FunctionalPrimitives) : DPIAPhrase :=
+  {node := .functional func, type := type}
