@@ -63,6 +63,16 @@ def atIndex (e index : DPIAPhrase) : DPIAPhrase :=
 
 def mkVar (dt : RData) : PhraseType := .phrasePair (.expr dt .read) (.acc dt)
 
+def getFromEnv (env : Std.HashMap (Name × Nat) (Name × Nat)) (idx : Nat) (name : Name) : DPIAPhraseNode :=
+    .bvar idx name
+
+def getInputDataType (functionalType : PhraseType) : PhraseType :=
+    match functionalType with
+        | .fn binderType _ => match binderType with
+                                | .acc _ => binderType
+                                | _ => panic! s!"the input type is supposed to be an acc[dt] type"
+        | _ => panic! s!"this is no function type"
+
 mutual
 partial def acc (E A : DPIAPhrase) : DPIAPhrase :=
     match E.node with
@@ -490,6 +500,77 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                                (con e2
                                                     (mkLam  (.fn yType .comm) (mkName "y") yType
                                                             (applyCon C (mkZip n dt1 dt2 a x y)))))
-        | _ => tbc
+        | _ => panic! "this is no Expression Primitive"
 
+partial def fedAcc (env : Std.HashMap (Name × Nat) (Name ×Nat)) (E C : DPIAPhrase) : DPIAPhrase := --type of env not correct yet
+    match E.node with
+        | .functional func => functionalFed env func E.type C
+        | .bvar idx name => applyCon C {node := getFromEnv env idx name, type := E.type}
+        | .app fn arg => let sub := applySubstitution fn arg
+                         fedAcc env sub C
+        | .depapp fn arg => let sub := applyDepSubstitution fn arg
+                            fedAcc env sub C
+        | .ifThenElse _ _ _ =>  panic! s!"{E.node} is not valid in an fedAcc"
+        | .proj1 _ | .proj2 _ => panic! s!"{E.node} is not valid in an fedAcc"
+        | _ => panic! s!"{E.node} is not valid in an fedAcc"
+
+partial def functionalFed (env : Std.HashMap (Name × Nat) (Name × Nat)) (func : FunctionalPrimitives) (type : PhraseType) (C : DPIAPhrase) : DPIAPhrase :=
+    match func with
+        | .asScalar n m dt _ array => let oType := getInputDataType C.type
+                                      let o := mkBvar 0 (mkName "o") oType
+                                      let returnType := PhraseType.acc (.array m (.vector n dt))
+                                      fedAcc env array (mkLam (.fn oType returnType) (mkName "o") oType
+                                                              (mkAsScalarAcc n m dt (applyCon C o)))
+        | .join n m dt _ array => let oType := getInputDataType C.type
+                                  let o := mkBvar 0 (mkName "o") oType
+                                  let returnType := PhraseType.acc (.array n (.array m dt))
+                                  fedAcc env array (mkLam (.fn oType returnType) (mkName "o") oType
+                                                          (mkJoinAcc n m dt (applyCon C o)))
+        | .map n dt1 dt2 a f array => tbc
+        | .mapFst dt1 dt2 dt3 _ f record => tbc
+        | .mapSnd dt1 dt2 dt3 _ f record => tbc
+        | .padEmpty n r dt array => let oType := getInputDataType C.type
+                                    let o := mkBvar 0 (mkName "o") oType
+                                    let returnType := PhraseType.acc (.array n dt)
+                                    fedAcc env array (mkLam (.fn oType returnType) (mkName "o") oType
+                                                            (mkTakeAcc n r dt (applyCon C o)))
+        | .split n m dt _ array =>  let oType := getInputDataType C.type
+                                    let o := mkBvar 0 (mkName "o") oType
+                                    let returnType := PhraseType.acc (.array (.mult n m) dt)
+                                    fedAcc env array (mkLam (.fn oType returnType) (mkName "o") oType
+                                                            (mkSplitAcc n m dt (applyCon C o)))
+        | .transpose n m dt _ array =>  let oType := getInputDataType C.type
+                                        let o := mkBvar 0 (mkName "o") oType
+                                        let returnType := PhraseType.acc (.array n (.array m dt))
+                                        fedAcc env array (mkLam (.fn oType returnType) (mkName "o") oType
+                                                                (mkTransposeAcc n m dt (applyCon C o)))
+        | .unzip n dt1 dt2 _ e => let oType := getInputDataType C.type
+                                  let o := mkBvar 0 (mkName "o") oType
+                                  let returnType := PhraseType.acc (.array n (.pair dt1 dt2))
+                                  fedAcc env e (mkLam (.fn oType returnType) (mkName "o") oType
+                                                      (mkUnzipAcc n dt1 dt2 (applyCon C o)))
+        | _ =>  panic! "this is no Expression Primitive"
+
+partial def str (E C : DPIAPhrase) : DPIAPhrase :=
+    match E.node with
+        | .functional func => functionalStr func E.type C
+        | .app fn arg => let sub := applySubstitution fn arg
+                         str sub C
+        | .depapp fn arg => let sub := applyDepSubstitution fn arg
+                            str sub C
+        | _ => translateArrayToStream E C
+
+partial def functionalStr (func : FunctionalPrimitives) (type : PhraseType) (C : DPIAPhrase) : DPIAPhrase :=
+    match func with
+        | .circularBuffer n alloc size dt1 dt2 load input => tbc
+        | .mapStream n dt1 dt2 f array => tbc
+        | .rotateValues n size dt a input => tbc
+        | .zip n dt1 dt2 _ e1 e2 => tbc
+        | _ =>  panic! "this is no Expression Primitive"
+
+partial def translateArrayToStream (E C : DPIAPhrase) : DPIAPhrase :=
+    match E.type with
+        | .expr (.array n dt) .read => tbc --let depFun := DPIAPhraseNode.deplam (mkName "i") (.rise .nat) (mkLam (.fn ))
+                                        --applyCon C depFun
+        | _ => panic! s!"cannot translate a non-array type to Stream"
 end
