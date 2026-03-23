@@ -125,8 +125,8 @@ def mkMapFstAcc (t1 t2 t3 : RData) (f record : DPIAPhrase) : DPIAPhrase :=
   let type := PhraseType.acc (RData.pair t1 t2)
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 
-def mkMapRead (n : RNat) (t1 t2 t3 : RData) (f input : DPIAPhrase) : DPIAPhrase :=
-  let node := ImperativePrimitives.mapRead n t1 t2 t3 f input
+def mkMapRead (n : RNat) (t1 t2 : RData) (f input : DPIAPhrase) : DPIAPhrase :=
+  let node := ImperativePrimitives.mapRead n t1 t2 f input
   let type := PhraseType.expr (RData.array n t2) DAnnotation.read
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 

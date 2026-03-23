@@ -219,7 +219,7 @@ inductive ImperativePrimitives where
   -- map ops
   | mapAcc        (n : RNat) (t1 t2 t3 : RData) (f array : DPIAPhrase)
   | mapFstAcc     (t1 t2 t3 : RData) (f record : DPIAPhrase)
-  | mapRead       (n : RNat) (t1 t2 t3 : RData) (f input : DPIAPhrase)
+  | mapRead       (n : RNat) (t1 t2 : RData) (f input : DPIAPhrase)
   | mapSndAcc     (t1 t2 t3 : RData) (f record : DPIAPhrase)
 
   -- pair ops
@@ -256,6 +256,9 @@ instance : Inhabited PhraseType :=
 
 instance : Inhabited RData :=
   ⟨RData.natType⟩
+
+instance : Inhabited DAnnotation :=
+  ⟨DAnnotation.read⟩
 
 instance : Inhabited RType :=
   ⟨RType.data RData.natType⟩
@@ -420,7 +423,7 @@ partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
   | .takeAcc n m t array => s!"takeAcc {n} {m} {t} {array.node.render}"
   | .mapAcc n t1 t2 t3 f array => s!"mapAcc {n} {t1} {t2} {t3} {f.node.render} {array.node.render}"
   | .mapFstAcc t1 t2 t3 f record  => s!"mapFstAcc {t1} {t2} {t3} {f.node.render} {record.node.render}"
-  | .mapRead n t1 t2 t3 f input => s!"mapRead {n} {t1} {t2} {t3} {f.node.render} {input.node.render}"
+  | .mapRead n t1 t2 f input => s!"mapRead {n} {t1} {t2} {f.node.render} {input.node.render}"
   | .mapSndAcc t1 t2 t3 f record => s!"mapSndAcc {t1} {t2} {t3} {f.node.render} {record.node.render}"
   | .mkDPairFstl fst a => s!"mkDPairFstl {fst} {a.node.render}"
   | .mkDPairSndAcc fst sndT a => s!"mkDPairSndAcc {fst} {sndT} {a.node.render}"

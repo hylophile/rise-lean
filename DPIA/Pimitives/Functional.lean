@@ -110,10 +110,10 @@ def mkIdx (n : RNat) (t : RData) (idx array : DPIAPhrase) : DPIAPhrase :=
 
 -- not in current Rise Implementation
 
--- def mkIdxVec (n : RNat) (t : RData) (idx vec : DPIAPhrase) : DPIAPhrase :=
---   let node := FunctionalPrimitives.idxVec n t idx vec
---   let type := PhraseType.expr t DAnnotation.read
---   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
+def mkIdxVec (n : RNat) (t : RData) (idx vec : DPIAPhrase) : DPIAPhrase :=
+  let node := FunctionalPrimitives.idxVec n t idx vec
+  let type := PhraseType.expr t DAnnotation.read
+  {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
 
 def mkTake (n m : RNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase :=
