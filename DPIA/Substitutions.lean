@@ -93,7 +93,7 @@ def substituteInImperative (In : ImperativePrimitives) (fn : DPIAPhrase → DPIA
     | .takeAcc n m t array => .takeAcc n m t (fn array)
     | .mapAcc n t1 t2 t3 f array => .mapAcc n t1 t2 t3 (fn f) (fn array)
     | .mapFstAcc t1 t2 t3 f record  => .mapFstAcc t1 t2 t3 (fn f) (fn record)
-    | .mapRead n t1 t2 t3 f input => .mapRead n t1 t2 t3 (fn f) (fn input)
+    | .mapRead n t1 t2 f input => .mapRead n t1 t2 (fn f) (fn input)
     | .mapSndAcc t1 t2 t3 f record => .mapSndAcc t1 t2 t3 (fn f) (fn record)
     | .mkDPairFstl fst a => .mkDPairFstl fst (fn a)
     | .mkDPairSndAcc fst sndT a => .mkDPairSndAcc fst sndT (fn a)
@@ -269,6 +269,47 @@ partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.
 
 def substitutePhraseInPhrase (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
   substitutePhraseInPhraseHelper phrase In For 0
+
+def substituteDWrapper (depArg : DWrapper) (In : PhraseType) (For : Lean.Name) (depth : Nat) : PhraseType:=
+  match depArg with
+    | .rise (.nat n) => substituteNatInPhraseTypeHelper n For In depth
+    | .rise (.data d) => substituteDataInPhraseTypeHelper d For In depth
+    | _ => panic! s!"other wrapper types but nat data and readwrite are not implemented yet"
+
+partial def substituteDWrapperInPhraseHelper (depArg : DWrapper) (In : DPIAPhrase) (For : Lean.Name) (depth : Nat): DPIAPhrase :=
+  let pt := substituteDWrapper depArg In.type For depth
+  match In.node with
+    | .bvar _ _ => {node := In.node, type := pt}
+    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substituteDWrapperInPhraseHelper depArg x For depth)), type := pt}
+    | .functional func => {node := .functional (substituteInFunctional func (fun x => substituteDWrapperInPhraseHelper depArg x For depth)), type := pt}
+    | .lit _ => {node := In.node, type := pt}
+    | .app fn arg => let sFn := substituteDWrapperInPhraseHelper depArg fn For depth
+                     let sArg := substituteDWrapperInPhraseHelper depArg arg For depth
+                     {node := .app sFn sArg, type := pt : DPIAPhrase}
+    | .depapp fn arg => let sFn := substituteDWrapperInPhraseHelper depArg fn For depth
+                        {node := .depapp sFn arg, type := pt : DPIAPhrase}
+    | .lam binderName binderType body =>  let sBody := substituteDWrapperInPhraseHelper depArg body For depth
+                                          let sBinderType := substituteDWrapper depArg binderType For depth
+                                          {node := .lam binderName sBinderType sBody, type := pt}
+    | .deplam binderName binderKind body => let sBody := substituteDWrapperInPhraseHelper depArg body For (depth+1)
+                                            {node := .deplam binderName binderKind sBody, type := pt : DPIAPhrase}
+    | .pair fst snd =>  let sFst := substituteDWrapperInPhraseHelper depArg fst For depth
+                        let sSnd := substituteDWrapperInPhraseHelper depArg snd For depth
+                        {node := .pair sFst sSnd, type := pt : DPIAPhrase}
+    | .proj1 p => let sP := substituteDWrapperInPhraseHelper depArg p For depth
+                  {node := .proj1 sP, type := pt : DPIAPhrase}
+    | .proj2 p => let sP := substituteDWrapperInPhraseHelper depArg p For depth
+                  {node := .proj1 sP, type := pt : DPIAPhrase}
+    | .ifThenElse cond thenP elseP => let sCond := substituteDWrapperInPhraseHelper depArg cond For depth
+                                      let sThenP := substituteDWrapperInPhraseHelper depArg thenP For depth
+                                      let sElseP := substituteDWrapperInPhraseHelper depArg elseP For depth
+                                      {node := .ifThenElse sCond sThenP sElseP, type := pt : DPIAPhrase}
+--termination_by phraseSize In
+
+def substituteDWrapperInPhrase (depArg : DWrapper) (In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
+  substituteDWrapperInPhraseHelper depArg In For 0
+
+
 
 def phraseTypeSize (pt : PhraseType) : Nat :=
   match pt with
