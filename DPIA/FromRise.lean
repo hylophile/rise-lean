@@ -1,24 +1,13 @@
-import DPIA.Basic
 import Lean.Exception
 import DPIA.Substitutions
 import DPIA.Pimitives.Functional
 import DPIA.InferAccessAnnotation
-
+import DPIA.mkFunctions
 
 
 --- expression --
 private abbrev Context := Std.HashMap RExpr PhraseType
 private abbrev mkName := Lean.Name.mkSimple
-
---mkMap (n : RNat) (s t : RData) (a : DAnnotation) (f array: DPIAPhrase)
-def mkLam (type : PhraseType) (name : Lean.Name) (binderType : PhraseType) (body : DPIAPhrase) : DPIAPhrase :=
-  {node := .lam name binderType body, type := type : DPIAPhrase}
-
-def mkDeplam (type : PhraseType) (name : Lean.Name) (binderKind : DKind) (body : DPIAPhrase) : DPIAPhrase :=
-  {node := .deplam name binderKind body, type := type : DPIAPhrase}
-
-def mkBvar (index : Nat) (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
-  {node := .bvar index name, type := type : DPIAPhrase}
 
 
 def primitives (name : Lean.Name) (type : PhraseType) : DPIAPhrase :=
