@@ -115,8 +115,8 @@ def mkTakeAcc (n m : RNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase :=
 
 
 -- map ops
-def mkMapAcc (n : RNat) (t1 t2 t3 : RData) (f array : DPIAPhrase) : DPIAPhrase :=
-  let node := ImperativePrimitives.mapAcc n t1 t2 t3 f array
+def mkMapAcc (n : RNat) (t1 t2 : RData) (f array : DPIAPhrase) : DPIAPhrase :=
+  let node := ImperativePrimitives.mapAcc n t1 t2 f array
   let type := PhraseType.acc (RData.array n t2)
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 

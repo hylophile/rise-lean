@@ -217,7 +217,7 @@ inductive ImperativePrimitives where
   | takeAcc     (n m : RNat) (t : RData) (array : DPIAPhrase)
 
   -- map ops
-  | mapAcc        (n : RNat) (t1 t2 t3 : RData) (f array : DPIAPhrase)
+  | mapAcc        (n : RNat) (t1 t2 : RData) (f array : DPIAPhrase)
   | mapFstAcc     (t1 t2 t3 : RData) (f record : DPIAPhrase)
   | mapRead       (n : RNat) (t1 t2 : RData) (f input : DPIAPhrase)
   | mapSndAcc     (t1 t2 t3 : RData) (f record : DPIAPhrase)
@@ -424,7 +424,7 @@ partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
   | .reorderAcc      .. => s!"string for functional reorderAcc is not defined yet"
   | .dropAcc n m t array => s!"dropAcc {n} {m} {t} {array.node.render}"
   | .takeAcc n m t array => s!"takeAcc {n} {m} {t} {array.node.render}"
-  | .mapAcc n t1 t2 t3 f array => s!"mapAcc {n} {t1} {t2} {t3} {f.node.render} {array.node.render}"
+  | .mapAcc n t1 t2 f array => s!"mapAcc {n} {t1} {t2} {f.node.render} {array.node.render}"
   | .mapFstAcc t1 t2 t3 f record  => s!"mapFstAcc {t1} {t2} {t3} {f.node.render} {record.node.render}"
   | .mapRead n t1 t2 f input => s!"mapRead {n} {t1} {t2} {f.node.render} {input.node.render}"
   | .mapSndAcc t1 t2 t3 f record => s!"mapSndAcc {t1} {t2} {t3} {f.node.render} {record.node.render}"

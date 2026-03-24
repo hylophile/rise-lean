@@ -91,7 +91,7 @@ def substituteInImperative (In : ImperativePrimitives) (fn : DPIAPhrase → DPIA
     | .reorderAcc      .. => In  -- needs to be fixed at some point
     | .dropAcc n m t array => .dropAcc n m t (fn array)
     | .takeAcc n m t array => .takeAcc n m t (fn array)
-    | .mapAcc n t1 t2 t3 f array => .mapAcc n t1 t2 t3 (fn f) (fn array)
+    | .mapAcc n t1 t2 f array => .mapAcc n t1 t2 (fn f) (fn array)
     | .mapFstAcc t1 t2 t3 f record  => .mapFstAcc t1 t2 t3 (fn f) (fn record)
     | .mapRead n t1 t2 f input => .mapRead n t1 t2 (fn f) (fn input)
     | .mapSndAcc t1 t2 t3 f record => .mapSndAcc t1 t2 t3 (fn f) (fn record)
