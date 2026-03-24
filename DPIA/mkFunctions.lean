@@ -18,5 +18,8 @@ def mkProj1 (type : PhraseType) (p : DPIAPhrase) : DPIAPhrase :=
 def mkProj2 (type : PhraseType) (p : DPIAPhrase) : DPIAPhrase :=
   {node := .proj2 p, type := type : DPIAPhrase}
 
+def mkIfThenElse (type : PhraseType) (cond thenP elseP : DPIAPhrase) : DPIAPhrase :=
+  {node := .ifThenElse cond thenP elseP, type := type : DPIAPhrase}
+
 def mkFunctional (type : PhraseType) (func : FunctionalPrimitives) : DPIAPhrase :=
   {node := .functional func, type := type}
