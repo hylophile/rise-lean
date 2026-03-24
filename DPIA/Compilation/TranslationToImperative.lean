@@ -63,8 +63,12 @@ def atIndex (e index : DPIAPhrase) : DPIAPhrase :=
 
 def mkVar (dt : RData) : PhraseType := .phrasePair (.expr dt .read) (.acc dt)
 
-def getFromEnv (env : Std.HashMap (Name × Nat) (Name × Nat)) (idx : Nat) (name : Name) : DPIAPhraseNode :=
-    .bvar idx name
+def getFromEnv (env : List ((Name × Nat) × (Name × Nat))) (idx : Nat) (name : Name) : DPIAPhraseNode :=
+    match env with
+        | [] => panic! s!"the key pair ({name},{idx}) was not found in the env"
+        | ((keyName, keyIndex), (valueName, valueIndex)) :: ys => if keyName.toString == name.toString && keyIndex == idx
+                                                                    then .bvar valueIndex valueName
+                                                                    else getFromEnv ys idx name
 
 def getInputDataType (functionalType : PhraseType) : PhraseType :=
     match functionalType with
@@ -505,7 +509,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
 partial def fedAcc (env : Std.HashMap (Name × Nat) (Name ×Nat)) (E C : DPIAPhrase) : DPIAPhrase := --type of env not correct yet
     match E.node with
         | .functional func => functionalFed env func E.type C
-        | .bvar idx name => applyCon C {node := getFromEnv env idx name, type := E.type}
+        | .bvar idx name => applyCon C {node := getFromEnv env.toList idx name, type := E.type}
         | .app fn arg => let sub := applySubstitution fn arg
                          fedAcc env sub C
         | .depapp fn arg => let sub := applyDepSubstitution fn arg

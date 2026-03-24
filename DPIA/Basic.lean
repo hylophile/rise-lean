@@ -251,6 +251,9 @@ end
 instance : Inhabited DPIAPhrase :=
   ⟨{node := DPIAPhraseNode.bvar 0 (Lean.Name.mkSimple "dummy"), type := PhraseType.comm : DPIAPhrase}⟩
 
+instance : Inhabited DPIAPhraseNode :=
+  ⟨DPIAPhraseNode.bvar 0 (Lean.Name.mkSimple "dummy")⟩
+
 instance : Inhabited PhraseType :=
   ⟨PhraseType.comm⟩
 
