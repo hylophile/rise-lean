@@ -39,12 +39,17 @@ end
 def accessIsRead (pt : PhraseType) : Bool :=
     match pt with
         | .expr _ .read => true
+        | .pi _ _ body => accessIsRead body
+        | .fn _ body => accessIsRead body
         | _ => false
 
 def getDataType (pt : PhraseType) : RData :=
     match pt with
         | .expr dt _ => dt
-        | _ => panic! s!"something went wrong, this should be an expr type"
+        | .fn _ body => getDataType body
+        | .pi _ _ body => getDataType body
+        | .acc dt => dt
+        | _ => panic! s!"something went wrong, this should be an expr type but is {pt}"
 
 def getAccess (pt : PhraseType) : DAnnotation :=
     match pt with
@@ -52,15 +57,25 @@ def getAccess (pt : PhraseType) : DAnnotation :=
         | _ => panic! s!"something went wrong, this should be an expr type"
 
 def applyCon (Con phrase : DPIAPhrase) : DPIAPhrase :=
+    dbg_trace s!"this is the con {Con}\n"
+    dbg_trace s!"and this the phrase {phrase}"
     match Con.node with
-        | .lam name _ body => substitutePhraseInPhrase phrase body name
-        | _ => panic! s!"the Continuation should be a lambda but is {Con}"
+        | .lam name _ body => let s :=  substitutePhraseInPhrase phrase body name
+                              dbg_trace s!"finally this is the result: {s}"
+                              s
+        | _ => panic! s!"the Continuation should be a lambda but is {Con}, meanwhile the phrase is {phrase}"
 
-def atIndex (e index : DPIAPhrase) : DPIAPhrase :=
+def atExpr (e index : DPIAPhrase) : DPIAPhrase :=
     match index.type,e.type with
         | (.expr (.index n1) _), (.expr (.array n2 dt) _) => if n1 == n2 then mkIdx n1 dt index e
                                                             else panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
         | _, _ => panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
+
+def atAcc (e index : DPIAPhrase) : DPIAPhrase :=
+    match index.type,e.type with
+        | (.expr (.index n1) _), (.acc (.array n2 dt)) => if n1 == n2 then mkIdxAcc n1 dt index e
+                                                            else panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
+        | _, _ =>   panic! s!"the pattern is ({index.type}, {e.type}) but expected (expr [idx(n), _], acc[n.dt])"
 
 def atVec (e index : DPIAPhrase) : DPIAPhrase :=
     match index.type,e.type with
@@ -101,9 +116,6 @@ def getInputDataType (functionalType : PhraseType) : PhraseType :=
                                 | _ => panic! s!"the input type is supposed to be an acc[dt] type"
         | _ => panic! s!"this is no function type"
 
-def getFreshAccessIdentifier (name : String := "tmp") (counter : Nat): Lean.Name :=
-   mkName s!"{name}_{counter}"
-
 ---------------- modifyable state --------------------
 -- structure InferState where
 --   Counter : Nat := 0                                      -- counter for unique names
@@ -111,7 +123,7 @@ def getFreshAccessIdentifier (name : String := "tmp") (counter : Nat): Lean.Name
 
 -- abbrev InferM := StateT InferState (Except String)
 
--- def getFreshAccessIdentifier (name : String := "tmp") : InferM String := do
+-- def getFreshIdentifier (name : String := "tmp") : InferM String := do
 --   let cstate : InferState ← get
 --   set { cstate with Counter := cstate.Counter + 1}
 --   return s!"{name}_{cstate.Counter}"
@@ -139,7 +151,7 @@ partial def acc (E A : DPIAPhrase) (counter : Nat): DPIAPhrase :=
                         | .ifThenElse cond thenP elseP => let ifThenElse :=  mkIfThenElse .comm (mkBvar 0 (mkName "x") cond.type) (acc thenP A counter) (acc elseP A counter)
                                                           let cont := mkLam (.fn cond.type .comm) (mkName "x") cond.type ifThenElse
                                                           con cond cont counter
-                        | _ => panic! s!"{E.node} is not valid in an accepter"
+                        | _ => panic! s!"\n{E.node} is not valid in an acceptor"
 
 partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: DPIAPhrase) (counter : Nat): DPIAPhrase :=
     match func with
@@ -239,24 +251,24 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                             (acc (mkApp f.type f x) A counter))  counter
         | .makePair dt1 dt2 _ fst snd =>  mkSeq (acc fst (mkPairAcc1 dt1 dt2 A) counter)
                                                 (acc snd  (mkPairAcc2 dt1 dt2 A) counter)
-        | .map n dt1 dt2 _ f array => let x := mkBvar 0 (getFreshAccessIdentifier "fede_x" counter) (.expr dt1 .write)
+        | .map n dt1 dt2 _ f array => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt1 .write)
                                       let oType := PhraseType.acc dt2
-                                      let o := mkBvar 0 (getFreshAccessIdentifier "fede_o" counter) oType
+                                      let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType
                                       let i := mkBvar 0 (mkName "i") oType
                                       acc array
                                           (mkMapAcc n dt2 dt1
-                                                    (mkLam  (.fn oType oType) (getFreshAccessIdentifier "fede_o" counter) oType
+                                                    (mkLam  (.fn oType oType) (getFreshIdentifier "fede_o" counter) oType
                                                             (fedAcc ((x, o) :: []) (applyCon f x)
                                                                     (mkLam (.fn oType oType) (mkName "i") oType i)
                                                                     (counter +1)))
                                                     A) (counter +1)
-        | .mapFst dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshAccessIdentifier "fede_x" counter) (.expr dt1 .write)
+        | .mapFst dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt1 .write)
                                             let oType := PhraseType.acc dt3
-                                            let o := mkBvar 0 (getFreshAccessIdentifier "fede_o" counter) oType
+                                            let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType
                                             let i := mkBvar 0 (mkName "i") oType
                                             acc record
                                                 (mkMapFstAcc dt1 dt2 dt3
-                                                            (mkLam  (.fn oType oType) (getFreshAccessIdentifier "fede_o" counter) oType
+                                                            (mkLam  (.fn oType oType) (getFreshIdentifier "fede_o" counter) oType
                                                                     (fedAcc ((x, o) :: []) (applyCon f x)
                                                                             (mkLam (.fn oType oType) (mkName "i") oType i)
                                                                             (counter +1)))
@@ -265,20 +277,21 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                             let x := mkBvar 1 (mkName "x") xType
                                             let iType := PhraseType.expr (.index n) .read
                                             let i := mkBvar 0 (mkName "i") iType
+                                            dbg_trace s!"this is MapSeq"
                                             con  array
                                                  (mkLam (.fn xType .comm) (mkName "x") xType
                                                         (mkSeq  (mkComment "mapSeq")
                                                                 (mkForLoop unroll n (mkLam (.fn iType .comm) (mkName "i") iType
-                                                                                           (acc (applyCon f (atIndex x i))
-                                                                                                (atIndex A i) counter)))))
+                                                                                           (acc (applyCon f (atExpr x i))
+                                                                                                (atAcc A i) counter)))))
                                                  counter
-        | .mapSnd dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshAccessIdentifier "fede_x" counter) (.expr dt2 .write)
+        | .mapSnd dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt2 .write)
                                             let oType := PhraseType.acc dt3
-                                            let o := mkBvar 0 (getFreshAccessIdentifier "fede_o" counter) oType
+                                            let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType
                                             let i := mkBvar 0 (mkName "i") oType
                                             acc record
                                                 (mkMapFstAcc dt1 dt2 dt3
-                                                            (mkLam  (.fn oType oType) (getFreshAccessIdentifier "fede_o" counter) oType
+                                                            (mkLam  (.fn oType oType) (getFreshIdentifier "fede_o" counter) oType
                                                                     (fedAcc ((x, o) :: []) (applyCon f x)
                                                                             (mkLam (.fn oType oType) (mkName "i") oType i)
                                                                             (counter +1)))
@@ -320,10 +333,10 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                                                                     (mkLam  (.fn accumType .comm) (mkName "accum") accumType
                                                                                             (mkSeq  (acc y (mkProj2 (.acc dt2) accum0) counter)
                                                                                                     (mkForLoop  false n
-                                                                                                                (mkSeq  (acc (applyCon  (applyCon f (atIndex x i))
+                                                                                                                (mkSeq  (acc (applyCon  (applyCon f (atExpr x i))
                                                                                                                                         (mkProj1 (.expr dt2 .read) accum1))
                                                                                                                              (mkProj2 (.acc dt2) accum1) counter)
-                                                                                                                        (assignByType dt2 (atIndex A i) (mkProj1 (.expr dt2 .read) accum1)))))))))
+                                                                                                                        (assignByType dt2 (atAcc A i) (mkProj1 (.expr dt2 .read) accum1)))))))))
                                                              counter))
                                                 counter
         | .scatter n m dt indicies input => let yType := PhraseType.expr (.array n (.index m)) .read
@@ -351,11 +364,15 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
 partial def con (E C : DPIAPhrase) (counter : Nat): DPIAPhrase :=
     match E.node with
         | .bvar _ _ => applyCon C E -- C(x)
-        | .lit _ => applyCon E C -- C(val)
+        | .lit _ => applyCon C E -- C(val)
 --        | .imperative imp => imperativeCon imp E.type C
         | .functional func => functionalCon func E.type C counter
-        | .app fn arg => let sub := applySubstitution fn arg
-                         con sub C counter
+        | .app fn arg => dbg_trace s!"this is my function {fn} and this my argument {arg} \n"
+                         let sub := applySubstitution fn arg
+                         dbg_trace s!"and this my substitution {sub} \n"
+                         let res := con sub C counter
+                         dbg_trace s!"and this my result: {res}"
+                         res
         | .depapp fn arg => let sub := applyDepSubstitution fn arg
                             con sub C counter
         | .ifThenElse cond thenP elseP => let ifThenElse :=  {node := .ifThenElse (mkBvar 0 (mkName "x") cond.type) (con thenP C counter) (con elseP C counter), type := .comm : DPIAPhrase}
@@ -374,7 +391,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                       con val
                           (mkLam (.fn type .comm) (mkName "x") type
                                  (applyCon C (mkNeg (getDataType type) x))) counter
-        | .add lhs rhs => let x := mkBvar 1 (mkName "x") type
+        | .add lhs rhs => let x := mkBvar 0 (mkName "x") type
                           let y := mkBvar 0 (mkName "y") type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") type
@@ -560,6 +577,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                                       let accum := mkBvar 0 (mkName "accum") (mkVar dt2)
                                                       let iType := PhraseType.expr (.index n) .read
                                                       let i := mkBvar 0 (mkName "i") iType
+                                                      dbg_trace s!"this is reduceSeq"
                                                       con array
                                                           (mkLam (.fn XType .comm) (mkName "X") XType
                                                                  (mkSeq (mkComment "reduceSeq")
@@ -567,7 +585,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                                                                             (mkSeq  (acc init (mkProj2 (.acc dt2) accum) counter)
                                                                                                     (mkSeq  (mkForLoop unroll n (mkLam  (.fn iType .comm) (mkName "i") iType
                                                                                                                                         (acc (applyCon  (applyCon f (mkProj1 (.expr dt2 .read) accum))
-                                                                                                                                                        (atIndex X i))
+                                                                                                                                                        (atExpr X i))
                                                                                                                                              (mkProj2 (.acc dt2) accum) counter)))
                                                                                                             (applyCon C (mkProj1 (.expr dt2 .read) accum)))))))) counter
         | .scanSeq n _ dt _ _ _ =>  let tmpType :=  mkVar (.array n dt)
@@ -658,44 +676,44 @@ partial def functionalFed (env : Env) (func : FunctionalPrimitives) (C : DPIAPhr
                                   let returnType := PhraseType.acc (.array n (.array m dt))
                                   fedAcc env array (mkLam (.fn oType returnType) (mkName "o") oType
                                                           (mkJoinAcc n m dt (applyCon C o))) counter
-        | .map n dt1 dt2 a f array => let x := mkBvar 0 (getFreshAccessIdentifier "fede_x" counter) (.expr dt1 a)
+        | .map n dt1 dt2 a f array => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt1 a)
                                       let oType := PhraseType.acc dt2
-                                      let o := mkBvar 0 (getFreshAccessIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
+                                      let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
                                       let y := mkBvar 0 (mkName "y") (getType env)
                                       fedAcc env array
                                              (mkLam (.fn (getType env) (.acc (.array n dt1))) (mkName "y") (getType env)
                                                     (mkMapAcc n
                                                               dt2
                                                               dt1
-                                                              (mkLam (.fn oType oType) (getFreshAccessIdentifier "fede_o" counter) oType
+                                                              (mkLam (.fn oType oType) (getFreshIdentifier "fede_o" counter) oType
                                                                      (fedAcc ((x,o) :: env)
                                                                              (applyCon f x)
                                                                              (mkLam (.fn oType oType) (mkName "i") oType
                                                                                     (mkBvar 0 (mkName "i") oType)) (counter +1)))
                                                               (applyCon C y)))
                                              (counter +1)
-        | .mapFst dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshAccessIdentifier "fede_x" counter) (.expr dt2 .write)
+        | .mapFst dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt2 .write)
                                             let oType := PhraseType.acc dt3
-                                            let o := mkBvar 0 (getFreshAccessIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
+                                            let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
                                             let y := mkBvar 0 (mkName "y") (getType env 2)
                                             fedAcc env record
                                                     (mkLam (.fn (getType env 2) (.acc (.pair dt1 dt2))) (mkName "y") (getType env 2)
                                                             (mkMapFstAcc dt1 dt2 dt3
-                                                                        (mkLam (.fn oType oType) (getFreshAccessIdentifier "fede_o" counter) oType
+                                                                        (mkLam (.fn oType oType) (getFreshIdentifier "fede_o" counter) oType
                                                                                 (fedAcc ((x,o) :: env)
                                                                                         (applyCon f x)
                                                                                         (mkLam (.fn oType oType) (mkName "i") oType
                                                                                                 (mkBvar 0 (mkName "i") oType)) (counter +1)))
                                                                         (applyCon C y)))
                                                     (counter +1)
-        | .mapSnd dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshAccessIdentifier "fede_x" counter) (.expr dt2 .write)
+        | .mapSnd dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt2 .write)
                                             let oType := PhraseType.acc dt3
-                                            let o := mkBvar 0 (getFreshAccessIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
+                                            let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
                                             let y := mkBvar 0 (mkName "y") (getType env 2)
                                             fedAcc env record
                                                     (mkLam (.fn (getType env 2) (.acc (.pair dt1 dt2))) (mkName "y") (getType env 2)
                                                             (mkMapSndAcc dt1 dt2 dt3
-                                                                        (mkLam (.fn oType oType) (getFreshAccessIdentifier "fede_o" counter) oType
+                                                                        (mkLam (.fn oType oType) (getFreshIdentifier "fede_o" counter) oType
                                                                                 (fedAcc ((x,o) :: env)
                                                                                         (applyCon f x)
                                                                                         (mkLam (.fn oType oType) (mkName "i") oType
@@ -747,3 +765,8 @@ partial def translateArrayToStream (E C : DPIAPhrase) : DPIAPhrase :=
                                         --applyCon C depFun
         | _ => panic! s!"cannot translate a non-array type to Stream"
 end
+
+partial def translationToImperative (p : DPIAPhrase) : DPIAPhrase :=
+    let outT := p.type
+    let out := mkBvar 0 (mkName "output") (.acc (getDataType outT))
+    acc p out 0
