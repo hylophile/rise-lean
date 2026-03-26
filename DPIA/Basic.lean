@@ -342,7 +342,7 @@ mutual
 partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
   | .id val => s!"id {val.node.render}"
   | .neg val => s!"neg {val.node.render}"
-  | .add lhs rhs => s!"add {lhs.node.render} {rhs.node.render}"
+  | .add lhs rhs => s!"add ({lhs.node.render}) ({rhs.node.render})"
   | .sub lhs rhs => s!"sub {lhs.node.render} {rhs.node.render}"
   | .mul lhs rhs => s!"mul {lhs.node.render} {rhs.node.render}"
   | .div lhs rhs => s!"div {lhs.node.render} {rhs.node.render}"
@@ -404,9 +404,9 @@ partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
   | .printType msg t a input  => s!"printType {msg} {t} {a} {input.node.render}"
 
 partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
-  | .asScalarAcc n m t array => s!"asScalarAcc {n} {m} {t} {array.node.render}"
-  | .assign t lhs rhs => s!"assign {t} {lhs.node.render} {rhs.node.render}"
-  | .asVectorAcc n m t array => s!"asvectorAcc {n} {m} {t} {array.node.render}"
+  | .asScalarAcc n m t array => s!"asScalarAcc {n} {m} {t} ({array.node.render})"
+  | .assign t lhs rhs => s!"assign {t} ({lhs.node.render}) ({rhs.node.render})"
+  | .asVectorAcc n m t array => s!"asvectorAcc {n} {m} {t} ({array.node.render})"
   | .forLoop unroll n body  => s!"for {unroll} {n} {body.node.render}"
   | .forNat unroll n body => s!"forNat {unroll} {n} {body.node.render}"
   | .forVec n t out body => s!"forVec {n} {t} {out.node.render} {body.node.render}"

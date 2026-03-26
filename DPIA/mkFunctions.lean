@@ -23,3 +23,6 @@ def mkIfThenElse (type : PhraseType) (cond thenP elseP : DPIAPhrase) : DPIAPhras
 
 def mkFunctional (type : PhraseType) (func : FunctionalPrimitives) : DPIAPhrase :=
   {node := .functional func, type := type}
+
+def getFreshIdentifier (name : String := "tmp") (counter : Nat): Lean.Name :=
+   Lean.Name.mkSimple s!"{name}_{counter}"
