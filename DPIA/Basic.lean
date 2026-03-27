@@ -311,10 +311,6 @@ def assertFunctionTypePt (exprT: PhraseType) : PhraseType :=
     | .fn _ _ => exprT
     | _ => panic! s!"THis should never happen"
 
--- def assertDataPt (exprT: PhraseType) : RType :=
---   match exprT with
---     | .fn _ _ => exprT
---     | _ => panic! s!"THis should never happen"
 
 -- modified from Nate
 def PhraseType.toString : PhraseType → String
@@ -443,7 +439,7 @@ partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
   | .seq c1 c2 => s!"seq \n     1: {c1.node.render} \n     2: {c2.node.render}"
 
 -- modified from Nate
-partial def DPIAPhraseNode.render : DPIAPhraseNode → Std.Format
+partial def DPIAPhraseNode.render : DPIAPhraseNode  → Std.Format
   | .bvar id n    => f!"{n}@{id}"
   | .imperative i => s!"{i.render}"
   | .functional f => s!"{f.render}"
@@ -461,29 +457,10 @@ partial def DPIAPhraseNode.render : DPIAPhraseNode → Std.Format
   | .proj2 _ => s!"proj2 not implemented yet" --TODO | .proj2 p
   | .ifThenElse cond thenP elseP => s!"if {cond.node.render}: \n {thenP.node.render}\n else: \n {elseP.node.render}" --TODO
 
--- modified from Nate
-partial def DPIAPhraseNode.renderInline : DPIAPhraseNode → Std.Format
-  | .bvar id n    => f!"{n}@{id}"
-  | .imperative _ => s!"imperative is not defiend yet" --TODO | .imperative i
-  | .functional _  => s!"functional is not defined yet" -- TODO | .functional f
-  | .lit n        => s!"{n}"
-  | .app f e      => match f.node, e.node with
-    | .app .. , .app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
-    | .app .. , _       => f.node.renderInline ++ " " ++ e.node.renderInline
-    | _       , .app .. => f.node.renderInline ++ " " ++ Std.Format.paren e.node.renderInline
-    | _       ,       _ => f.node.renderInline ++ " " ++ e.node.renderInline
-  | .depapp f e   => f.node.renderInline ++ " " ++ Std.Format.paren e.render
-  | .lam s t b    => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInline}"
-  | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInline}"
-  | .pair fst snd => s!"({fst.node.renderInline}, {snd.node.renderInline})"
-  | .proj1 _ => s!"proj1 not implemented yet" --TODO | .proj1 p
-  | .proj2 _ => s!"proj2 not implemented yet" --TODO | .proj2 p
-  | .ifThenElse cond thenP elseP => s!"if {cond.node.renderInline}: \n {thenP.node.renderInline}\n else: \n {elseP.node.renderInline}" --TODO
-
 end
 
 instance : Std.ToFormat DPIAPhraseNode where
-  format := DPIAPhraseNode.render
+  format e := DPIAPhraseNode.render e
 
 instance : ToString DPIAPhraseNode where
   toString e := Std.Format.pretty e.render
@@ -521,19 +498,6 @@ partial def RExprNodeWith.renderPt : RExprNodePt → Std.Format
   | .depapp f e   => f.node.renderPt ++ " " ++ Std.Format.paren e.render
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.renderPt}" ++ Std.Format.line
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.renderPt}" ++ Std.Format.line
-
-partial def RExprNodeWith.renderInlinePt : RExprNodePt → Std.Format
-  | .bvar id n    => f!"{n}@{id}"
-  | .const s      => s.toString
-  | .lit n        => s!"{n}"
-  | .app f e      => match f.node, e.node with
-    | .app .. , .app .. => f.node.renderInlinePt ++ " " ++ Std.Format.paren e.node.renderInlinePt
-    | .app .. , _       => f.node.renderInlinePt ++ " " ++ e.node.renderInlinePt
-    | _       , .app .. => f.node.renderInlinePt ++ " " ++ Std.Format.paren e.node.renderInlinePt
-    | _       ,       _ => f.node.renderInlinePt ++ " " ++ e.node.renderInlinePt
-  | .depapp f e   => f.node.renderInlinePt ++ " " ++ Std.Format.paren e.render
-  | .lam s t b    => Std.Format.paren s!"λ {s} : {t} => {b.node.renderInlinePt}"
-  | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} => {b.node.renderInlinePt}"
 
 instance : Std.ToFormat RExprNodePt where
   format := RExprNodeWith.renderPt
