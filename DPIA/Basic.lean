@@ -405,13 +405,13 @@ partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
 
 partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
   | .asScalarAcc n m t array => s!"asScalarAcc {n} {m} {t} ({array.node.render})"
-  | .assign t lhs rhs => s!"assign {t} ({lhs.node.render}) ({rhs.node.render})"
+  | .assign t lhs rhs => s!"assign {t} \n    ({lhs.node.render}) \n    ({rhs.node.render})"
   | .asVectorAcc n m t array => s!"asvectorAcc {n} {m} {t} ({array.node.render})"
   | .forLoop unroll n body  => s!"for {unroll} {n} {body.node.render}"
   | .forNat unroll n body => s!"forNat {unroll} {n} {body.node.render}"
   | .forVec n t out body => s!"forVec {n} {t} {out.node.render} {body.node.render}"
   | .generateCont n t f  => s!"generateCont {n} {t} {f.node.render}"
-  | .idxAcc n t idx array => s!"idxAcc {n} {t} {idx.node.render} {array.node.render}"
+  | .idxAcc n t idx array => s!"idxAcc {n} {t} \n    {idx.node.render} \n    {array.node.render}"
   | .idxVecAcc n t idx vec => s!"idxVexAcc {n} {t} {idx.node.render} {vec.node.render}"
   | .scatterAcc n m t indicies array => s!"scatterAcc {n} {m} {t} {indicies.node.render} {array.node.render}"
   | .splitAcc n m t array => s!"splitAcc {n} {m} {t} {array.node.render}"
@@ -435,12 +435,12 @@ partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
   | .pairAcc2 t1 t2 pair => s!"pairAcc2 {t1} {t2} {pair.node.render}"
   | .new t f => s!"new {t} {f.node.render}"
   | .newDoubleBuffer n t1 t2 t3 input out f => s!"newDoubleBuffer {n} {t1} {t2} {t3} {input.node.render} {out.node.render} {f.node.render}"
-  | .comment comment => s!"comment {comment}"
+  | .comment comment => s!"comment -----{comment}-----"
   | .skip => s!"skip"
   | .depIdxAcc .. => s!"string for functional depIdxAcc is not defined yet"
   | .depJoinAcc .. => s!"string for functional depIdxAcc is not defined yet"
   | .dMatchI x elemT outT f input => s!"dMatchI {x} {elemT} {outT} {f.node.render} {input.node.render}"
-  | .seq c1 c2 => s!"seq {c1.node.render} {c2.node.render}"
+  | .seq c1 c2 => s!"seq \n     1: {c1.node.render} \n     2: {c2.node.render}"
 
 -- modified from Nate
 partial def DPIAPhraseNode.render : DPIAPhraseNode → Std.Format

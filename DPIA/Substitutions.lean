@@ -240,7 +240,7 @@ def substituteDataInRType (data : RData) (For : Lean.Name) (In : RType) (depth :
 -- for lamdas
 partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.Name) (depth : Nat): DPIAPhrase :=
   match In.node with
-    | .bvar deBruijnIndex userName => if userName == For && deBruijnIndex == depth && In.type == phrase.type then phrase
+    | .bvar deBruijnIndex userName => if userName == For && deBruijnIndex == depth then phrase
                                       else In
     | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substitutePhraseInPhraseHelper phrase x For depth)), type := In.type}
     | .functional func => {node := .functional (substituteInFunctional func (fun x => substitutePhraseInPhraseHelper phrase x For depth)), type := In.type}

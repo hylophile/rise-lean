@@ -2,6 +2,7 @@ import DPIA.InferAccessAnnotation
 import Rise
 import DPIA.FromRise
 import DPIA.Printing
+import DPIA.Compilation.generator
 
 def prodMult := [RiseC| fun d : data => fun xs : d × d => xs.1 * xs.2]
 #pp prodMult
@@ -32,3 +33,6 @@ def applyInferAccessToDot := inferAccess dot
 #pp fromRise simpleZip
 #pp inferAccess simpleZip
 #pp fromRise dot
+
+def fRSimpleZip := fromRise simpleZip
+#pp applyToImp fRSimpleZip

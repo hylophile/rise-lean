@@ -2,6 +2,7 @@ import DPIA.InferAccessAnnotation
 import Rise
 import DPIA.Printing
 import DPIA.FromRise
+import DPIA.Compilation.generator
 
 def simpleScal := [RiseC|
    fun n : nat =>
@@ -17,6 +18,8 @@ def applyInferAccess := inferAccess simpleScal
 #pp applyInferAccess
 #pp fromRise simpleScal
 
+def fRSimpleScal := fromRise simpleScal
+#pp applyToImp fRSimpleScal
 
 def complexScal := [RiseC|
    fun n : nat =>

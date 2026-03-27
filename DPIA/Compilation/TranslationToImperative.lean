@@ -56,14 +56,11 @@ def getAccess (pt : PhraseType) : DAnnotation :=
         | .expr _ rw => rw
         | _ => panic! s!"something went wrong, this should be an expr type"
 
-def applyCon (Con phrase : DPIAPhrase) : DPIAPhrase :=
-    dbg_trace s!"this is the con {Con}\n"
-    dbg_trace s!"and this the phrase {phrase}"
-    match Con.node with
-        | .lam name _ body => let s :=  substitutePhraseInPhrase phrase body name
-                              dbg_trace s!"finally this is the result: {s}"
-                              s
-        | _ => panic! s!"the Continuation should be a lambda but is {Con}, meanwhile the phrase is {phrase}"
+def applyCon (Con phrase : DPIAPhrase) : DPIAPhrase := -- what if lambda is a identifier
+    -- match Con.node with
+    --     | .lam name _ body => substitutePhraseInPhrase phrase body name
+    --     | _ => panic! s!"the Continuation should be a lambda but is {Con}, meanwhile the phrase is {phrase}"
+    applySubstitution Con phrase
 
 def atExpr (e index : DPIAPhrase) : DPIAPhrase :=
     match index.type,e.type with
@@ -165,7 +162,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                           (mkLam (.fn type .comm) (mkName "x") val.type
                                  (assignByType (getDataType type) A
                                                                   (mkNeg (getDataType type) x))) counter
-        | .add lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .add lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                           let y := mkBvar 0 (mkName "y") rhs.type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -173,7 +170,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                           (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                  (assignByType (getDataType type) A
                                                                                   (mkAdd (getDataType type) x y))) counter)) counter
-        | .sub lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .sub lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                           let y := mkBvar 0 (mkName "y") rhs.type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -181,7 +178,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                           (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                  (assignByType (getDataType type) A
                                                                                   (mkSub (getDataType type) x y))) counter)) counter
-        | .mul lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .mul lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                           let y := mkBvar 0 (mkName "y") rhs.type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -189,7 +186,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                           (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                  (assignByType (getDataType type) A
                                                                                   (mkMul (getDataType type) x y))) counter)) counter
-        | .div lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .div lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                           let y := mkBvar 0 (mkName "y") rhs.type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -197,7 +194,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                           (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                  (assignByType (getDataType type) A
                                                                                   (mkDiv (getDataType type) x y))) counter)) counter
-        | .mod lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .mod lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                           let y := mkBvar 0 (mkName "y") rhs.type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -209,7 +206,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                       con val (mkLam (.fn type .comm) (mkName "x") val.type
                                      (assignByType (getDataType type) A
                                                                       (mkNot x))) counter
-        | .gt lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .gt lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                          let y := mkBvar 0 (mkName "y") rhs.type
                          con lhs
                              (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -217,7 +214,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                          (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                 (assignByType (getDataType type) A
                                                                                  (mkGt x y))) counter)) counter
-        | .lt lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .lt lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                          let y := mkBvar 0 (mkName "y") rhs.type
                          con lhs
                              (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -225,7 +222,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                          (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                 (assignByType (getDataType type) A
                                                                                  (mkLt x y))) counter)) counter
-        | .equal lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .equal lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                             let y := mkBvar 0 (mkName "y") rhs.type
                             con lhs
                                 (mkLam  (.fn type .comm) (mkName "x") lhs.type
@@ -277,7 +274,6 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                             let x := mkBvar 1 (mkName "x") xType
                                             let iType := PhraseType.expr (.index n) .read
                                             let i := mkBvar 0 (mkName "i") iType
-                                            dbg_trace s!"this is MapSeq"
                                             con  array
                                                  (mkLam (.fn xType .comm) (mkName "x") xType
                                                         (mkSeq  (mkComment "mapSeq")
@@ -316,7 +312,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                             (mkLam  (.fn rType .comm) (mkName "r") rType
                                                     (acc r A counter)) counter
         | .scanSeq n dt1 dt2 f init array => let xType := PhraseType.expr (.array n dt1) .read
-                                             let x := mkBvar 3 (mkName "x") xType
+                                             let x := mkBvar 1 (mkName "x") xType
                                              let yType := PhraseType.expr dt2 .read
                                              let y := mkBvar 1 (mkName "y") yType
                                              let accumType := mkVar dt2
@@ -334,9 +330,9 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                                                                             (mkSeq  (acc y (mkProj2 (.acc dt2) accum0) counter)
                                                                                                     (mkForLoop  false n
                                                                                                                 (mkSeq  (acc (applyCon  (applyCon f (atExpr x i))
-                                                                                                                                        (mkProj1 (.expr dt2 .read) accum1))
-                                                                                                                             (mkProj2 (.acc dt2) accum1) counter)
-                                                                                                                        (assignByType dt2 (atAcc A i) (mkProj1 (.expr dt2 .read) accum1)))))))))
+                                                                                                                                        (mkProj1 (.expr dt2 .read) accum0))
+                                                                                                                             (mkProj2 (.acc dt2) accum0) counter)
+                                                                                                                        (assignByType dt2 (atAcc A i) (mkProj1 (.expr dt2 .read) accum0)))))))))
                                                              counter))
                                                 counter
         | .scatter n m dt indicies input => let yType := PhraseType.expr (.array n (.index m)) .read
@@ -367,12 +363,8 @@ partial def con (E C : DPIAPhrase) (counter : Nat): DPIAPhrase :=
         | .lit _ => applyCon C E -- C(val)
 --        | .imperative imp => imperativeCon imp E.type C
         | .functional func => functionalCon func E.type C counter
-        | .app fn arg => dbg_trace s!"this is my function {fn} and this my argument {arg} \n"
-                         let sub := applySubstitution fn arg
-                         dbg_trace s!"and this my substitution {sub} \n"
-                         let res := con sub C counter
-                         dbg_trace s!"and this my result: {res}"
-                         res
+        | .app fn arg => let sub := applySubstitution fn arg
+                         con sub C counter
         | .depapp fn arg => let sub := applyDepSubstitution fn arg
                             con sub C counter
         | .ifThenElse cond thenP elseP => let ifThenElse :=  {node := .ifThenElse (mkBvar 0 (mkName "x") cond.type) (con thenP C counter) (con elseP C counter), type := .comm : DPIAPhrase}
@@ -398,28 +390,28 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                      (con rhs
                                           (mkLam (.fn type .comm) (mkName "y") type
                                                  (applyCon C (mkAdd  (getDataType type) x y) )) counter)) counter
-        | .sub lhs rhs => let x := mkBvar 1 (mkName "x") type
+        | .sub lhs rhs => let x := mkBvar 0 (mkName "x") type
                           let y := mkBvar 0 (mkName "y") type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") type
                                      (con rhs
                                           (mkLam (.fn type .comm) (mkName "y") type
                                                  (applyCon C (mkSub  (getDataType type) x y))) counter)) counter
-        | .mul lhs rhs => let x := mkBvar 1 (mkName "x") type
+        | .mul lhs rhs => let x := mkBvar 0 (mkName "x") type
                           let y := mkBvar 0 (mkName "y") type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") type
                                      (con rhs
                                           (mkLam (.fn type .comm) (mkName "y") type
                                                  (applyCon C (mkMul (getDataType type) x y))) counter)) counter
-        | .div lhs rhs => let x := mkBvar 1 (mkName "x") type
+        | .div lhs rhs => let x := mkBvar 0 (mkName "x") type
                           let y := mkBvar 0 (mkName "y") type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") type
                                      (con rhs
                                           (mkLam (.fn type .comm) (mkName "y") type
                                                  (applyCon C (mkDiv  (getDataType type) x y))) counter)) counter
-        | .mod lhs rhs => let x := mkBvar 1 (mkName "x") type
+        | .mod lhs rhs => let x := mkBvar 0 (mkName "x") type
                           let y := mkBvar 0 (mkName "y") type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") type
@@ -430,21 +422,21 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                       con val
                           (mkLam (.fn type .comm) (mkName "x") type
                                  (applyCon C (mkNot x))) counter
-        | .gt lhs rhs =>  let x := mkBvar 1 (mkName "x") lhs.type
+        | .gt lhs rhs =>  let x := mkBvar 0 (mkName "x") lhs.type
                           let y := mkBvar 0 (mkName "y") rhs.type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") lhs.type
                                      (con rhs
                                           (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                  (applyCon  C (mkGt x y))) counter)) counter
-        | .lt lhs rhs =>  let x := mkBvar 1 (mkName "x") lhs.type
+        | .lt lhs rhs =>  let x := mkBvar 0 (mkName "x") lhs.type
                           let y := mkBvar 0 (mkName "y") rhs.type
                           con lhs
                               (mkLam (.fn type .comm) (mkName "x") lhs.type
                                      (con rhs
                                           (mkLam (.fn type .comm) (mkName "y") rhs.type
                                                  (applyCon  C (mkLt x y))) counter)) counter
-        | .equal lhs rhs => let x := mkBvar 1 (mkName "x") lhs.type
+        | .equal lhs rhs => let x := mkBvar 0 (mkName "x") lhs.type
                             let y := mkBvar 0 (mkName "y") rhs.type
                             con lhs
                                 (mkLam (.fn type .comm) (mkName "x") lhs.type
@@ -476,16 +468,16 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                     (mkLam  (.fn pair.type .comm) (mkName "x") pair.type
                                             (applyCon C (mkFst dt1 dt2 x))) counter
         | .gather n m dt indicies input =>  let x := mkBvar 0 (mkName "x") input.type
-                                            let y := mkBvar 1 (mkName "y") indicies.type
+                                            let y := mkBvar 0 (mkName "y") indicies.type
                                             con indicies
                                                (mkLam (.fn indicies.type .comm) (mkName "y") indicies.type
                                                       (con input
                                                            (mkLam (.fn input.type .comm) (mkName "x") input.type
                                                                   (applyCon C (mkGather n m dt y x))) counter)) counter
         | .generate n dt f => let iType := PhraseType.expr (.index n) .read
-                              let i := mkBvar 1 (mkName "i") iType
+                              let i := mkBvar 0 (mkName "i") iType
                               let contType := PhraseType.fn (.expr dt .read) .comm
-                              let cont := mkBvar 1 (mkName "cont") contType
+                              let cont := mkBvar 0 (mkName "cont") contType
                               let gType := PhraseType.expr dt .read
                               let g := mkBvar 0 (mkName "g") gType
                               applyCon C -- needs testing!
@@ -496,7 +488,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                                                                 (mkLam  (.fn gType .comm) (mkName "g") gType
                                                                                         (mkApp .comm cont g))))))
         | .idx n dt index array =>  let eType := PhraseType.expr (.array n dt) .read
-                                    let e := mkBvar 1 (mkName "e") eType
+                                    let e := mkBvar 0 (mkName "e") eType
                                     let i := mkBvar 0 (mkName "i") index.type
                                     con array
                                         (mkLam  (.fn eType .comm) (mkName "e") eType
@@ -531,7 +523,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                         let aType := PhraseType.expr dt1 .read
                                         let a := mkBvar 1 (mkName "a") aType
                                         let contType := PhraseType.fn (.expr dt2 .read) .comm
-                                        let cont := mkBvar 1 (mkName "cont") contType
+                                        let cont := mkBvar 0 (mkName "cont") contType
                                         let bType := PhraseType.expr dt2 .read
                                         let b := mkBvar 0 (mkName "b") bType
                                         con array
@@ -560,7 +552,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                              con e (mkLam (.fn e.type .comm) (mkName "x") e.type
                                           (applyCon C (mkNatAsIndex n x))) counter
         | .padCst n l r dt padExp array =>  let xType := PhraseType.expr (.array n dt) .read
-                                            let x := mkBvar 1 (mkName "x") xType
+                                            let x := mkBvar 0 (mkName "x") xType
                                             let pType := PhraseType.expr dt .read
                                             let p := mkBvar 0 (mkName "p") pType
                                             con array (mkLam (.fn xType .comm) (mkName "x") xType
@@ -577,7 +569,6 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                                       let accum := mkBvar 0 (mkName "accum") (mkVar dt2)
                                                       let iType := PhraseType.expr (.index n) .read
                                                       let i := mkBvar 0 (mkName "i") iType
-                                                      dbg_trace s!"this is reduceSeq"
                                                       con array
                                                           (mkLam (.fn XType .comm) (mkName "X") XType
                                                                  (mkSeq (mkComment "reduceSeq")
@@ -641,7 +632,7 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                                     (applyCon C (mkVectorFromScalar n dt e)))
                                             counter
         | .zip n dt1 dt2 a e1 e2 => let xType := PhraseType.expr (.array n dt1) .read
-                                    let x := mkBvar 1 (mkName "x") xType
+                                    let x := mkBvar 0 (mkName "x") xType
                                     let yType := PhraseType.expr (.array n dt2) .read
                                     let y := mkBvar 0 (mkName "y") yType
                                     con e1
