@@ -1,4 +1,5 @@
 import DPIA.Compilation.TranslationToImperative
+import DPIA.Compilation.Renaming
 
 private abbrev mkName := Lean.Name.mkSimple
 
@@ -39,9 +40,9 @@ partial def toImperative (outParam p : DPIAPhrase) : DPIAPhrase :=
     acc p output 0
 
 
-partial def applyToImp (p : DPIAPhrase ) : DPIAPhrase := --for testing the acc function
-    let (body, _) := splitBodyAndParams p [] 0
+partial def applyToImp (p : DPIAPhrase ) : List DPIAPhrase:= --for testing the acc function
+    --let renamed := uniqueRenaming p
+    let (body, params) := splitBodyAndParams p [] 0
     let outParam := createOutputParam body.type
-    dbg_trace s!"this is the hole expr: {p}\n"
-    dbg_trace s!"this is the body: {body}\n"
-    toImperative outParam body
+    let expr := toImperative outParam body
+    expr :: params

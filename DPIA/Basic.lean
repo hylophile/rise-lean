@@ -260,6 +260,9 @@ instance : Inhabited PhraseType :=
 instance : Inhabited RData :=
   ⟨RData.natType⟩
 
+instance : Inhabited RNat :=
+  ⟨RNat.nat 0⟩
+
 instance : Inhabited DAnnotation :=
   ⟨DAnnotation.read⟩
 
@@ -334,26 +337,29 @@ def DWrapper.render : DWrapper -> Std.Format
   | .rise w => w.render
   | .readWrite v => toString v ++ " : readWrite"
 
+def setNestAndLine (indent : Int) (f : Std.Format) : Std.Format :=
+  Std.Format.nest indent (Std.Format.line ++ f)
+
 mutual
 partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
   | .id val => s!"id {val.node.render}"
   | .neg val => s!"neg {val.node.render}"
-  | .add lhs rhs => s!"add ({lhs.node.render}) ({rhs.node.render})"
-  | .sub lhs rhs => s!"sub {lhs.node.render} {rhs.node.render}"
-  | .mul lhs rhs => s!"mul {lhs.node.render} {rhs.node.render}"
-  | .div lhs rhs => s!"div {lhs.node.render} {rhs.node.render}"
-  | .mod lhs rhs => s!"mod {lhs.node.render} {rhs.node.render}"
+  | .add lhs rhs => "add " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
+  | .sub lhs rhs => "sub " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
+  | .mul lhs rhs => "mul " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
+  | .div lhs rhs => "div " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
+  | .mod lhs rhs => "mod " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
   | .not val => s!"not {val.node.render}"
-  | .gt lhs rhs => s!"gt {lhs.node.render} {rhs.node.render}"
-  | .lt lhs rhs => s!"lt {lhs.node.render} {rhs.node.render}"
-  | .equal lhs rhs => s!"equal {lhs.node.render} {rhs.node.render}"
+  | .gt lhs rhs => "gt " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
+  | .lt lhs rhs => "lt " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
+  | .equal lhs rhs => "equal " ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
   | .cast s t x => s!"cast {s} {t} {x.node.render}"
   | .indexAsNat n idx => s!"indexAsNat {n} {idx.node.render}"
   | .natAsIndex n idx => s!"natAsIndex {n} {idx.node.render}"
   | .rlet s t a f val => s!"rlet {s} {t} {a} {f.node.render} {val.node.render}"
   | .toMem t input => s!"toMem {t} {input.node.render}"
   | .generate n t f  => s!"generate {n} {t} {f.node.render}"
-  | .idx n t idx array => s!"idx {n} {t} {idx.node.render} {array.node.render}"
+  | .idx n t idx array => s!"idx {n} {t}" ++ setNestAndLine 2 idx.node.render ++ setNestAndLine 2 array.node.render
   | .depIdx ..  => s!"string for functional is not defined yet"
   | .idxVec n t idx vec  => s!"idxVec {n} {t} {idx.node.render} {vec.node.render}"
   | .take n m t array => s!"take {n} {m} {t} {array.node.render}"
@@ -374,7 +380,7 @@ partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
   | .padCst n l r t padExpr array => s!"padCst {n} {l} {r} {t} {padExpr.node.render} {array.node.render}"
   | .padClamp n l r t array => s!"padClamp {n} {l} {r} {t} {array.node.render}"
   | .padEmpty n r t array => s!"padEmpty {n} {r} {t} {array.node.render}"
-  | .zip n s t a sArray tArray => s!"zip {n} {s} {t} {a} {sArray.node.render} {tArray.node.render}"
+  | .zip n s t a sArray tArray => s!"zip {n} {s} {t} {a}" ++ setNestAndLine 2 sArray.node.render ++ setNestAndLine 2 tArray.node.render
   | .unzip n s t a array  => s!"unzip {n} {s} {t} {a} {array.node.render}"
   | .depZip ..  => s!"string for functional is not defined yet"
   | .partition .. => s!"string for functional is not defined yet"
@@ -386,7 +392,7 @@ partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
   | .asVectorAligned n m t a array  => s!"asVectorAligned {n} {m} {t} {a} {array.node.render}"
   | .asScalar n m t a array => s!"asScalar {n} {m} {t} {a} {array.node.render}"
   | .map n s t a f array => s!"map {n} {s} {t} {a} {f.node.render} {array.node.render}"
-  | .mapSeq unroll n s t f array => s!"mapSeq {unroll} {n} {s} {t} {f.node.render} {array.node.render}"
+  | .mapSeq unroll n s t f array => s!"mapSeq {unroll} {n} {s} {t}" ++ setNestAndLine 2 f.node.render ++ setNestAndLine 2 array.node.render
   | .mapStream n s t f array  => s!"mapStream {n} {s} {t} {f.node.render} {array.node.render}"
   | .iterateStream n s t f array => s!"iterateStream {n} {s} {t} {f.node.render} {array.node.render}"
   | .depMapSeq .. => s!"string for functional is not defined yet"
@@ -401,13 +407,13 @@ partial def FunctionalPrimitives.render : FunctionalPrimitives → Std.Format
 
 partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
   | .asScalarAcc n m t array => s!"asScalarAcc {n} {m} {t} ({array.node.render})"
-  | .assign t lhs rhs => s!"assign {t} \n    ({lhs.node.render}) \n    ({rhs.node.render})"
+  | .assign t lhs rhs => s!"assign {t}" ++ setNestAndLine 2 lhs.node.render ++ setNestAndLine 2 rhs.node.render
   | .asVectorAcc n m t array => s!"asvectorAcc {n} {m} {t} ({array.node.render})"
-  | .forLoop unroll n body  => s!"for {unroll} {n} {body.node.render}"
+  | .forLoop unroll n body  => s!"for {unroll} {n}" ++ setNestAndLine 2 body.node.render
   | .forNat unroll n body => s!"forNat {unroll} {n} {body.node.render}"
   | .forVec n t out body => s!"forVec {n} {t} {out.node.render} {body.node.render}"
   | .generateCont n t f  => s!"generateCont {n} {t} {f.node.render}"
-  | .idxAcc n t idx array => s!"idxAcc {n} {t} \n    {idx.node.render} \n    {array.node.render}"
+  | .idxAcc n t idx array => s!"idxAcc {n} {t}" ++ setNestAndLine 2 idx.node.render ++ setNestAndLine 2 array.node.render
   | .idxVecAcc n t idx vec => s!"idxVexAcc {n} {t} {idx.node.render} {vec.node.render}"
   | .scatterAcc n m t indicies array => s!"scatterAcc {n} {m} {t} {indicies.node.render} {array.node.render}"
   | .splitAcc n m t array => s!"splitAcc {n} {m} {t} {array.node.render}"
@@ -431,12 +437,12 @@ partial def ImperativePrimitives.render : ImperativePrimitives → Std.Format
   | .pairAcc2 t1 t2 pair => s!"pairAcc2 {t1} {t2} {pair.node.render}"
   | .new t f => s!"new {t} {f.node.render}"
   | .newDoubleBuffer n t1 t2 t3 input out f => s!"newDoubleBuffer {n} {t1} {t2} {t3} {input.node.render} {out.node.render} {f.node.render}"
-  | .comment comment => s!"comment -----{comment}-----"
+  | .comment comment => s!"comment -- {comment} --"
   | .skip => s!"skip"
   | .depIdxAcc .. => s!"string for functional depIdxAcc is not defined yet"
   | .depJoinAcc .. => s!"string for functional depIdxAcc is not defined yet"
   | .dMatchI x elemT outT f input => s!"dMatchI {x} {elemT} {outT} {f.node.render} {input.node.render}"
-  | .seq c1 c2 => s!"seq \n     1: {c1.node.render} \n     2: {c2.node.render}"
+  | .seq c1 c2 => "seq " ++ setNestAndLine 2 c1.node.render ++ setNestAndLine 2 c2.node.render
 
 -- modified from Nate
 partial def DPIAPhraseNode.render : DPIAPhraseNode  → Std.Format
@@ -445,11 +451,11 @@ partial def DPIAPhraseNode.render : DPIAPhraseNode  → Std.Format
   | .functional f => s!"{f.render}"
   | .lit n        => s!"{n}"
   | .app f e      => match f.node, e.node with
-    | .app .. , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
-    | .app .. , _       => f.node.render ++ " " ++ e.node.render
-    | _       , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render
-    | _       , _       => f.node.render ++ " " ++ e.node.render
-  | .depapp f e   => f.node.render ++ " " ++ Std.Format.paren e.render
+    | .app .. , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render ++ Std.Format.line
+    | .app .. , _       => f.node.render ++ " " ++ e.node.render ++ Std.Format.line
+    | _       , .app .. => f.node.render ++ " " ++ Std.Format.paren e.node.render ++ Std.Format.line
+    | _       , _       => f.node.render ++ " " ++ e.node.render ++ Std.Format.line
+  | .depapp f e   => f.node.render ++ " " ++ Std.Format.paren e.render ++ Std.Format.line
   | .lam s t b    => Std.Format.paren s!"λ {s} : {t} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
   | .deplam s k b => Std.Format.paren s!"Λ {s} : {k} =>{Std.Format.line}{b.node.render}" ++ Std.Format.line
   | .pair fst snd => s!"({fst.node.render}, {snd.node.render})"

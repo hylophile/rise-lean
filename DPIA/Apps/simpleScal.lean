@@ -19,6 +19,7 @@ def applyInferAccess := inferAccess simpleScal
 #pp fromRise simpleScal
 
 def fRSimpleScal := fromRise simpleScal
+#pp uniqueRenaming fRSimpleScal
 #pp applyToImp fRSimpleScal
 
 def complexScal := [RiseC|
@@ -28,4 +29,8 @@ def complexScal := [RiseC|
      input |> mapSeq (fun input => alpha * input)
  ]
 
-#pp complexScal
+#pp fromRise complexScal
+
+#pp fromRise complexScal
+
+#pp uniqueRenaming (fromRise complexScal)

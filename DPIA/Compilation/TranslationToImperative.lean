@@ -65,20 +65,20 @@ def applyCon (Con phrase : DPIAPhrase) : DPIAPhrase := -- what if lambda is a id
 def atExpr (e index : DPIAPhrase) : DPIAPhrase :=
     match index.type,e.type with
         | (.expr (.index n1) _), (.expr (.array n2 dt) _) => if n1 == n2 then mkIdx n1 dt index e
-                                                            else panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
-        | _, _ => panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
+                                                            else panic! s!"the pattern is ({e.type}, {index.type}) but expected (expr [idx(n), _], expr[n.dt, _])"
+        | _, _ => panic! s!"the pattern is ({e.type}, {index.type}) but expected (expr [idx(n), _], expr[n.dt, _])"
 
 def atAcc (e index : DPIAPhrase) : DPIAPhrase :=
     match index.type,e.type with
         | (.expr (.index n1) _), (.acc (.array n2 dt)) => if n1 == n2 then mkIdxAcc n1 dt index e
-                                                            else panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
+                                                            else panic! s!"the pattern is ({e.type}, {index.type}) but expected (expr [idx(n), _], expr[n.dt, _])"
         | _, _ =>   panic! s!"the pattern is ({index.type}, {e.type}) but expected (expr [idx(n), _], acc[n.dt])"
 
 def atVec (e index : DPIAPhrase) : DPIAPhrase :=
     match index.type,e.type with
         | (.expr (.index n1) _), (.expr (.vector n2 st) _) => if n1 == n2 then mkIdxVec n1 st index e
-                                                            else panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
-        | _, _ => panic! s!"the pattern is ({e}, {index}) but expected (expr [idx(n), _], expr[n.dt, _])"
+                                                            else panic! s!"the pattern is ({e.type}, {index.type}) but expected (expr [idx(n), _], expr[n.dt, _])"
+        | _, _ => panic! s!"the pattern is ({e.type}, {index.type}) but expected (expr [idx(n), _], expr[n.dt, _])"
 
 def mkVar (dt : RData) : PhraseType := .phrasePair (.expr dt .read) (.acc dt)
 
@@ -274,6 +274,7 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                             let x := mkBvar 1 (mkName "x") xType
                                             let iType := PhraseType.expr (.index n) .read
                                             let i := mkBvar 0 (mkName "i") iType
+                                            dbg_trace s!"this is array: {array}"
                                             con  array
                                                  (mkLam (.fn xType .comm) (mkName "x") xType
                                                         (mkSeq  (mkComment "mapSeq")
@@ -632,13 +633,14 @@ partial def functionalCon (func : FunctionalPrimitives) (type : PhraseType) (C: 
                                                     (applyCon C (mkVectorFromScalar n dt e)))
                                             counter
         | .zip n dt1 dt2 a e1 e2 => let xType := PhraseType.expr (.array n dt1) .read
-                                    let x := mkBvar 0 (mkName "x") xType
+                                    let x := mkBvar 0 (mkName "xxx") xType
                                     let yType := PhraseType.expr (.array n dt2) .read
-                                    let y := mkBvar 0 (mkName "y") yType
+                                    let y := mkBvar 0 (mkName "yyy") yType
+                                    let dd := applyCon C (mkZip n dt1 dt2 a x y)
                                     con e1
-                                        (mkLam (.fn xType .comm) (mkName "x") xType
+                                        (mkLam (.fn xType .comm) (mkName "xxx") xType
                                                (con e2
-                                                    (mkLam  (.fn yType .comm) (mkName "y") yType
+                                                    (mkLam  (.fn yType .comm) (mkName "yyy") yType
                                                             (applyCon C (mkZip n dt1 dt2 a x y)))
                                                     counter )) counter
         | _ => panic! "this is no Expression Primitive"

@@ -2,112 +2,112 @@ import DPIA.Basic
 import Rise.Basic
 
 -- hopefully I will be able to reuse it
-def substituteInFunctional (In : FunctionalPrimitives) (fn : DPIAPhrase → DPIAPhrase) : FunctionalPrimitives :=
+def substituteInFunctional (In : FunctionalPrimitives) (phraseFn : DPIAPhrase → DPIAPhrase) (dataFn : RData → RData) (natFn : RNat → RNat): FunctionalPrimitives :=
   match In with
-    | .id val => .id (fn val)
-    | .neg val => .neg (fn val)
-    | .add lhs rhs => .add (fn lhs) (fn rhs)
-    | .sub lhs rhs => .sub (fn lhs) (fn rhs)
-    | .mul lhs rhs => .mul (fn lhs) (fn rhs)
-    | .div lhs rhs => .div  (fn lhs) (fn rhs)
-    | .mod lhs rhs => .mod (fn lhs) (fn rhs)
-    | .not val => .not (fn val)
-    | .gt lhs rhs => .gt (fn lhs) (fn rhs)
-    | .lt lhs rhs => .lt (fn lhs) (fn rhs)
-    | .equal lhs rhs => .equal (fn lhs) (fn rhs)
-    | .cast s t x => .cast s t (fn x)
-    | .indexAsNat n idx => .indexAsNat n (fn idx)
-    | .natAsIndex n idx => .natAsIndex n (fn idx)
-    | .rlet s t a f val => .rlet s t a (fn f) (fn val)
-    | .toMem t input => .toMem t (fn input)
-    | .generate n t f  => .generate n t (fn f)
-    | .idx n t idx array => .idx n t (fn idx) (fn array)
+    | .id val => .id (phraseFn val)
+    | .neg val => .neg (phraseFn val)
+    | .add lhs rhs => .add (phraseFn lhs) (phraseFn rhs)
+    | .sub lhs rhs => .sub (phraseFn lhs) (phraseFn rhs)
+    | .mul lhs rhs => .mul (phraseFn lhs) (phraseFn rhs)
+    | .div lhs rhs => .div  (phraseFn lhs) (phraseFn rhs)
+    | .mod lhs rhs => .mod (phraseFn lhs) (phraseFn rhs)
+    | .not val => .not (phraseFn val)
+    | .gt lhs rhs => .gt (phraseFn lhs) (phraseFn rhs)
+    | .lt lhs rhs => .lt (phraseFn lhs) (phraseFn rhs)
+    | .equal lhs rhs => .equal (phraseFn lhs) (phraseFn rhs)
+    | .cast s t x => .cast (dataFn s) (dataFn t) (phraseFn x)
+    | .indexAsNat n idx => .indexAsNat (natFn n) (phraseFn idx)
+    | .natAsIndex n idx => .natAsIndex (natFn n) (phraseFn idx)
+    | .rlet s t a f val => .rlet (dataFn s) (dataFn t) a (phraseFn f) (phraseFn val)
+    | .toMem t input => .toMem (dataFn t) (phraseFn input)
+    | .generate n t f  => .generate (natFn n) (dataFn t) (phraseFn f)
+    | .idx n t idx array => .idx (natFn n) (dataFn t) (phraseFn idx) (phraseFn array)
     | .depIdx ..  => In -- needs to be fixed at some point
-    | .idxVec n t idx vec  => .idxVec n t (fn idx) (fn vec)
-    | .take n m t array => .take n m t (fn array)
-    | .drop n m t array => .drop n m t (fn array)
-    | .concat n m t nArray mArray => .concat n m t (fn nArray) (fn mArray)
-    | .split n m t a array => .split n m t a (fn array)
-    | .join n m t a array => .join n m t a (fn array)
+    | .idxVec n t idx vec  => .idxVec (natFn n) (dataFn t) (phraseFn idx) (phraseFn vec)
+    | .take n m t array => .take (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .drop n m t array => .drop (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .concat n m t nArray mArray => .concat (natFn n) (natFn m) (dataFn t) (phraseFn nArray) (phraseFn mArray)
+    | .split n m t a array => .split (natFn n) (natFn m) (dataFn t) a (phraseFn array)
+    | .join n m t a array => .join (natFn n) (natFn m) (dataFn t) a (phraseFn array)
     | .depJoin .. => In  -- needs to be fixed at some point
-    | .slide n sz sp t array => .slide n sz sp t (fn array)
-    | .circularBuffer n alloc sz s t load array => .circularBuffer n alloc sz s t (fn load) (fn array)
-    | .rotateValues n sz t wrt array => .rotateValues n sz t wrt (fn array)
-    | .transpose n m t a array => .transpose n m t a (fn array)
-    | .cycle n m  t array  => .cycle n m t (fn array)
+    | .slide n sz sp t array => .slide (natFn n) (natFn sz) (natFn sp) (dataFn t) (phraseFn array)
+    | .circularBuffer n alloc sz s t load array => .circularBuffer (natFn n) (natFn alloc) (natFn sz) (dataFn s) (dataFn t) (phraseFn load) (phraseFn array)
+    | .rotateValues n sz t wrt array => .rotateValues (natFn n) (natFn sz) (dataFn t) wrt (phraseFn array)
+    | .transpose n m t a array => .transpose (natFn n) (natFn m) (dataFn t) a (phraseFn array)
+    | .cycle n m  t array  => .cycle (natFn n) (natFn m) (dataFn t) (phraseFn array)
     | .reorder .. =>  In  -- needs to be fixed at some point
     | .transposeDepArray .. =>  In  -- needs to be fixed at some point
-    | .gather n m t idx array => .gather n m t (fn idx) (fn array)
-    | .scatter n m t idx array => .scatter n m t (fn idx) (fn array)
-    | .padCst n l r t padExpr array => .padCst n l r t (fn padExpr) (fn array)
-    | .padClamp n l r t array => .padClamp n l r t (fn array)
-    | .padEmpty n r t array => .padEmpty n r t (fn array)
-    | .zip n s t a sArray tArray => .zip n s t a (fn sArray) (fn tArray)
-    | .unzip n s t a array  => .unzip n s t a (fn array)
+    | .gather n m t idx array => .gather (natFn n) (natFn m) (dataFn t) (phraseFn idx) (phraseFn array)
+    | .scatter n m t idx array => .scatter (natFn n) (natFn m) (dataFn t) (phraseFn idx) (phraseFn array)
+    | .padCst n l r t padExpr array => .padCst (natFn n) (natFn l) (natFn r) (dataFn t) (phraseFn padExpr) (phraseFn array)
+    | .padClamp n l r t array => .padClamp (natFn n) (natFn l) (natFn r) (dataFn t) (phraseFn array)
+    | .padEmpty n r t array => .padEmpty (natFn n) (natFn r) (dataFn t) (phraseFn array)
+    | .zip n s t a sArray tArray => .zip (natFn n) (dataFn s) (dataFn t) a (phraseFn sArray) (phraseFn tArray)
+    | .unzip n s t a array  => .unzip (natFn n) (dataFn s) (dataFn t) a (phraseFn array)
     | .depZip ..  =>  In  -- needs to be fixed at some point
     | .partition .. =>  In  -- needs to be fixed at some point
-    | .makePair s t a fst snd  => .makePair s t a (fn fst) (fn snd)
-    | .fst s t pair => .fst s t (fn pair)
-    | .snd s t pair => .snd s t (fn pair)
-    | .vectorFromScalar n t arg  => .vectorFromScalar n t (fn arg)
-    | .asVector n m t a array  => .asVector n m t a (fn array)
-    | .asVectorAligned n m t a array  => .asVectorAligned n m t a (fn array)
-    | .asScalar n m t a array => .asScalar n m t a (fn array)
-    | .map n s t a f array => .map n s t a (fn f) (fn array)
-    | .mapSeq unroll n s t f array => .mapSeq unroll n s t (fn f) (fn array)
-    | .mapStream n s t f array  => .mapStream n s t (fn f) (fn array)
-    | .iterateStream n s t f array => .iterateStream n s t (fn f) (fn array)
+    | .makePair s t a fst snd  => .makePair (dataFn s) (dataFn t) a (phraseFn fst) (phraseFn snd)
+    | .fst s t pair => .fst (dataFn s) (dataFn t) (phraseFn pair)
+    | .snd s t pair => .snd (dataFn s) (dataFn t) (phraseFn pair)
+    | .vectorFromScalar n t arg  => .vectorFromScalar (natFn n) (dataFn t) (phraseFn arg)
+    | .asVector n m t a array  => .asVector (natFn n) (natFn m) (dataFn t) a (phraseFn array)
+    | .asVectorAligned n m t a array  => .asVectorAligned (natFn n) (natFn m) (dataFn t) a (phraseFn array)
+    | .asScalar n m t a array => .asScalar (natFn n) (natFn m) (dataFn t) a (phraseFn array)
+    | .map n s t a f array => .map (natFn n) (dataFn s) (dataFn t) a (phraseFn f) (phraseFn array)
+    | .mapSeq unroll n s t f array => .mapSeq unroll (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn array)
+    | .mapStream n s t f array  => .mapStream (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn array)
+    | .iterateStream n s t f array => .iterateStream (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn array)
     | .depMapSeq .. =>  In  -- needs to be fixed at some point
-    | .mapVec n t1 t2 f vec  => .mapVec n t1 t2 (fn f) (fn vec)
-    | .mapFst s1 t s2 a f pair => .mapFst s1 t s2 a (fn f) (fn pair)
-    | .mapSnd s t1 t2 a f pair => .mapSnd s t1 t2 a (fn f) (fn pair)
-    | .reduceSeq unroll n  s t f init array  => .reduceSeq unroll n s t (fn f) (fn init) (fn array)
-    | .scanSeq n s t f init array => .scanSeq n s t (fn f) (fn init) (fn array)
-    | .iterate n m k t f array => .iterate n m k t (fn f) (fn array)
-    | .depTile n tileSize haloSize t1 t2 processTiles array  => .depTile n tileSize haloSize t1 t2 (fn processTiles) (fn array)
-    | .printType msg t a input  => .printType msg t a (fn input)
+    | .mapVec n t1 t2 f vec  => .mapVec (natFn n) (dataFn t1) (dataFn t2) (phraseFn f) (phraseFn vec)
+    | .mapFst s1 t s2 a f pair => .mapFst (dataFn s1) (dataFn t) (dataFn s2) a (phraseFn f) (phraseFn pair)
+    | .mapSnd s t1 t2 a f pair => .mapSnd (dataFn s) (dataFn t1) (dataFn t2) a (phraseFn f) (phraseFn pair)
+    | .reduceSeq unroll n  s t f init array  => .reduceSeq unroll (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn init) (phraseFn array)
+    | .scanSeq n s t f init array => .scanSeq (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn init) (phraseFn array)
+    | .iterate n m k t f array => .iterate (natFn n) (natFn m) (natFn k) (dataFn t) (phraseFn f) (phraseFn array)
+    | .depTile n tileSize haloSize t1 t2 processTiles array  => .depTile (natFn n) (natFn tileSize) (natFn haloSize) (dataFn t1) (dataFn t2) (phraseFn processTiles) (phraseFn array)
+    | .printType msg t a input  => .printType msg (dataFn t) a (phraseFn input)
 
 
 -- hopefully I will be able to reuse it
-def substituteInImperative (In : ImperativePrimitives) (fn : DPIAPhrase → DPIAPhrase) : ImperativePrimitives :=
+def substituteInImperative (In : ImperativePrimitives) (phraseFn : DPIAPhrase → DPIAPhrase) (dataFn  : RData → RData)  (natFn : RNat → RNat): ImperativePrimitives :=
   match In with
-    | .asScalarAcc n m t array => .asScalarAcc n m t (fn array)
-    | .assign t lhs rhs => .assign t (fn lhs) (fn rhs)
-    | .asVectorAcc n m t array => .asVectorAcc n m t (fn array)
-    | .forLoop unroll n body  => .forLoop unroll n (fn body)
-    | .forNat unroll n body => .forNat unroll n (fn body)
-    | .forVec n t out body => .forVec n t (fn out) (fn body)
-    | .generateCont n t f  => .generateCont n t (fn f)
-    | .idxAcc n t idx array => .idxAcc n t (fn idx) (fn array)
-    | .idxVecAcc n t idx vec => .idxVecAcc n t (fn idx) (fn vec)
-    | .scatterAcc n m t indicies array => .scatterAcc n m t (fn indicies) (fn array)
-    | .splitAcc n m t array => .splitAcc n m t (fn array)
-    | .joinAcc n m t array => .joinAcc n m t (fn array)
-    | .unzipAcc n t1 t2 array => .unzipAcc n t1 t2 (fn array)
-    | .zipAcc1     n t1 t2 array => .zipAcc1 n t1 t2 (fn array)
-    | .zipAcc2     n t1 t2 array => .zipAcc2 n t1 t2 (fn array)
-    | .transposeAcc n m t array  => .transposeAcc n m t (fn array)
-    | .cycleAcc n m t input => .cycleAcc n m t (fn input)
+    | .asScalarAcc n m t array => .asScalarAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .assign t lhs rhs => .assign (dataFn t) (phraseFn lhs) (phraseFn rhs)
+    | .asVectorAcc n m t array => .asVectorAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .forLoop unroll n body  => .forLoop unroll (natFn n) (phraseFn body)
+    | .forNat unroll n body => .forNat unroll (natFn n) (phraseFn body)
+    | .forVec n t out body => .forVec (natFn n) (dataFn t) (phraseFn out) (phraseFn body)
+    | .generateCont n t f  => .generateCont (natFn n) (dataFn t) (phraseFn f)
+    | .idxAcc n t idx array => .idxAcc (natFn n) (dataFn t) (phraseFn idx) (phraseFn array)
+    | .idxVecAcc n t idx vec => .idxVecAcc (natFn n) (dataFn t) (phraseFn idx) (phraseFn vec)
+    | .scatterAcc n m t indicies array => .scatterAcc (natFn n) (natFn m) (dataFn t) (phraseFn indicies) (phraseFn array)
+    | .splitAcc n m t array => .splitAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .joinAcc n m t array => .joinAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .unzipAcc n t1 t2 array => .unzipAcc (natFn n) (dataFn t1) (dataFn t2) (phraseFn array)
+    | .zipAcc1     n t1 t2 array => .zipAcc1 (natFn n) (dataFn t1) (dataFn t2) (phraseFn array)
+    | .zipAcc2     n t1 t2 array => .zipAcc2 (natFn n) (dataFn t1) (dataFn t2) (phraseFn array)
+    | .transposeAcc n m t array  => .transposeAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .cycleAcc n m t input => .cycleAcc (natFn n) (natFn m) (dataFn t) (phraseFn input)
     | .reorderAcc      .. => In  -- needs to be fixed at some point
-    | .dropAcc n m t array => .dropAcc n m t (fn array)
-    | .takeAcc n m t array => .takeAcc n m t (fn array)
-    | .mapAcc n t1 t2 f array => .mapAcc n t1 t2 (fn f) (fn array)
-    | .mapFstAcc t1 t2 t3 f record  => .mapFstAcc t1 t2 t3 (fn f) (fn record)
-    | .mapRead n t1 t2 f input => .mapRead n t1 t2 (fn f) (fn input)
-    | .mapSndAcc t1 t2 t3 f record => .mapSndAcc t1 t2 t3 (fn f) (fn record)
-    | .mkDPairFstl fst a => .mkDPairFstl fst (fn a)
-    | .mkDPairSndAcc fst sndT a => .mkDPairSndAcc fst sndT (fn a)
-    | .pairAcc t1 t2 fst snd => .pairAcc t1 t2 (fn fst)  (fn snd)
-    | .pairAcc1 t1 t2 pair => .pairAcc1 t1 t2 (fn pair)
-    | .pairAcc2 t1 t2 pair => .pairAcc2 t1 t2 (fn pair)
-    | .new t f => .new t (fn f)
-    | .newDoubleBuffer n t1 t2 t3 input out f => .newDoubleBuffer n t1 t2 t3 (fn input) (fn out) (fn f)
+    | .dropAcc n m t array => .dropAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .takeAcc n m t array => .takeAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
+    | .mapAcc n t1 t2 f array => .mapAcc (natFn n) (dataFn t1) (dataFn t2) (phraseFn f) (phraseFn array)
+    | .mapFstAcc t1 t2 t3 f record  => .mapFstAcc (dataFn t1) (dataFn t2) (dataFn t3) (phraseFn f) (phraseFn record)
+    | .mapRead n t1 t2 f input => .mapRead (natFn n) (dataFn t1) (dataFn t2) (phraseFn f) (phraseFn input)
+    | .mapSndAcc t1 t2 t3 f record => .mapSndAcc (dataFn t1) (dataFn t2) (dataFn t3) (phraseFn f) (phraseFn record)
+    | .mkDPairFstl fst a => .mkDPairFstl (natFn fst) (phraseFn a)
+    | .mkDPairSndAcc fst sndT a => .mkDPairSndAcc (natFn fst) (dataFn sndT) (phraseFn a)
+    | .pairAcc t1 t2 fst snd => .pairAcc (dataFn t1) (dataFn t2) (phraseFn fst)  (phraseFn snd)
+    | .pairAcc1 t1 t2 pair => .pairAcc1 (dataFn t1) (dataFn t2) (phraseFn pair)
+    | .pairAcc2 t1 t2 pair => .pairAcc2 (dataFn t1) (dataFn t2) (phraseFn pair)
+    | .new t f => .new (dataFn t) (phraseFn f)
+    | .newDoubleBuffer n t1 t2 t3 input out f => .newDoubleBuffer (natFn n) (dataFn t1) (dataFn t2) (dataFn t3) (phraseFn input) (phraseFn out) (phraseFn f)
     | .comment _ => In
     | .skip => In
     | .depIdxAcc .. => In  -- needs to be fixed at some point
     | .depJoinAcc .. => In  -- needs to be fixed at some point
-    | .dMatchI x elemT outT f input => .dMatchI x elemT outT (fn f) (fn input)
-    | .seq c1 c2 => .seq (fn c1) (fn c2)
+    | .dMatchI x elemT outT f input => .dMatchI (natFn x) (dataFn elemT) (dataFn outT) (phraseFn f) (phraseFn input)
+    | .seq c1 c2 => .seq (phraseFn c1) (phraseFn c2)
 
 def phraseSize (phrase : DPIAPhrase) : Nat :=
   match phrase with
@@ -242,8 +242,8 @@ partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.
   match In.node with
     | .bvar deBruijnIndex userName => if userName == For && deBruijnIndex == depth then phrase
                                       else In
-    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substitutePhraseInPhraseHelper phrase x For depth)), type := In.type}
-    | .functional func => {node := .functional (substituteInFunctional func (fun x => substitutePhraseInPhraseHelper phrase x For depth)), type := In.type}
+    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substitutePhraseInPhraseHelper phrase x For depth) (fun x => x) (fun x => x)), type := In.type}
+    | .functional func => {node := .functional (substituteInFunctional func (fun x => substitutePhraseInPhraseHelper phrase x For depth) (fun x => x) (fun x => x)), type := In.type}
     | .lit _ => In
     | .app fn arg => let sFn := substitutePhraseInPhraseHelper phrase fn For depth
                      let sArg := substitutePhraseInPhraseHelper phrase arg For depth
@@ -280,8 +280,8 @@ partial def substituteDWrapperInPhraseHelper (depArg : DWrapper) (In : DPIAPhras
   let pt := substituteDWrapper depArg In.type For depth
   match In.node with
     | .bvar _ _ => {node := In.node, type := pt}
-    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substituteDWrapperInPhraseHelper depArg x For depth)), type := pt}
-    | .functional func => {node := .functional (substituteInFunctional func (fun x => substituteDWrapperInPhraseHelper depArg x For depth)), type := pt}
+    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substituteDWrapperInPhraseHelper depArg x For depth) (fun x => x) (fun x => x)), type := pt}
+    | .functional func => {node := .functional (substituteInFunctional func (fun x => substituteDWrapperInPhraseHelper depArg x For depth) (fun x => x) (fun x => x)), type := pt}
     | .lit _ => {node := In.node, type := pt}
     | .app fn arg => let sFn := substituteDWrapperInPhraseHelper depArg fn For depth
                      let sArg := substituteDWrapperInPhraseHelper depArg arg For depth
