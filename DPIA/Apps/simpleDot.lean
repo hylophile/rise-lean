@@ -37,3 +37,19 @@ def applyInferAccessToDot := inferAccess dot
 def fRSimpleZip := fromRise simpleZip
 #pp fRSimpleZip
 #pp applyToImp fRSimpleZip
+
+def fRDot := fromRise dot
+#pp applyToImp fRDot
+
+def TIDot := (applyToImp fRDot)[0]
+#pp TIDot.node
+
+def newVal := match TIDot.node with
+               | .imperative (.new _ f) => f
+               | _ => TIDot
+
+def vals := match newVal.node with
+              | .pair p1 p2 => [p1,p2]
+              | _ => [newVal]
+
+#pp vals
