@@ -1,9 +1,9 @@
 import DPIA.InferAccessAnnotation
 import Rise
-import DPIA.Printing
 import DPIA.FromRise
 import DPIA.Compilation.TranslationToImperative
 import DPIA.Compilation.generator
+import DPIA.betaReduction
 
 def add := [RiseC|
   fun m :  f32 =>
@@ -18,7 +18,7 @@ def add1 := [RiseC|
 def addAndApply := [RiseC|
   fun x :  f32 =>
     fun y : f32 =>
-        (fun x : f32 => x + y + x )(x)
+        fun z : f32 => x + y + z
 ]
 
 def add2 := [RiseC|
@@ -31,6 +31,8 @@ def fRAdd := fromRise add
 #pp inferAccess add
 #pp addAndApply
 #pp inferAccess addAndApply
+#pp fromRise addAndApply
+#pp reduction (fromRise addAndApply)
 #eval add2
 #pp inferAccess addAndApply
 #pp fromRise add

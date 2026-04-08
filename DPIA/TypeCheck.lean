@@ -15,4 +15,3 @@ partial def subTypeCheck (subType superType: PhraseType) : Bool :=
             | (PhraseType.fn subInT subOutT, PhraseType.fn superInT superOutT) => subTypeCheck subInT superInT && subTypeCheck subOutT superOutT
             | (PhraseType.pi kind1 _ subOutT, PhraseType.pi kind2 _ superOutT) => kind1 == kind2 && subTypeCheck subOutT superOutT
             | _ => false
---termination_by phraseTypeSize subType + phraseTypeSize superType

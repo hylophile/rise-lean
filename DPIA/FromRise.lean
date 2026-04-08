@@ -1,5 +1,4 @@
 import Lean.Exception
-import DPIA.Substitutions
 import DPIA.Pimitives.Functional
 import DPIA.InferAccessAnnotation
 import DPIA.mkFunctions

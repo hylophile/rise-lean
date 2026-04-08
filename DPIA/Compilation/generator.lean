@@ -14,9 +14,9 @@ def createOutputParam (outT : PhraseType) : DPIAPhrase :=
 
 partial def splitBodyAndParams (p : DPIAPhrase) (ps : List DPIAPhrase) (depth : Nat) : (DPIAPhrase × (List DPIAPhrase)) :=
     match p with
-        | ⟨.app fn arg, _⟩ => let sub := applySubstitution fn arg --> this is not correkt applySubstitution is not working correktly
+        | ⟨.app fn arg, _⟩ => let sub := betaReduction fn arg
                               splitBodyAndParams sub ps depth
-        | ⟨.depapp fn arg, _⟩ => let sub := applyDepSubstitution fn arg
+        | ⟨.depapp fn arg, _⟩ => let sub := dependentBetaReduction fn arg
                                  splitBodyAndParams sub ps depth
         | ⟨.lam name (.expr dt a) body, _⟩ => let param := mkBvar depth name (.expr dt a)
                                         splitBodyAndParams body (param:: ps) (depth+1)

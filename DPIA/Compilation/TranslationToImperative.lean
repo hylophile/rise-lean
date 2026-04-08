@@ -2,39 +2,12 @@ import DPIA.Substitutions
 import DPIA.Compilation.Assigning
 import DPIA.TypeCheck
 import DPIA.mkFunctions
+import DPIA.betaReduction
 
 private abbrev mkName := Lean.Name.mkSimple
 private abbrev tbc := {node := .lit (.bool false), type := .comm : DPIAPhrase}
 private abbrev Env := List (DPIAPhrase × DPIAPhrase)
 
-mutual
-partial def applySubstitution (In phrase : DPIAPhrase) : DPIAPhrase := --- the type is changeing (eliminate the apply in type as well)
-    match In.node with
-        | .lam name _ body => substitutePhraseInPhrase phrase body name
-        | .app fn arg => let sFn := applySubstitution fn arg
-                         match sFn.node with
-                            | .lam name _ body => substitutePhraseInPhrase phrase body name
-                            | _ => panic! s!"the first argument of an apply needs to be a function but is {sFn}"
-        | .depapp fn arg => let sFn := applyDepSubstitution fn arg
-                            match sFn.node with
-                                | .lam name _ body => substitutePhraseInPhrase phrase body name
-                                | _ => panic! s!"the first argument of an apply needs to be a function but is {sFn}"
-
-        | _ => panic! s!"{In.node} is not valid function"
-
-partial def applyDepSubstitution (In : DPIAPhrase) (depArg : DWrapper): DPIAPhrase := --- the type is changeing (eliminate the apply in type as well)
-    match In.node with
-        | .app fn arg => let sFn := applySubstitution fn arg
-                         match sFn.node with
-                            | .deplam name _ body => substituteDWrapperInPhraseHelper depArg body name 0 --(need a subst function for )
-                            | _ => panic! s!"the first argument of an dependent apply needs to be a dependent function but is {sFn}"
-        | .depapp fn arg => let sFn := applyDepSubstitution fn arg
-                            match sFn.node with
-                                | .deplam name _ body => substituteDWrapperInPhraseHelper depArg body name 0 --(need a subst function for )
-                                | _ => panic! s!"the first argument of an dependent apply needs to be a dependent function but is {sFn}"
-        | .deplam name _ body => substituteDWrapperInPhraseHelper depArg body name 0 --substitutePhraseInPhrase phrase sFn name arg (need a subst function for )
-        | _ => panic! s!"{In.node} is not valid dependent function"
-end
 
 def accessIsRead (pt : PhraseType) : Bool :=
     match pt with
@@ -56,11 +29,8 @@ def getAccess (pt : PhraseType) : DAnnotation :=
         | .expr _ rw => rw
         | _ => panic! s!"something went wrong, this should be an expr type"
 
-def applyCon (Con phrase : DPIAPhrase) : DPIAPhrase := -- what if lambda is a identifier
-    -- match Con.node with
-    --     | .lam name _ body => substitutePhraseInPhrase phrase body name
-    --     | _ => panic! s!"the Continuation should be a lambda but is {Con}, meanwhile the phrase is {phrase}"
-    applySubstitution Con phrase
+def applyCon (Con phrase : DPIAPhrase) : DPIAPhrase :=
+    betaReduction Con phrase
 
 def atExpr (e index : DPIAPhrase) : DPIAPhrase :=
     match index.type,e.type with
@@ -82,12 +52,6 @@ def atVec (e index : DPIAPhrase) : DPIAPhrase :=
 
 def mkVar (dt : RData) : PhraseType := .phrasePair (.expr dt .read) (.acc dt)
 
--- def getFromEnv (env : List ((Name × Nat) × (Name × Nat))) (idx : Nat) (name : Name) : DPIAPhraseNode :=
---     match env with
---         | [] => panic! s!"the key pair ({name},{idx}) was not found in the env"
---         | ((keyName, keyIndex), (valueName, valueIndex)) :: ys => if keyName.toString == name.toString && keyIndex == idx
---                                                                     then .bvar valueIndex valueName
---                                                                     else getFromEnv ys idx name
 def getFromEnv (env : Env) (idx : Nat) (name : Name) : DPIAPhrase :=
     match env with
         | [] => panic! s!"the key pair ({name},{idx}) was not found in the env"
@@ -113,26 +77,15 @@ def getInputDataType (functionalType : PhraseType) : PhraseType :=
                                 | _ => panic! s!"the input type is supposed to be an acc[dt] type"
         | _ => panic! s!"this is no function type"
 
----------------- modifyable state --------------------
--- structure InferState where
---   Counter : Nat := 0                                      -- counter for unique names
---   depth : Nat := 0
 
--- abbrev InferM := StateT InferState (Except String)
-
--- def getFreshIdentifier (name : String := "tmp") : InferM String := do
---   let cstate : InferState ← get
---   set { cstate with Counter := cstate.Counter + 1}
---   return s!"{name}_{cstate.Counter}"
-
------------------------------------------------------
+--------------------------------------- helper functions end -------------------------------------
 
 mutual
 partial def acc (E A : DPIAPhrase) (counter : Nat): DPIAPhrase :=
     match E.node with
-        | .app fn arg => let sub := applySubstitution fn arg
+        | .app fn arg => let sub := betaReduction fn arg
                          acc sub A counter
-        | .depapp fn arg => let sub := applyDepSubstitution fn arg
+        | .depapp fn arg => let sub := dependentBetaReduction fn arg
                             acc sub A counter
         | e =>
             if accessIsRead E.type && notContainingArrayType (getDataType E.type)
@@ -142,7 +95,7 @@ partial def acc (E A : DPIAPhrase) (counter : Nat): DPIAPhrase :=
                         | _ => con E (fun a => (assignByType (getDataType E.type) A a)) counter
                 else match E.node with
                         | .lit _ => assignByType (getDataType E.type) A E
-                        | .bvar _ _ =>  assignByType (getDataType E.type) A E -- at some point i need unique names
+                        | .bvar _ _ =>  assignByType (getDataType E.type) A E
                         | .functional func => functionalAcc func E.type A counter
                         | .ifThenElse cond thenP elseP => con cond (fun cont => mkIfThenElse .comm cont (acc thenP A counter) (acc elseP A counter)) counter
                         | _ => panic! s!"\n{E.node} is not valid in an acceptor"
@@ -285,9 +238,9 @@ partial def con (E : DPIAPhrase) (C : DPIAPhrase → DPIAPhrase) (counter : Nat)
         | .lit _ => C E -- C(val)
 --        | .imperative imp => imperativeCon imp E.type C
         | .functional func => functionalCon func E.type C counter
-        | .app fn arg => let sub := applySubstitution fn arg
+        | .app fn arg => let sub := betaReduction fn arg
                          con sub C counter
-        | .depapp fn arg => let sub := applyDepSubstitution fn arg
+        | .depapp fn arg => let sub := dependentBetaReduction fn arg
                             con sub C counter
         | .ifThenElse cond thenP elseP => let ifThenElse :=  fun cont => {node := .ifThenElse cont (con thenP C counter) (con elseP C counter), type := .comm : DPIAPhrase}
                                           --let cont := mkLam (.fn cond.type .comm) (mkName "x") cond.type ifThenElse
@@ -444,9 +397,9 @@ partial def fedAcc (env : Env) (E C : DPIAPhrase) (counter : Nat): DPIAPhrase :=
     match E.node with
         | .functional func => functionalFed env func C counter
         | .bvar idx name => applyCon C (getFromEnv env idx name)
-        | .app fn arg => let sub := applySubstitution fn arg
+        | .app fn arg => let sub := betaReduction fn arg
                          fedAcc env sub C counter
-        | .depapp fn arg => let sub := applyDepSubstitution fn arg
+        | .depapp fn arg => let sub := dependentBetaReduction fn arg
                             fedAcc env sub C counter
         | .ifThenElse _ _ _ =>  panic! s!"{E.node} is not valid in an fedAcc"
         | .proj1 _ | .proj2 _ => panic! s!"{E.node} is not valid in an fedAcc"
@@ -534,9 +487,9 @@ partial def functionalFed (env : Env) (func : FunctionalPrimitives) (C : DPIAPhr
 partial def str (E C : DPIAPhrase) (counter : Nat): DPIAPhrase :=
     match E.node with
         | .functional func => functionalStr func E.type C counter
-        | .app fn arg => let sub := applySubstitution fn arg
+        | .app fn arg => let sub := betaReduction fn arg
                          str sub C counter
-        | .depapp fn arg => let sub := applyDepSubstitution fn arg
+        | .depapp fn arg => let sub := dependentBetaReduction fn arg
                             str sub C counter
         | _ => translateArrayToStream E C
 
