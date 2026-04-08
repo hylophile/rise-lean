@@ -1,6 +1,8 @@
 import DPIA.Basic
 import Rise.Basic
 
+------------------- substitute in functional and imperative ---------------------------
+
 -- hopefully I will be able to reuse it
 def substituteInFunctional (In : FunctionalPrimitives) (phraseFn : DPIAPhrase → DPIAPhrase) (dataFn : RData → RData) (natFn : RNat → RNat): FunctionalPrimitives :=
   match In with
@@ -109,30 +111,18 @@ def substituteInImperative (In : ImperativePrimitives) (phraseFn : DPIAPhrase �
     | .dMatchI x elemT outT f input => .dMatchI (natFn x) (dataFn elemT) (dataFn outT) (phraseFn f) (phraseFn input)
     | .seq c1 c2 => .seq (phraseFn c1) (phraseFn c2)
 
-def phraseSize (phrase : DPIAPhrase) : Nat :=
-  match phrase with
-    | ⟨.bvar ..,_⟩ => 1
-    | ⟨.imperative _,_⟩ => 1 -- not correkt like this
-    | ⟨.functional _,_⟩ => 1 -- not correkt like this
-    | ⟨.lit _,_⟩ => 1
-    | ⟨.app fn arg,_⟩ => 1 + phraseSize fn + phraseSize arg
-    | ⟨.depapp fn _,_⟩ => 1 + phraseSize fn
-    | ⟨.lam _ _ body,_⟩ =>  1 + phraseSize body
-    | ⟨.deplam _ _ body,_⟩ => 1 + phraseSize body
-    | ⟨.pair fst snd,_⟩ =>  1 + phraseSize fst + phraseSize snd
-    | ⟨.proj1 p,_⟩ => 1 + phraseSize p
-    | ⟨.proj2 p,_⟩ => 1 + phraseSize p
-    | ⟨.ifThenElse cond thenP elseP,_⟩ => 1 + phraseSize cond + phraseSize thenP + phraseSize elseP
 
 
--- substitute annotations in DAnnotations
+
+----------------- substitute annotations -------------------
+-- in DAnnotations
 def substituteAnnotationA (a : DAnnotation) (name : Lean.Name) (key : DAnnotation) : DAnnotation :=
   match a with
     | .identifier userName => if userName == name then key else a
     | .read => a
     | .write => a
 
--- substitute annotations in PhraseTypes
+-- in PhraseTypes
 def substituteAnnotationPt (pt : PhraseType) (name : Lean.Name) (key : DAnnotation) : PhraseType :=
   match pt with
     | .expr dt rw => PhraseType.expr dt (substituteAnnotationA rw name key)
@@ -142,6 +132,12 @@ def substituteAnnotationPt (pt : PhraseType) (name : Lean.Name) (key : DAnnotati
     | .fn binderType body => PhraseType.fn (substituteAnnotationPt binderType name key) (substituteAnnotationPt body name key)
     | .phrasePair p1 p2 => PhraseType.phrasePair (substituteAnnotationPt p1 name key) (substituteAnnotationPt p2 name key)
 
+
+
+
+---------------------- substitute Data ------------------
+
+--in Data
 def substituteDataInData (dt : RData) (For : Lean.Name) (In : RData) (depth : Nat): RData :=
   match In with
     | .bvar index userName => if userName.toString == For.toString && depth == index
@@ -155,6 +151,40 @@ def substituteDataInData (dt : RData) (For : Lean.Name) (In : RData) (depth : Na
     | .vector n vDt => RData.vector n (substituteDataInData dt For vDt depth)
     | _ => panic! s!"that should never happen"
 
+-- in PhraseTypes
+def substituteDataInPtHelper (sN : RData) (For : Lean.Name) (In : PhraseType) (depth : Nat): PhraseType :=
+  match In with
+    | .expr dt rw => let nDt := substituteDataInData sN For dt depth
+                    PhraseType.expr nDt rw
+    | .comm => In
+    | .acc dt => let nDt := substituteDataInData sN For dt depth
+                PhraseType.acc nDt
+    | .pi binderKind userName body => let nBody := substituteDataInPtHelper sN For body (depth +1)
+                                     PhraseType.pi binderKind userName nBody
+    | .fn binderType body => let nBinderType := substituteDataInPtHelper sN For binderType depth
+                            let nBody := substituteDataInPtHelper sN For body depth
+                            PhraseType.fn nBinderType nBody
+    | .phrasePair p1 p2 => let nP1 := substituteDataInPtHelper sN For p1 depth
+                          let nP2 := substituteDataInPtHelper sN For p2 depth
+                          PhraseType.phrasePair nP1 nP2
+
+def substituteDataInPhraseType (sN : RData) (For : Lean.Name) (In : PhraseType) : PhraseType :=
+  substituteDataInPtHelper sN For In 0
+
+-- in RType
+def substituteDataInRType (data : RData) (For : Lean.Name) (In : RType) (depth : Nat) : RType :=
+  match In with
+    | .data dt => .data (substituteDataInData data For dt depth)
+    | .pi binderKind binderInfo userName body => .pi binderKind binderInfo userName (substituteDataInRType data For body depth)
+    | .fn binderType body => .fn (substituteDataInRType data For binderType depth) (substituteDataInRType data For body depth)
+
+
+
+
+
+-------------------------- substitute Nat ------------------------
+
+-- in Data
 def substituteNatInData (n : RNat) (For : Lean.Name) (In : RData) (depth : Nat): RData :=
   match In with
     | .bvar index userName => if userName.toString == For.toString && depth == index then RData.natType else In
@@ -166,78 +196,51 @@ def substituteNatInData (n : RNat) (For : Lean.Name) (In : RData) (depth : Nat):
     | .vector n vDt => RData.vector n (substituteNatInData n For vDt depth)
     | _ => panic! s!"that should never happen"
 
-
--- def substituteInPhraseType (sM : RData ⊕ RNat) (For : Lean.Name) (In : PhraseType) : PhraseType :=
---   match In with
---     | .expr dt rw => match sM with
---                       | (sD : RData) => let nDt := substituteDataInData sD For dt
---                                         PhraseType.expr nDt rw
---                       | (sN : RNat) => let nDt := substituteNatInData sN For dt
---                                        PhraseType.expr nDt rw
---                       | _ => panic! s!"Type not supportet yet"
---     | .comm => In
---     | .acc dt => let nDt := substituteDataInData sN For dt
---                 PhraseType.acc nDt
---     | .pi binderKind userName body => let nBody := substituteInPhraseType α sN For body
---                                      PhraseType.pi binderKind userName nBody
---     | .fn binderType body => let nBinderType := substituteInPhraseType α sN For binderType
---                             let nBody := substituteInPhraseType α sN For body
---                             PhraseType.fn nBinderType nBody
---     | .phrasePair p1 p2 => let nP1 := substituteInPhraseType α sN For p1
---                           let nP2 := substituteInPhraseType α sN For p2
---                           PhraseType.phrasePair nP1 nP2
-
-def substituteDataInPhraseTypeHelper (sN : RData) (For : Lean.Name) (In : PhraseType) (depth : Nat): PhraseType :=
+-- in Nat
+partial def substituteNatInNat (num: RNat) (For : Lean.Name) (In: RNat) (depth : Nat) : RNat :=
   match In with
-    | .expr dt rw => let nDt := substituteDataInData sN For dt depth
-                    PhraseType.expr nDt rw
-    | .comm => In
-    | .acc dt => let nDt := substituteDataInData sN For dt depth
-                PhraseType.acc nDt
-    | .pi binderKind userName body => let nBody := substituteDataInPhraseTypeHelper sN For body (depth +1)
-                                     PhraseType.pi binderKind userName nBody
-    | .fn binderType body => let nBinderType := substituteDataInPhraseTypeHelper sN For binderType depth
-                            let nBody := substituteDataInPhraseTypeHelper sN For body depth
-                            PhraseType.fn nBinderType nBody
-    | .phrasePair p1 p2 => let nP1 := substituteDataInPhraseTypeHelper sN For p1 depth
-                          let nP2 := substituteDataInPhraseTypeHelper sN For p2 depth
-                          PhraseType.phrasePair nP1 nP2
+    | .bvar idx name => if name.toString == For.toString && depth == idx then num else In
+    | .nat _ => In
+    | .plus n m => .plus (substituteNatInNat n For In depth) (substituteNatInNat m For In depth)
+    | .minus n m => .minus (substituteNatInNat n For In depth) (substituteNatInNat m For In depth)
+    | .mult n m => .mult (substituteNatInNat n For In depth) (substituteNatInNat m For In depth)
+    | .div n m => .div (substituteNatInNat n For In depth) (substituteNatInNat m For In depth)
+    | .pow n m => .pow (substituteNatInNat n For In depth) (substituteNatInNat m For In depth)
+    | _ => panic! s!"there should not be any mvars anymore"
 
-def substituteDataInPhraseType (sN : RData) (For : Lean.Name) (In : PhraseType) : PhraseType :=
-  substituteDataInPhraseTypeHelper sN For In 0
-
-def substituteNatInPhraseTypeHelper (sN : RNat) (For : Lean.Name) (In : PhraseType) (depth : Nat) : PhraseType :=
+-- in PhraseTypes
+def substituteNatInPtHelper (sN : RNat) (For : Lean.Name) (In : PhraseType) (depth : Nat) : PhraseType :=
   match In with
     | .expr dt rw => let nDt := substituteNatInData sN For dt depth
                     PhraseType.expr nDt rw
     | .comm => In
     | .acc dt => let nDt := substituteNatInData sN For dt depth
                 PhraseType.acc nDt
-    | .pi binderKind userName body => let nBody := substituteNatInPhraseTypeHelper sN For body (depth +1)
+    | .pi binderKind userName body => let nBody := substituteNatInPtHelper sN For body (depth +1)
                                      PhraseType.pi binderKind userName nBody
-    | .fn binderType body => let nBinderType := substituteNatInPhraseTypeHelper sN For binderType depth
-                            let nBody := substituteNatInPhraseTypeHelper sN For body depth
+    | .fn binderType body => let nBinderType := substituteNatInPtHelper sN For binderType depth
+                            let nBody := substituteNatInPtHelper sN For body depth
                             PhraseType.fn nBinderType nBody
-    | .phrasePair p1 p2 => let nP1 := substituteNatInPhraseTypeHelper sN For p1 depth
-                          let nP2 := substituteNatInPhraseTypeHelper sN For p2 depth
+    | .phrasePair p1 p2 => let nP1 := substituteNatInPtHelper sN For p1 depth
+                          let nP2 := substituteNatInPtHelper sN For p2 depth
                           PhraseType.phrasePair nP1 nP2
 
 def substituteNatInPhraseType (sN : RNat) (For : Lean.Name) (In : PhraseType) : PhraseType :=
-  substituteNatInPhraseTypeHelper sN For In 0
+  substituteNatInPtHelper sN For In 0
 
+-- in RType
 def substituteNatInRType (sN : RNat) (For : Lean.Name) (In : RType) (depth : Nat) : RType :=
   match In with
     | .data dt => .data (substituteNatInData sN For dt depth)
     | .pi binderKind binderInfo userName body => .pi binderKind binderInfo userName (substituteNatInRType sN For body depth)
     | .fn binderType body => .fn (substituteNatInRType sN For binderType depth) (substituteNatInRType sN For body depth)
 
-def substituteDataInRType (data : RData) (For : Lean.Name) (In : RType) (depth : Nat) : RType :=
-  match In with
-    | .data dt => .data (substituteDataInData data For dt depth)
-    | .pi binderKind binderInfo userName body => .pi binderKind binderInfo userName (substituteDataInRType data For body depth)
-    | .fn binderType body => .fn (substituteDataInRType data For binderType depth) (substituteDataInRType data For body depth)
 
--- for lamdas
+
+
+
+------------------ substitute Phrases -----------------------
+-- in Phrases
 partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.Name) (depth : Nat): DPIAPhrase :=
   match In.node with
     | .bvar deBruijnIndex userName => if userName == For && deBruijnIndex == depth then phrase
@@ -265,23 +268,50 @@ partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.
                                       let sThenP := substitutePhraseInPhraseHelper phrase thenP For depth
                                       let sElseP := substitutePhraseInPhraseHelper phrase elseP For depth
                                       {node := .ifThenElse sCond sThenP sElseP, type := In.type : DPIAPhrase}
---termination_by phraseSize In
 
 def substitutePhraseInPhrase (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
   substitutePhraseInPhraseHelper phrase In For 0
 
-def substituteDWrapper (depArg : DWrapper) (In : PhraseType) (For : Lean.Name) (depth : Nat) : PhraseType:=
+
+
+
+
+------------------- substitute DWrapper -----------------------
+
+-- in PhraseTypes
+def substituteDWrapperPt (depArg : DWrapper) (In : PhraseType) (For : Lean.Name) (depth : Nat) : PhraseType:=
   match depArg with
-    | .rise (.nat n) => substituteNatInPhraseTypeHelper n For In depth
-    | .rise (.data d) => substituteDataInPhraseTypeHelper d For In depth
+    | .rise (.nat n) => substituteNatInPtHelper n For In depth
+    | .rise (.data d) => substituteDataInPtHelper d For In depth
     | _ => panic! s!"other wrapper types but nat data and readwrite are not implemented yet"
 
+-- in Data
+def substituteDWrapperD (depArg : DWrapper) (In : RData) (For : Lean.Name) (depth : Nat) : RData :=
+  match depArg with
+    | .rise (.nat n) => substituteNatInData n For In depth
+    | .rise (.data d) => substituteDataInData d For In depth
+    | _ => panic! s!"other wrapper types but nat data and readwrite are not implemented yet"
+
+-- in Nat
+def substituteDWrapperN (depArg : DWrapper) (In : RNat) (For : Lean.Name) (depth : Nat) : RNat :=
+  match depArg with
+    | .rise (.nat n) => substituteNatInNat n For In depth
+    | .rise (.data _) =>  panic! s!"it is not possible to substitute data in nat"
+    | _ => panic! s!"other wrapper types but nat data and readwrite are not implemented yet"
+
+-- in Phrases
 partial def substituteDWrapperInPhraseHelper (depArg : DWrapper) (In : DPIAPhrase) (For : Lean.Name) (depth : Nat): DPIAPhrase :=
-  let pt := substituteDWrapper depArg In.type For depth
+  let pt := substituteDWrapperPt depArg In.type For depth
   match In.node with
     | .bvar _ _ => {node := In.node, type := pt}
-    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substituteDWrapperInPhraseHelper depArg x For depth) (fun x => x) (fun x => x)), type := pt}
-    | .functional func => {node := .functional (substituteInFunctional func (fun x => substituteDWrapperInPhraseHelper depArg x For depth) (fun x => x) (fun x => x)), type := pt}
+    | .imperative imp => {node := .imperative (substituteInImperative imp
+                                                                      (fun x => substituteDWrapperInPhraseHelper depArg x For depth)
+                                                                      (fun x => substituteDWrapperD depArg x For depth)
+                                                                      (fun x => substituteDWrapperN depArg x For depth)), type := pt}
+    | .functional func => {node := .functional (substituteInFunctional func
+                                                                       (fun x => substituteDWrapperInPhraseHelper depArg x For depth)
+                                                                       (fun x => substituteDWrapperD depArg x For depth)
+                                                                       (fun x => substituteDWrapperN depArg x For depth)), type := pt}
     | .lit _ => {node := In.node, type := pt}
     | .app fn arg => let sFn := substituteDWrapperInPhraseHelper depArg fn For depth
                      let sArg := substituteDWrapperInPhraseHelper depArg arg For depth
@@ -289,7 +319,7 @@ partial def substituteDWrapperInPhraseHelper (depArg : DWrapper) (In : DPIAPhras
     | .depapp fn arg => let sFn := substituteDWrapperInPhraseHelper depArg fn For depth
                         {node := .depapp sFn arg, type := pt : DPIAPhrase}
     | .lam binderName binderType body =>  let sBody := substituteDWrapperInPhraseHelper depArg body For depth
-                                          let sBinderType := substituteDWrapper depArg binderType For depth
+                                          let sBinderType := substituteDWrapperPt depArg binderType For depth
                                           {node := .lam binderName sBinderType sBody, type := pt}
     | .deplam binderName binderKind body => let sBody := substituteDWrapperInPhraseHelper depArg body For (depth+1)
                                             {node := .deplam binderName binderKind sBody, type := pt : DPIAPhrase}
@@ -304,29 +334,6 @@ partial def substituteDWrapperInPhraseHelper (depArg : DWrapper) (In : DPIAPhras
                                       let sThenP := substituteDWrapperInPhraseHelper depArg thenP For depth
                                       let sElseP := substituteDWrapperInPhraseHelper depArg elseP For depth
                                       {node := .ifThenElse sCond sThenP sElseP, type := pt : DPIAPhrase}
---termination_by phraseSize In
 
 def substituteDWrapperInPhrase (depArg : DWrapper) (In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
   substituteDWrapperInPhraseHelper depArg In For 0
-
-
-
-def phraseTypeSize (pt : PhraseType) : Nat :=
-  match pt with
-    | .expr _ _ => 1
-    | .comm => 1
-    | .acc _ => 1
-    | .pi _ _ body => 1 + phraseTypeSize body
-    | .fn binderType body => 1 +  phraseTypeSize binderType + phraseTypeSize body
-    | .phrasePair p1 p2 => 1 + phraseTypeSize p1 + phraseTypeSize p2
-
-
-def RExprSize (rt : RExpr) : Nat :=
-  match rt with
-    | ⟨.bvar _ _,_⟩ => 1
-    | ⟨.const _,_⟩ => 1
-    | ⟨.lit _, _⟩ => 1
-    | ⟨.app fn arg,_⟩ => 1 + RExprSize fn + RExprSize arg
-    | ⟨.depapp fn _,_⟩ => 1 + RExprSize fn
-    | ⟨.lam _ _ body,_⟩ => 1 + RExprSize body
-    | ⟨.deplam _ _ body,_⟩ => 1 + RExprSize body
