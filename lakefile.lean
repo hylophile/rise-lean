@@ -17,6 +17,11 @@ lean_lib DPIA where
   -- This enables the interpreter to run functions marked `@[extern]`.
   --precompileModules := true
 
+lean_lib C where
+  -- This enables the interpreter to run functions marked `@[extern]`.
+  --precompileModules := true
+
+
 -- lean_lib Elevate where
 --   -- This enables the interpreter to run functions marked `@[extern]`.
   -- precompileModules := true

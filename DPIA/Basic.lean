@@ -69,6 +69,7 @@ inductive DPIAPhraseNode where
   | proj1 (p: DPIAPhrase)
   | proj2 (p: DPIAPhrase)
   | ifThenElse (cond thenP elseP: DPIAPhrase)
+  | natural (d : RNat)
 deriving Repr, BEq
 
 
@@ -247,6 +248,7 @@ deriving Repr, BEq
 
 end
 
+
 ------------ inhabited ------------------------- for throwing errors
 instance : Inhabited DPIAPhrase :=
   ⟨{node := DPIAPhraseNode.bvar 0 (Lean.Name.mkSimple "dummy"), type := PhraseType.comm : DPIAPhrase}⟩
@@ -273,6 +275,21 @@ instance : Inhabited (RExprWith PhraseType) :=
   ⟨{node := .lit (.bool false), type := PhraseType.comm : RExprPt}⟩
 
 ------------ Representations ----------------------
+
+def getNat : RNat → Nat
+  | .nat n => n
+  | .plus n m => getNat n + getNat m
+  | .minus n m => getNat n - getNat m
+  | .mult n m =>  getNat n * getNat m
+  | .div n m => getNat n / getNat m
+  | .pow n m => getNat n ^ getNat m
+  | _ => panic! s!"cannot calculate the nat from an identifier"
+
+def getTotalNumberOfElements : RData → RNat
+  | .scalar _ | .index _ | .natType | .vector _ _=> .nat 1
+  | .pair _ _ => .nat 1
+  | .array n dt => .mult (getTotalNumberOfElements dt) n
+  | _ => panic! s!"cannot specify the total number of elements for an identifier"
 
 -- modified from Nate
 instance : ToString DKind where
@@ -314,6 +331,13 @@ def assertFunctionTypePt (exprT: PhraseType) : PhraseType :=
     | .fn _ _ => exprT
     | _ => panic! s!"THis should never happen"
 
+def getDataType (exprT: PhraseType) : RData :=
+  match exprT with
+    | .expr dt _ => dt
+    | .acc dt => dt
+    | .pi _ _ body => getDataType body
+    | .fn _ body => getDataType body
+    | _ => panic! s!"this should not happen, cannot determine the datatype"
 
 -- modified from Nate
 def PhraseType.toString : PhraseType → String
@@ -462,6 +486,7 @@ partial def DPIAPhraseNode.render : DPIAPhraseNode  → Std.Format
   | .proj1 p => s!"proj1 " ++ p.node.render
   | .proj2 p => s!"proj2 " ++ p.node.render
   | .ifThenElse cond thenP elseP => s!"if {cond.node.render}: \n {thenP.node.render}\n else: \n {elseP.node.render}" --TODO
+  | .natural n => s!"{n}"
 
 end
 
