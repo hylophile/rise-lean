@@ -16,13 +16,6 @@ def accessIsRead (pt : PhraseType) : Bool :=
         | .fn _ body => accessIsRead body
         | _ => false
 
-def getDataType (pt : PhraseType) : RData :=
-    match pt with
-        | .expr dt _ => dt
-        | .fn _ body => getDataType body
-        | .pi _ _ body => getDataType body
-        | .acc dt => dt
-        | _ => panic! s!"something went wrong, this should be an expr type but is {pt}"
 
 def getAccess (pt : PhraseType) : DAnnotation :=
     match pt with

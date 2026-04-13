@@ -70,30 +70,18 @@ def getDepArgs (name : Name) (idx : Nat) : InferM Lean.Name := do
 
 def natRenaming (nat : RNat) : InferM RNat := do
     match nat with
-        | .bvar idx name => let n ← getDepArgs name idx
-                            return .bvar idx n
+        | .bvar idx name => return .bvar idx (← getDepArgs name idx)
         | .nat _ => return nat
-        | .plus n m =>  let x ← natRenaming n
-                        let y ← natRenaming m
-                        return .plus x y
-        | .minus n m => let x ← natRenaming n
-                        let y ← natRenaming m
-                        return .minus x y
-        | .mult n m => let x ← natRenaming n
-                       let y ← natRenaming m
-                       return .mult x y
-        | .div n m => let x ← natRenaming n
-                      let y ← natRenaming m
-                      return .div x y
-        | .pow n m => let x ← natRenaming n
-                      let y ← natRenaming m
-                      return .pow x y
+        | .plus n m =>  return .plus (← natRenaming n) (← natRenaming m)
+        | .minus n m => return .minus (← natRenaming n) (← natRenaming m)
+        | .mult n m => return .mult (← natRenaming n) (← natRenaming m)
+        | .div n m => return .div (← natRenaming n) (← natRenaming m)
+        | .pow n m => return .pow (← natRenaming n) (← natRenaming m)
         | _ => panic! s!"there should be no mvars naymore"
 
 def dataRenaming (dt : RData): InferM RData := do
     match dt with
-        | .bvar idx name => let n ← getDepArgs name idx
-                            return .bvar idx n
+        | .bvar idx name => return .bvar idx (← getDepArgs name idx)
         | .array n dt => let num ← natRenaming n
                          let d ← dataRenaming dt
                          return .array num d
@@ -110,19 +98,12 @@ def dataRenaming (dt : RData): InferM RData := do
 
 def typeRenaming (pt : PhraseType): InferM PhraseType := do
     match pt with
-        | .expr dt a => let d ← dataRenaming dt
-                        return .expr d a
+        | .expr dt a => return .expr (← dataRenaming dt) a
         | .comm => return .comm
-        | .acc dt => let d ← dataRenaming dt
-                     return .acc d
-        | .pi n k body => let b ← typeRenaming body
-                          return .pi n k b
-        | .fn binderType body => let bt ← typeRenaming binderType
-                                 let b ← typeRenaming body
-                                 return .fn bt b
-        | .phrasePair p1 p2 =>  let f ← typeRenaming p1
-                                let s ← typeRenaming p2
-                                return .phrasePair s f
+        | .acc dt => return .acc (← dataRenaming dt)
+        | .pi n k body => return .pi n k (← typeRenaming body)
+        | .fn binderType body => return .fn (← typeRenaming binderType) (← typeRenaming body)
+        | .phrasePair p1 p2 =>  return .phrasePair (← typeRenaming p1) (← typeRenaming p2)
 
 def matchDepLam (p : DPIAPhrase): InferM Lean.Name := do
     match p.node with
@@ -132,455 +113,320 @@ def matchDepLam (p : DPIAPhrase): InferM Lean.Name := do
 mutual
 partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM FunctionalPrimitives := do
   match In with
-    | .id val => let v ← uniqueRenamingHelper val
-                 return .id v
-    | .neg val => let v ← uniqueRenamingHelper val
-                  return .neg v
-    | .add lhs rhs => let x ← uniqueRenamingHelper lhs
-                      let y ← uniqueRenamingHelper rhs
-                      return .add x y
-    | .sub lhs rhs => let x ← uniqueRenamingHelper lhs
-                      let y ← uniqueRenamingHelper rhs
-                      return .sub x y
-    | .mul lhs rhs => let x ← uniqueRenamingHelper lhs
-                      let y ← uniqueRenamingHelper rhs
-                      return .mul x y
-    | .div lhs rhs => let x ← uniqueRenamingHelper lhs
-                      let y ← uniqueRenamingHelper rhs
-                      return .div x y
-    | .mod lhs rhs => let x ← uniqueRenamingHelper lhs
-                      let y ← uniqueRenamingHelper rhs
-                      return .mod x y
-    | .not val => let v ← uniqueRenamingHelper val
-                  return .not v
-    | .gt lhs rhs => let x ← uniqueRenamingHelper lhs
-                     let y ← uniqueRenamingHelper rhs
-                     return .gt x y
-    | .lt lhs rhs => let x ← uniqueRenamingHelper lhs
-                     let y ← uniqueRenamingHelper rhs
-                     return .lt x y
-    | .equal lhs rhs => let x ← uniqueRenamingHelper lhs
-                        let y ← uniqueRenamingHelper rhs
-                        return .equal x y
-    | .cast s t x => let sd ← dataRenaming s
-                     let td ← dataRenaming t
-                     let p ← uniqueRenamingHelper x
-                     return .cast sd td p
-    | .indexAsNat n idx => let num ← natRenaming n
-                           let i ← uniqueRenamingHelper idx
-                           return .indexAsNat num i
-    | .natAsIndex n idx =>  let num ← natRenaming n
-                            let i ← uniqueRenamingHelper idx
-                            return .natAsIndex num i
-    | .rlet s t a f val =>  let sd ← dataRenaming s
-                            let td ← dataRenaming t
-                            let fn ← uniqueRenamingHelper f
-                            let v ← uniqueRenamingHelper val
-                            return .rlet sd td a fn v
-    | .toMem t input => let td ← dataRenaming t
-                        let i ← uniqueRenamingHelper input
-                        return .toMem td i
-    | .generate n t f  => let num ← natRenaming n
-                          let td ← dataRenaming t
-                          let fn ← uniqueRenamingHelper f
-                          return .generate num td fn
-    | .idx n t idx array => let num ← natRenaming n
-                            let td ← dataRenaming t
-                            let i ← uniqueRenamingHelper idx
-                            let a ← uniqueRenamingHelper array
-                            return .idx num td i a
+    | .id val => return .id (← uniqueRenamingHelper val)
+    | .neg val => return .neg (← uniqueRenamingHelper val)
+    | .add lhs rhs => return .add (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .sub lhs rhs => return .sub (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .mul lhs rhs => return .mul (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .div lhs rhs => return .div (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .mod lhs rhs => return .mod (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .not val => return .not (← uniqueRenamingHelper val)
+    | .gt lhs rhs => return .gt (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .lt lhs rhs => return .lt (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .equal lhs rhs => return .equal (← uniqueRenamingHelper lhs) (← uniqueRenamingHelper rhs)
+    | .cast s t x => return .cast
+                                (← dataRenaming s)  (← dataRenaming t)
+                                (← uniqueRenamingHelper x)
+    | .indexAsNat n idx => return .indexAsNat (← natRenaming n) (← uniqueRenamingHelper idx)
+    | .natAsIndex n idx =>  return .natAsIndex (← natRenaming n) (← uniqueRenamingHelper idx)
+    | .rlet s t a f val =>  return .rlet
+                                        (← dataRenaming s) (← dataRenaming t) a
+                                        (← uniqueRenamingHelper f) (← uniqueRenamingHelper val)
+    | .toMem t input => return .toMem (← dataRenaming t) (← uniqueRenamingHelper input)
+    | .generate n t f  => return .generate
+                                    (← natRenaming n)
+                                    (← dataRenaming t)
+                                    (← uniqueRenamingHelper f)
+    | .idx n t idx array => return .idx
+                                    (← natRenaming n)
+                                    (← dataRenaming t)
+                                    (← uniqueRenamingHelper idx) (← uniqueRenamingHelper array)
     | .depIdx ..  => return In -- needs to be fixed at some point
-    | .idxVec n t idx vec  => let num ← natRenaming n
-                              let td ← dataRenaming t
-                              let i ← uniqueRenamingHelper idx
-                              let v ← uniqueRenamingHelper vec
-                              return .idxVec num td i v
-    | .take n m t array => let num ← natRenaming n
-                           let nm ← natRenaming m
-                           let td ← dataRenaming t
-                           let a ← uniqueRenamingHelper array
-                           return .take num nm td a
-    | .drop n m t array =>  let num ← natRenaming n
-                            let nm ← natRenaming m
-                            let td ← dataRenaming t
-                            let a ← uniqueRenamingHelper array
-                            return .drop num nm td a
-    | .concat n m t nArray mArray => let num ← natRenaming n
-                                     let nm ← natRenaming m
-                                     let td ← dataRenaming t
-                                     let nA ← uniqueRenamingHelper nArray
-                                     let mA ← uniqueRenamingHelper mArray
-                                     return .concat num nm td nA mA
-    | .split n m t a array => let num ← natRenaming n
-                              let nm ← natRenaming m
-                              let td ← dataRenaming t
-                              let arr ← uniqueRenamingHelper array
-                              return .split num nm td a arr
-    | .join n m t a array => let num ← natRenaming n
-                             let nm ← natRenaming m
-                             let td ← dataRenaming t
-                             let arr ← uniqueRenamingHelper array
-                             return .join num nm td a arr
+    | .idxVec n t idx vec  => return .idxVec
+                                        (← natRenaming n)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper idx) (← uniqueRenamingHelper vec)
+    | .take n m t array => return .take
+                                    (← natRenaming n) (← natRenaming m)
+                                    (← dataRenaming t)
+                                    (← uniqueRenamingHelper array)
+    | .drop n m t array =>  return .drop
+                                    (← natRenaming n) (← natRenaming m)
+                                    (← dataRenaming t)
+                                    (← uniqueRenamingHelper array)
+    | .concat n m t nArray mArray => return .concat
+                                                (← natRenaming n) (← natRenaming m)
+                                                (← dataRenaming t)
+                                                (← uniqueRenamingHelper nArray) (← uniqueRenamingHelper mArray)
+    | .split n m t a array => return .split
+                                        (← natRenaming n) (← natRenaming m)
+                                        (← dataRenaming t) a
+                                        (← uniqueRenamingHelper array)
+    | .join n m t a array => return .join
+                                        (← natRenaming n) (← natRenaming m)
+                                        (← dataRenaming t) a
+                                        (← uniqueRenamingHelper array)
     | .depJoin .. => return In  -- needs to be fixed at some point
-    | .slide n sz sp t array => let num ← natRenaming n
-                                let szn ← natRenaming sz
-                                let spn ← natRenaming sp
-                                let td ← dataRenaming t
-                                let a ← uniqueRenamingHelper array
-                                return .slide num szn spn td a
-    | .circularBuffer n alloc sz s t load array => let num ← natRenaming n
-                                                   let allocN ← natRenaming alloc
-                                                   let szn ← natRenaming sz
-                                                   let sd ← dataRenaming s
-                                                   let td ← dataRenaming t
-                                                   let loadP ← uniqueRenamingHelper load
-                                                   let a ← uniqueRenamingHelper array
-                                                   return .circularBuffer num allocN szn sd td loadP a
-    | .rotateValues n sz t wrt array => let num ← natRenaming n
-                                        let szn ← natRenaming sz
-                                        let td ← dataRenaming t
-                                        let a ← uniqueRenamingHelper array
-                                        return .rotateValues num szn td wrt a
-    | .transpose n m t a array => let num ← natRenaming n
-                                  let nm ← natRenaming m
-                                  let td ← dataRenaming t
-                                  let arr ← uniqueRenamingHelper array
-                                  return .transpose num nm td a arr
-    | .cycle n m  t array  => let num ← natRenaming n
-                              let nm ← natRenaming m
-                              let td ← dataRenaming t
-                              let arr ← uniqueRenamingHelper array
-                              return .cycle num nm td arr
+    | .slide n sz sp t array => return .slide
+                                            (← natRenaming n) (← natRenaming sz) (← natRenaming sp)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper array)
+    | .circularBuffer n alloc sz s t load array => return .circularBuffer
+                                                                (← natRenaming n) (← natRenaming alloc) (← natRenaming sz)
+                                                                (← dataRenaming s) (← dataRenaming t)
+                                                                (← uniqueRenamingHelper load) (← uniqueRenamingHelper array)
+    | .rotateValues n sz t wrt array => return .rotateValues
+                                                    (← natRenaming n) (← natRenaming sz)
+                                                    (← dataRenaming t) wrt
+                                                    (← uniqueRenamingHelper array)
+    | .transpose n m t a array => return .transpose
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t) a
+                                            (← uniqueRenamingHelper array)
+    | .cycle n m  t array  => return .cycle
+                                        (← natRenaming n)
+                                        (← natRenaming m) (← dataRenaming t)
+                                        (← uniqueRenamingHelper array)
     | .reorder .. =>  return In  -- needs to be fixed at some point
     | .transposeDepArray .. =>  return In  -- needs to be fixed at some point
-    | .gather n m t idx array => let num ← natRenaming n
-                                 let nm ← natRenaming m
-                                 let td ← dataRenaming t
-                                 let i ← uniqueRenamingHelper idx
-                                 let a ← uniqueRenamingHelper array
-                                 return .gather num nm td i a
-    | .scatter n m t idx array => let num ← natRenaming n
-                                  let nm ← natRenaming m
-                                  let td ← dataRenaming t
-                                  let i ← uniqueRenamingHelper idx
-                                  let a ← uniqueRenamingHelper array
-                                  return .scatter num nm td i a
-    | .padCst n l r t padExpr array =>  let num ← natRenaming n
-                                        let rl ← natRenaming l
-                                        let rn ← natRenaming r
-                                        let td ← dataRenaming t
-                                        let pE ← uniqueRenamingHelper padExpr
-                                        let a ← uniqueRenamingHelper array
-                                        return .padCst num rl rn td pE a
-    | .padClamp n l r t array => let num ← natRenaming n
-                                 let ln ← natRenaming l
-                                 let rn ← natRenaming r
-                                 let td ← dataRenaming t
-                                 let a ← uniqueRenamingHelper array
-                                 return .padClamp num ln rn td a
-    | .padEmpty n r t array =>  let num ← natRenaming n
-                                let rn ← natRenaming r
-                                let td ← dataRenaming t
-                                let a ← uniqueRenamingHelper array
-                                return .padEmpty num rn td a
-    | .zip n s t a sArray tArray => let num ← natRenaming n
-                                    let sd ← dataRenaming s
-                                    let td ← dataRenaming t
-                                    let sA ← uniqueRenamingHelper sArray
-                                    let tA ← uniqueRenamingHelper tArray
-                                    return .zip num sd td a sA tA
-    | .unzip n s t a array  =>  let num ← natRenaming n
-                                let sd ← dataRenaming s
-                                let td ← dataRenaming t
-                                let arr ← uniqueRenamingHelper array
-                                return .unzip num sd td a arr
+    | .gather n m t idx array => return .gather
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper idx) (← uniqueRenamingHelper array)
+    | .scatter n m t idx array => return .scatter
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper idx) (← uniqueRenamingHelper array)
+    | .padCst n l r t padExpr array => return .padCst
+                                                (← natRenaming n) (← natRenaming l) (← natRenaming r)
+                                                (← dataRenaming t)
+                                                (← uniqueRenamingHelper padExpr) (← uniqueRenamingHelper array)
+    | .padClamp n l r t array => return .padClamp
+                                            (← natRenaming n) (← natRenaming l) (← natRenaming r)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper array)
+    | .padEmpty n r t array =>  return .padEmpty
+                                            (← natRenaming n) (← natRenaming r)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper array)
+    | .zip n s t a sArray tArray => return .zip
+                                            (← natRenaming n)
+                                            (← dataRenaming s) (← dataRenaming t) a
+                                            (← uniqueRenamingHelper sArray)
+                                            (← uniqueRenamingHelper tArray)
+    | .unzip n s t a array  =>  return .unzip
+                                        (← natRenaming n)
+                                        (← dataRenaming s) (← dataRenaming t) a
+                                        (← uniqueRenamingHelper array)
     | .depZip ..  =>  return In  -- needs to be fixed at some point
     | .partition .. =>  return In  -- needs to be fixed at some point
-    | .makePair s t a fst snd  => let sd ← dataRenaming s
-                                  let td ← dataRenaming t
-                                  let f ← uniqueRenamingHelper fst
-                                  let sn ← uniqueRenamingHelper snd
-                                  return .makePair sd td a f sn
-    | .fst s t pair =>  let sd ← dataRenaming s
-                        let td ← dataRenaming t
-                        let p ← uniqueRenamingHelper pair
-                        return .fst sd td p
-    | .snd s t pair =>  let sd ← dataRenaming s
-                        let td ← dataRenaming t
-                        let p ← uniqueRenamingHelper pair
-                        return .snd sd td p
-    | .vectorFromScalar n t arg  => let num ← natRenaming n
-                                    let td ← dataRenaming t
-                                    let a ← uniqueRenamingHelper arg
-                                    return .vectorFromScalar num td a
-    | .asVector n m t a array  => let num ← natRenaming n
-                                  let nm ← natRenaming m
-                                  let td ← dataRenaming t
-                                  let arr ← uniqueRenamingHelper array
-                                  return .asVector num nm td a arr
-    | .asVectorAligned n m t a array  => let num ← natRenaming n
-                                         let nm ← natRenaming m
-                                         let td ← dataRenaming t
-                                         let arr ← uniqueRenamingHelper array
-                                         return .asVectorAligned num nm td a arr
-    | .asScalar n m t a array => let num ← natRenaming n
-                                 let nm ← natRenaming m
-                                 let td ← dataRenaming t
-                                 let arr ← uniqueRenamingHelper array
-                                 return .asScalar num nm td a arr
-    | .map n s t a f array => let num ← natRenaming n
-                              let sd ← dataRenaming s
-                              let td ← dataRenaming t
-                              let fn ← uniqueRenamingHelper f
-                              let arr ← uniqueRenamingHelper array
-                              return .map num sd td a fn arr
-    | .mapSeq unroll n s t f array => let num ← natRenaming n
-                                      let sd ← dataRenaming s
-                                      let td ← dataRenaming t
-                                      let fn ← uniqueRenamingHelper f
-                                      let arr ← uniqueRenamingHelper array
-                                      return .mapSeq unroll num sd td fn arr
-    | .mapStream n s t f array  =>  let num ← natRenaming n
-                                    let sd ← dataRenaming s
-                                    let td ← dataRenaming t
-                                    let fn ← uniqueRenamingHelper f
-                                    let arr ← uniqueRenamingHelper array
-                                    return .mapStream num sd td fn arr
-    | .iterateStream n s t f array => let num ← natRenaming n
-                                      let sd ← dataRenaming s
-                                      let td ← dataRenaming t
-                                      let fn ← uniqueRenamingHelper f
-                                      let arr ← uniqueRenamingHelper array
-                                      return .iterateStream num sd td fn arr
+    | .makePair s t a fst snd  => return .makePair
+                                            (← dataRenaming s) (← dataRenaming t) a
+                                            (← uniqueRenamingHelper fst) (← uniqueRenamingHelper snd)
+    | .fst s t pair =>  return .fst
+                                (← dataRenaming s) (← dataRenaming t)
+                                (← uniqueRenamingHelper pair)
+    | .snd s t pair =>  return .snd
+                                (← dataRenaming s) (← dataRenaming t)
+                                (← uniqueRenamingHelper pair)
+    | .vectorFromScalar n t arg  => return .vectorFromScalar
+                                                (← natRenaming n)
+                                                (← dataRenaming t)
+                                                (← uniqueRenamingHelper arg)
+    | .asVector n m t a array  => return .asVector
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t) a
+                                            (← uniqueRenamingHelper array)
+    | .asVectorAligned n m t a array  => return .asVectorAligned
+                                                    (← natRenaming n) (← natRenaming m)
+                                                    (← dataRenaming t) a
+                                                    (← uniqueRenamingHelper array)
+    | .asScalar n m t a array => return .asScalar
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t) a
+                                            (← uniqueRenamingHelper array)
+    | .map n s t a f array => return .map
+                                        (← natRenaming n)
+                                        (← dataRenaming s) (← dataRenaming t) a
+                                        (← uniqueRenamingHelper f) (← uniqueRenamingHelper array)
+    | .mapSeq unroll n s t f array => return .mapSeq unroll
+                                                (← natRenaming n)
+                                                (← dataRenaming s) (← dataRenaming t)
+                                                (← uniqueRenamingHelper f) (← uniqueRenamingHelper array)
+    | .mapStream n s t f array  =>  return .mapStream
+                                                (← natRenaming n)
+                                                (← dataRenaming s) (← dataRenaming t)
+                                                (← uniqueRenamingHelper f) (← uniqueRenamingHelper array)
+    | .iterateStream n s t f array => return .iterateStream
+                                                (← natRenaming n)
+                                                (← dataRenaming s) (← dataRenaming t)
+                                                (← uniqueRenamingHelper f) (← uniqueRenamingHelper array)
     | .depMapSeq .. => return In  -- needs to be fixed at some point
-    | .mapVec n t1 t2 f vec  => let num ← natRenaming n
-                                let t1d ← dataRenaming t1
-                                let t2d ← dataRenaming t2
-                                let fn ← uniqueRenamingHelper f
-                                let v ← uniqueRenamingHelper vec
-                                return .mapVec num t1d t2d fn v
-    | .mapFst s1 t s2 a f pair => let s1d ← dataRenaming s1
-                                  let td ← dataRenaming t
-                                  let s2d ← dataRenaming s2
-                                  let fn ← uniqueRenamingHelper f
-                                  let p ← uniqueRenamingHelper pair
-                                  return .mapFst s1d td s2d a fn p
-    | .mapSnd s t1 t2 a f pair => let sd ← dataRenaming s
-                                  let t1d ← dataRenaming t1
-                                  let t2d ← dataRenaming t2
-                                  let fn ← uniqueRenamingHelper f
-                                  let p ← uniqueRenamingHelper pair
-                                  return .mapSnd sd t1d t2d a fn p
-    | .reduceSeq unroll n  s t f init array  => let num ← natRenaming n
-                                                let sd ← dataRenaming s
-                                                let td ← dataRenaming t
-                                                let fn ← uniqueRenamingHelper f
-                                                let i ← uniqueRenamingHelper init
-                                                let arr ← uniqueRenamingHelper array
-                                                return .reduceSeq unroll num sd td fn i arr
-    | .scanSeq n s t f init array => let num ← natRenaming n
-                                     let sd ← dataRenaming s
-                                     let td ← dataRenaming t
-                                     let fn ← uniqueRenamingHelper f
-                                     let i ← uniqueRenamingHelper init
-                                     let arr ← uniqueRenamingHelper array
-                                     return .scanSeq num sd td fn i arr
-    | .iterate n m k t f array => let num ← natRenaming n
-                                  let nm ← natRenaming m
-                                  let nk ← natRenaming k
-                                  let td ← dataRenaming t
-                                  let fn ← uniqueRenamingHelper f
-                                  let arr ← uniqueRenamingHelper array
-                                  return .iterate num nm nk td fn arr
-    | .depTile n tileSize haloSize t1 t2 processTiles array  => let num ← natRenaming n
-                                                                let tile ← natRenaming tileSize
-                                                                let halo ← natRenaming haloSize
-                                                                let t1d ← dataRenaming t1
-                                                                let t2d ← dataRenaming t2
-                                                                let process ← uniqueRenamingHelper processTiles
-                                                                let arr ← uniqueRenamingHelper array
-                                                                return .depTile num tile halo t1d t2d process arr
-    | .printType msg t a input  =>  let td ← dataRenaming t
-                                    let i ← uniqueRenamingHelper input
-                                    return .printType msg td a i
+    | .mapVec n t1 t2 f vec  => return .mapVec
+                                            (← natRenaming n)
+                                            (← dataRenaming t1) (← dataRenaming t2)
+                                            (← uniqueRenamingHelper f) (← uniqueRenamingHelper vec)
+    | .mapFst s1 t s2 a f pair => return .mapFst
+                                            (← dataRenaming s1) (← dataRenaming t)
+                                            (← dataRenaming s2) a
+                                            (← uniqueRenamingHelper f) (← uniqueRenamingHelper pair)
+    | .mapSnd s t1 t2 a f pair => return .mapSnd
+                                            (← dataRenaming s) (← dataRenaming t1)
+                                            (← dataRenaming t2) a
+                                            (← uniqueRenamingHelper f) (← uniqueRenamingHelper pair)
+    | .reduceSeq unroll n  s t f init array  => return .reduceSeq unroll
+                                                            (← natRenaming n)
+                                                            (← dataRenaming s) (← dataRenaming t)
+                                                            (← uniqueRenamingHelper f) (← uniqueRenamingHelper init) (← uniqueRenamingHelper array)
+    | .scanSeq n s t f init array => return .scanSeq
+                                                (← natRenaming n)
+                                                (← dataRenaming s) (← dataRenaming t)
+                                                (← uniqueRenamingHelper f) (← uniqueRenamingHelper init) (← uniqueRenamingHelper array)
+    | .iterate n m k t f array => return .iterate
+                                            (← natRenaming n) (← natRenaming m) (← natRenaming k)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper f) (← uniqueRenamingHelper array)
+    | .depTile n tileSize haloSize t1 t2 processTiles array  => return .depTile
+                                                                            (← natRenaming n) (← natRenaming tileSize) (← natRenaming haloSize)
+                                                                            (← dataRenaming t1) (← dataRenaming t2)
+                                                                            (← uniqueRenamingHelper processTiles) (← uniqueRenamingHelper array)
+    | .printType msg t a input  => return .printType msg
+                                                (← dataRenaming t) a
+                                                (← uniqueRenamingHelper input)
 
 partial def uniqueRenaminfImperative (In : ImperativePrimitives): InferM ImperativePrimitives := do
   match In with
-    | .asScalarAcc n m t array => let num ← natRenaming n
-                                  let nm ← natRenaming m
-                                  let td ← dataRenaming t
-                                  let arr ← uniqueRenamingHelper array
-                                  return .asScalarAcc num nm td arr
-    | .assign t lhs rhs =>  let td ← dataRenaming t
-                            let l ← uniqueRenamingHelper lhs
-                            let r ← uniqueRenamingHelper rhs
-                            return .assign td l r
-    | .asVectorAcc n m t array => let num ← natRenaming n
-                                  let nm ← natRenaming m
-                                  let td ← dataRenaming t
-                                  let arr ← uniqueRenamingHelper array
-                                  return .asVectorAcc num nm td arr
-    | .forLoop unroll n body  => let num ← natRenaming n
-                                 let b ← uniqueRenamingHelper body
-                                 return .forLoop unroll num b
-    | .forNat unroll n body =>  let num ← natRenaming n
-                                let b ← uniqueRenamingHelper body
-                                return .forNat unroll num b
-    | .forVec n t out body => let num ← natRenaming n
-                              let td ← dataRenaming t
-                              let o ← uniqueRenamingHelper out
-                              let b ← uniqueRenamingHelper body
-                              return .forVec num td o b
-    | .generateCont n t f  => let num ← natRenaming n
-                              let td ← dataRenaming t
-                              let fn ← uniqueRenamingHelper f
-                              return .generateCont num td fn
-    | .idxAcc n t idx array =>  let num ← natRenaming n
-                                let td ← dataRenaming t
-                                let i ← uniqueRenamingHelper idx
-                                let arr ← uniqueRenamingHelper array
-                                return .idxAcc num td i arr
-    | .idxVecAcc n t idx vec => let num ← natRenaming n
-                                let td ← dataRenaming t
-                                let i ← uniqueRenamingHelper idx
-                                let v ← uniqueRenamingHelper vec
-                                return .idxVecAcc num td i v
-    | .scatterAcc n m t indicies array => let num ← natRenaming n
-                                          let nm ← natRenaming m
-                                          let td ← dataRenaming t
-                                          let i ← uniqueRenamingHelper indicies
-                                          let arr ← uniqueRenamingHelper array
-                                          return .scatterAcc num nm td i arr
-    | .splitAcc n m t array => let num ← natRenaming n
-                               let nm ← natRenaming m
-                               let td ← dataRenaming t
-                               let arr ← uniqueRenamingHelper array
-                               return .splitAcc num nm td arr
-    | .joinAcc n m t array => let num ← natRenaming n
-                              let nm ← natRenaming m
-                              let td ← dataRenaming t
-                              let arr ← uniqueRenamingHelper array
-                              return .joinAcc num nm td arr
-    | .unzipAcc n t1 t2 array => let num ← natRenaming n
-                                 let t1d ← dataRenaming t1
-                                 let t2d ← dataRenaming t2
-                                 let arr ← uniqueRenamingHelper array
-                                 return .unzipAcc num t1d t2d arr
-    | .zipAcc1     n t1 t2 array => let num ← natRenaming n
-                                    let t1d ← dataRenaming t1
-                                    let t2d ← dataRenaming t2
-                                    let arr ← uniqueRenamingHelper array
-                                    return .zipAcc1 num t1d t2d arr
-    | .zipAcc2     n t1 t2 array => let num ← natRenaming n
-                                    let t1d ← dataRenaming t1
-                                    let t2d ← dataRenaming t2
-                                    let arr ← uniqueRenamingHelper array
-                                    return .zipAcc2 num t1d t2d arr
-    | .transposeAcc n m t array  => let num ← natRenaming n
-                                    let nm ← natRenaming m
-                                    let td ← dataRenaming t
-                                    let arr ← uniqueRenamingHelper array
-                                    return .transposeAcc num nm td arr
-    | .cycleAcc n m t input =>  let num ← natRenaming n
-                                let nm ← natRenaming m
-                                let td ← dataRenaming t
-                                let i ← uniqueRenamingHelper input
-                                return .cycleAcc num nm td i
+    | .asScalarAcc n m t array => return .asScalarAcc
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper array)
+    | .assign t lhs rhs =>  return .assign
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper lhs)
+                                        (← uniqueRenamingHelper rhs)
+    | .asVectorAcc n m t array => return .asVectorAcc
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper array)
+    | .forLoop unroll n body  => return .forLoop unroll
+                                            (← natRenaming n)
+                                            (← uniqueRenamingHelper body)
+    | .forNat unroll n body =>  return .forNat unroll
+                                            (← natRenaming n)
+                                            (← uniqueRenamingHelper body)
+    | .forVec n t out body => return .forVec
+                                        (← natRenaming n)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper out) (← uniqueRenamingHelper body)
+    | .generateCont n t f  => return .generateCont
+                                        (← natRenaming n)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper f)
+    | .idxAcc n t idx array =>  return .idxAcc
+                                        (← natRenaming n)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper idx) (← uniqueRenamingHelper array)
+    | .idxVecAcc n t idx vec => return .idxVecAcc
+                                        (← natRenaming n)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper idx) (← uniqueRenamingHelper vec)
+    | .scatterAcc n m t indicies array => return .scatterAcc
+                                                    (← natRenaming n) (← natRenaming m)
+                                                    (← dataRenaming t)
+                                                    (← uniqueRenamingHelper indicies) (← uniqueRenamingHelper array)
+    | .splitAcc n m t array => return .splitAcc
+                                        (← natRenaming n) (← natRenaming m)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper array)
+    | .joinAcc n m t array => return .joinAcc
+                                        (← natRenaming n) (← natRenaming m)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper array)
+    | .unzipAcc n t1 t2 array => return .unzipAcc
+                                            (← natRenaming n)
+                                            (← dataRenaming t1) (← dataRenaming t2)
+                                            (← uniqueRenamingHelper array)
+    | .zipAcc1     n t1 t2 array => return .zipAcc1
+                                            (← natRenaming n)
+                                            (← dataRenaming t1) (← dataRenaming t2)
+                                            (← uniqueRenamingHelper array)
+    | .zipAcc2     n t1 t2 array => return .zipAcc2
+                                            (← natRenaming n)
+                                            (← dataRenaming t1) (← dataRenaming t2)
+                                            (← uniqueRenamingHelper array)
+    | .transposeAcc n m t array  => return .transposeAcc
+                                                (← natRenaming n) (← natRenaming m)
+                                                (← dataRenaming t)
+                                                (← uniqueRenamingHelper array)
+    | .cycleAcc n m t input =>  return .cycleAcc
+                                            (← natRenaming n) (← natRenaming m)
+                                            (← dataRenaming t)
+                                            (← uniqueRenamingHelper input)
     | .reorderAcc      .. => return In  -- needs to be fixed at some point
-    | .dropAcc n m t array => let num ← natRenaming n
-                              let nm ← natRenaming m
-                              let td ← dataRenaming t
-                              let arr ← uniqueRenamingHelper array
-                              return .dropAcc num nm td arr
-    | .takeAcc n m t array => let num ← natRenaming n
-                              let nm ← natRenaming m
-                              let td ← dataRenaming t
-                              let arr ← uniqueRenamingHelper array
-                              return .takeAcc num nm td arr
-    | .mapAcc n t1 t2 f array => let num ← natRenaming n
-                                 let t1d ← dataRenaming t1
-                                 let t2d ← dataRenaming t2
-                                 let fn ← uniqueRenamingHelper f
-                                 let arr ← uniqueRenamingHelper array
-                                 return .mapAcc num t1d t2d fn arr
-    | .mapFstAcc t1 t2 t3 f record  =>  let t1d ← dataRenaming t1
-                                        let t2d ← dataRenaming t2
-                                        let t3d ← dataRenaming t3
-                                        let fn ← uniqueRenamingHelper f
-                                        let r ← uniqueRenamingHelper record
-                                        return .mapFstAcc t1d t2d t3d fn r
-    | .mapRead n t1 t2 f input =>   let num ← natRenaming n
-                                    let t1d ← dataRenaming t1
-                                    let t2d ← dataRenaming t2
-                                    let fn ← uniqueRenamingHelper f
-                                    let i ← uniqueRenamingHelper input
-                                    return .mapRead num t1d t2d fn i
-    | .mapSndAcc t1 t2 t3 f record => let t1d ← dataRenaming t1
-                                      let t2d ← dataRenaming t2
-                                      let t3d ← dataRenaming t3
-                                      let fn ← uniqueRenamingHelper f
-                                      let r ← uniqueRenamingHelper record
-                                      return .mapSndAcc t1d t2d t3d fn r
-    | .mkDPairFstl fst a => let f ← natRenaming fst
-                            let ap ← uniqueRenamingHelper a
-                            return .mkDPairFstl f ap
-    | .mkDPairSndAcc fst sndT a => let f ← natRenaming fst
-                                   let s ← dataRenaming sndT
-                                   let ap ← uniqueRenamingHelper a
-                                   return .mkDPairSndAcc f s ap
-    | .pairAcc t1 t2 fst snd => let t1d ← dataRenaming t1
-                                let t2d ← dataRenaming t2
-                                let f ← uniqueRenamingHelper fst
-                                let s ← uniqueRenamingHelper snd
-                                return .pairAcc t1d t2d f s
-    | .pairAcc1 t1 t2 pair => let t1d ← dataRenaming t1
-                              let t2d ← dataRenaming t2
-                              let p ← uniqueRenamingHelper pair
-                              return .pairAcc1 t1d t2d p
-    | .pairAcc2 t1 t2 pair =>   let t1d ← dataRenaming t1
-                                let t2d ← dataRenaming t2
-                                let p ← uniqueRenamingHelper pair
-                                return .pairAcc2 t1d t2d p
-    | .new t f => let td ← dataRenaming t
-                  let fn ← uniqueRenamingHelper f
-                  return .new td fn
-    | .newDoubleBuffer n t1 t2 t3 input out f => let num ← natRenaming n
-                                                 let t1d ← dataRenaming t1
-                                                 let t2d ← dataRenaming t2
-                                                 let t3d ← dataRenaming t3
-                                                 let i ← uniqueRenamingHelper input
-                                                 let o ← uniqueRenamingHelper out
-                                                 let fn ← uniqueRenamingHelper f
-                                                 return .newDoubleBuffer num t1d t2d t3d i o fn
+    | .dropAcc n m t array => return .dropAcc
+                                        (← natRenaming n) (← natRenaming m)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper array)
+    | .takeAcc n m t array => return .takeAcc
+                                        (← natRenaming n) (← natRenaming m)
+                                        (← dataRenaming t)
+                                        (← uniqueRenamingHelper array)
+    | .mapAcc n t1 t2 f array => return .mapAcc
+                                            (← natRenaming n)
+                                            (← dataRenaming t1) (← dataRenaming t2)
+                                            (← uniqueRenamingHelper f) (← uniqueRenamingHelper array)
+    | .mapFstAcc t1 t2 t3 f record  =>  return .mapFstAcc
+                                                    (← dataRenaming t1) (← dataRenaming t2) (← dataRenaming t3)
+                                                    (← uniqueRenamingHelper f) (← uniqueRenamingHelper record)
+    | .mapRead n t1 t2 f input =>  return .mapRead
+                                                (← natRenaming n)
+                                                (← dataRenaming t1) (← dataRenaming t2)
+                                                (← uniqueRenamingHelper f) (← uniqueRenamingHelper input)
+    | .mapSndAcc t1 t2 t3 f record => return .mapSndAcc
+                                                (← dataRenaming t1) (← dataRenaming t2) (← dataRenaming t3)
+                                                (← uniqueRenamingHelper f) (← uniqueRenamingHelper record)
+    | .mkDPairFstl fst a => return .mkDPairFstl
+                                        (← natRenaming fst)
+                                        (← uniqueRenamingHelper a)
+    | .mkDPairSndAcc fst sndT a => return .mkDPairSndAcc
+                                            (← natRenaming fst)
+                                            (← dataRenaming sndT)
+                                            (← uniqueRenamingHelper a)
+    | .pairAcc t1 t2 fst snd => return .pairAcc
+                                            (← dataRenaming t1) (← dataRenaming t2)
+                                            (← uniqueRenamingHelper fst) (← uniqueRenamingHelper snd)
+    | .pairAcc1 t1 t2 pair => return .pairAcc1
+                                        (← dataRenaming t1) (← dataRenaming t2)
+                                        (← uniqueRenamingHelper pair)
+    | .pairAcc2 t1 t2 pair => return .pairAcc2
+                                        (← dataRenaming t1) (← dataRenaming t2)
+                                        (← uniqueRenamingHelper pair)
+    | .new t f => return .new (← dataRenaming t) (← uniqueRenamingHelper f)
+    | .newDoubleBuffer n t1 t2 t3 input out f => return .newDoubleBuffer
+                                                            (← natRenaming n)
+                                                            (← dataRenaming t1) (← dataRenaming t2) (← dataRenaming t3)
+                                                            (← uniqueRenamingHelper input) (← uniqueRenamingHelper out) (← uniqueRenamingHelper f)
     | .comment _ => return In
     | .skip => return In
     | .depIdxAcc .. => return In  -- needs to be fixed at some point
     | .depJoinAcc .. => return In  -- needs to be fixed at some point
-    | .dMatchI x elemT outT f input =>  let xn ← natRenaming x
-                                        let eT ← dataRenaming elemT
-                                        let oT ← dataRenaming outT
-                                        let fn ← uniqueRenamingHelper f
-                                        let i ← uniqueRenamingHelper input
-                                        return .dMatchI xn eT oT fn i
-    | .seq c1 c2 => let p1 ← uniqueRenamingHelper c1
-                    let p2 ← uniqueRenamingHelper c2
-                    return .seq p1 p2
+    | .dMatchI x elemT outT f input =>  return .dMatchI
+                                                    (← natRenaming x)
+                                                    (← dataRenaming elemT) (← dataRenaming outT)
+                                                    (← uniqueRenamingHelper f) (← uniqueRenamingHelper input)
+    | .seq c1 c2 => return .seq (← uniqueRenamingHelper c1) (← uniqueRenamingHelper c2)
 
 partial def uniqueRenamingHelper (p : DPIAPhrase) : InferM DPIAPhrase := do
     let idT ← matchDepLam p
     let type ← typeRenaming p.type
     let node ← match p.node with
                     | .bvar idx name => getArgs name idx
-                    | .imperative imp => let i  ← uniqueRenaminfImperative imp
-                                         pure (.imperative i)
-                    | .functional prim => let f ← uniqueRenaminfFunctional prim
-                                          pure (.functional f)
+                    | .imperative imp => pure (.imperative (← uniqueRenaminfImperative imp))
+                    | .functional prim => pure (.functional (← uniqueRenaminfFunctional prim))
                     | .lit _ => pure p.node
-                    | .app fn arg => let f ← uniqueRenamingHelper fn
-                                     let a ← uniqueRenamingHelper arg
-                                     pure (.app f a)
-                    | .depapp fn arg => let f ← uniqueRenamingHelper fn
-                                        pure (.depapp f arg)
+                    | .app fn arg => pure (.app (← uniqueRenamingHelper fn)
+                                                (← uniqueRenamingHelper arg))
+                    | .depapp fn arg => pure (.depapp (← uniqueRenamingHelper fn) arg)
                     | .lam name binderT body => let uBinder ← typeRenaming binderT
                                                 let id ← updateArgs name
                                                 let uBody ← uniqueRenamingHelper body
@@ -589,17 +435,14 @@ partial def uniqueRenamingHelper (p : DPIAPhrase) : InferM DPIAPhrase := do
                     | .deplam _ binderK body => let uBody ← uniqueRenamingHelper body
                                                 updateDepDepth
                                                 pure (.deplam idT binderK uBody)
-                    | .pair fst snd => let f ← uniqueRenamingHelper fst
-                                       let s ← uniqueRenamingHelper snd
-                                       pure (.pair f s)
-                    | .proj1 p => let pr ← uniqueRenamingHelper p
-                                  pure (.proj1 pr)
-                    | .proj2 p => let pr ← uniqueRenamingHelper p
-                                  pure (.proj1 pr)
-                    | .ifThenElse cond thenP elseP => let c ← uniqueRenamingHelper cond
-                                                      let t ← uniqueRenamingHelper thenP
-                                                      let e ← uniqueRenamingHelper elseP
-                                                      pure (.ifThenElse c t e)
+                    | .pair fst snd => pure (.pair  (← uniqueRenamingHelper fst)
+                                                    (← uniqueRenamingHelper snd))
+                    | .proj1 p => pure (.proj1 (← uniqueRenamingHelper p))
+                    | .proj2 p => pure (.proj1 (← uniqueRenamingHelper p))
+                    | .ifThenElse cond thenP elseP => pure (.ifThenElse (← uniqueRenamingHelper cond)
+                                                                        (← uniqueRenamingHelper thenP)
+                                                                        (← uniqueRenamingHelper elseP))
+                    | .natural _ => pure p.node
     pure {node := node, type := type}
 
 end
