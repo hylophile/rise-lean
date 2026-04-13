@@ -1,3 +1,5 @@
+import DPIA.Basic
+
 -- copied from Nates RISE representation
 inductive CScalar
   | void
@@ -71,6 +73,7 @@ deriving Repr, BEq
 
 inductive CStmt where
   | block (body : List CStmt)
+  | stmts (fst : CStmt) (snd : CStmt)
   | forLoop (init : CDecl) (cond : CExpr) (increment : CExpr) (body : CStmt)
   | whileLoop (cond : CExpr) (body : CStmt)
   | ifThenElse (cond : CExpr) (trueBody : CStmt) (falseBody : Option CStmt)
@@ -97,7 +100,7 @@ inductive CExpr
   | literal (code : String)
   | arrayLiteral (t : CType) (inits : List CExpr)
   | recordLiteral (t : CType) (fst : CExpr) (snd : CExpr)
-  --arithmetic expr
+  | arithmeticExpr (n : RNat) --- needs fixing
 deriving Repr, BEq
 
 end
@@ -160,6 +163,16 @@ partial def CType.toString : CType → String
                                             else "union " ++ CTypeList.ToString fields
 
 end
+
+instance : Inhabited CType :=
+  ⟨CType.scalar (.int)⟩
+
+instance : Inhabited CStmt :=
+  ⟨CStmt.breakStmt⟩
+
+instance : Inhabited CExpr :=
+  ⟨CExpr.literal "failed"⟩
+
 instance : ToString Field where
   toString := Field.toString
 
@@ -217,6 +230,7 @@ def CDecl.toString : CDecl → String
 
 def CStmt.toString : CStmt → String
     | .block body => s!"{CStmtList.ToString body}"
+    | .stmts fst snd=> s!"{CStmt.toString fst};\n {CStmt.toString snd}"
     | .forLoop init cond increment body => "for (" ++ CDecl.toString init ++ ", " ++ CExpr.toString cond ++ "," ++ CExpr.toString increment ++ "){\n" ++  CStmt.toString body ++ "\n}"
     | .whileLoop cond body => "while(" ++ CExpr.toString cond ++ "){" ++ CStmt.toString body ++ "\n}"
     | .ifThenElse cond trueBody falseBody =>  let ifPart := "if (" ++ CExpr.toString cond ++ "){\n" ++  CStmt.toString trueBody ++ "}"
@@ -247,6 +261,7 @@ def CExpr.toString : CExpr → String
     | .literal code => s!"{code}"
     | .arrayLiteral t inits => "(" ++ toString t ++ "){" ++  CExprList.ToString inits ++"}"
     | .recordLiteral t fst snd => "(" ++ toString t ++ "){" ++ CExpr.toString fst ++ ", " ++ CExpr.toString snd ++ "}"
+    | .arithmeticExpr n => s!"{n}"
 end
 
 instance : ToString CDecl where
