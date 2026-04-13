@@ -268,6 +268,7 @@ partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.
                                       let sThenP := substitutePhraseInPhraseHelper phrase thenP For depth
                                       let sElseP := substitutePhraseInPhraseHelper phrase elseP For depth
                                       {node := .ifThenElse sCond sThenP sElseP, type := In.type : DPIAPhrase}
+    | .natural _ => In
 
 def substitutePhraseInPhrase (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
   substitutePhraseInPhraseHelper phrase In For 0
@@ -334,6 +335,7 @@ partial def substituteDWrapperInPhraseHelper (depArg : DWrapper) (In : DPIAPhras
                                       let sThenP := substituteDWrapperInPhraseHelper depArg thenP For depth
                                       let sElseP := substituteDWrapperInPhraseHelper depArg elseP For depth
                                       {node := .ifThenElse sCond sThenP sElseP, type := pt : DPIAPhrase}
+    | .natural _ => {node := In.node, type := pt}
 
 def substituteDWrapperInPhrase (depArg : DWrapper) (In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
   substituteDWrapperInPhraseHelper depArg In For 0

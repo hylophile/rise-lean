@@ -20,6 +20,7 @@ partial def adjustIndex (p : DPIAPhrase) (seenFn : Nat) (ids : HashSeen) (depth 
         | .proj1 p => {node := .proj1 (adjustIndex p seenFn ids depth), type := p.type}
         | .proj2 p => {node := .proj2 (adjustIndex p seenFn ids depth), type := p.type}
         | .ifThenElse cond thenP elseP => {node := .ifThenElse (adjustIndex cond seenFn ids depth) (adjustIndex thenP seenFn ids depth) (adjustIndex elseP seenFn ids depth), type := p.type}
+        | .natural _ => p
 
 -------------------- simple reduction ------------------------
 partial def reductionHelper (phrase In : DPIAPhrase) (For : Lean.Name) (depth : Nat) (ids : HashSeen) : DPIAPhrase :=
@@ -54,6 +55,7 @@ partial def reductionHelper (phrase In : DPIAPhrase) (For : Lean.Name) (depth : 
                                       let sThenP := reductionHelper phrase thenP For depth ids
                                       let sElseP := reductionHelper phrase elseP For depth ids
                                       {node := .ifThenElse sCond sThenP sElseP, type := In.type : DPIAPhrase}
+    | .natural _ => In
 
 def reduce (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
    reductionHelper phrase In For 0 {}
@@ -232,6 +234,7 @@ partial def depReductionHelper (w : DWrapper) (In : DPIAPhrase) (For : Lean.Name
                                                     let sThenP := depReductionHelper w thenP For depth ids
                                                     let sElseP := depReductionHelper w elseP For depth ids
                                                     .ifThenElse sCond sThenP sElseP
+                | .natural _ => In.node
     {node := node, type := type}
 
 def depReduce (arg : DWrapper) (In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
@@ -279,4 +282,5 @@ partial def reduction (phrase : DPIAPhrase) : DPIAPhrase :=
         | .proj1 p => {node := .proj1 (reduction p), type := phrase.type}
         | .proj2 p => {node := .proj1 (reduction p), type := phrase.type}
         | .ifThenElse cond thenP elseP => {node := .ifThenElse (reduction cond) (reduction thenP) (reduction elseP), type := phrase.type}
+        | .natural _ => phrase
 end
