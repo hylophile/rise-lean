@@ -451,4 +451,4 @@ partial def uniqueRenaming (p : DPIAPhrase) : DPIAPhrase :=
     let result := (uniqueRenamingHelper p).run {}
     match result with
         | .ok (ph, _) => ph
-        | .error msg => panic! s!"error ocurred during inferAccess: \n {msg}"
+        | .error msg => panic! s!"error ocurred during Renaming: \n {msg}"
