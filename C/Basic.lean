@@ -326,3 +326,55 @@ instance : Inhabited CStmt :=
 
 instance : Inhabited CExpr :=
   ⟨CExpr.literal "failed"⟩
+
+instance : Inhabited CNat :=
+  ⟨CNat.nat 0⟩
+
+--------------- additional functions -------------
+
+def CNatToRNat : CNat → RNat
+  | .declRef ref => .bvar 0 ref
+  | .plus n m => .plus (CNatToRNat n) (CNatToRNat m)
+  | .minus n m => .minus (CNatToRNat n) (CNatToRNat m)
+  | .mult n m => .mult (CNatToRNat n) (CNatToRNat m)
+  | .div n m => .div (CNatToRNat n) (CNatToRNat m)
+  | .pow n m => .pow (CNatToRNat n) (CNatToRNat m)
+  | .nat n => .nat n
+
+def RNatToCNatSimplified : RNat → CNat
+  | .bvar _ name => .declRef name
+  | .plus n m => let nC := RNatToCNatSimplified n
+                 let mC := RNatToCNatSimplified m
+                 match (nC, mC) with
+                  | (.nat x, .nat y) => .nat (x+y)
+                  | (.nat x, _) => if x == 0 then mC
+                                 else .plus nC mC
+                  |  (_ , .nat y) => if y == 0 then nC
+                                   else .plus nC mC
+                  | (_, _) => .plus nC mC
+  | .minus n m=> let nC := RNatToCNatSimplified n
+                 let mC := RNatToCNatSimplified m
+                 match (nC, mC) with
+                  | (.nat x, .nat y) => if x+y < 0 then .minus nC mC
+                                        else .nat (x+y)
+                  |  (_ , .nat y) => if y == 0 then nC
+                                   else .minus nC mC
+                  | (_, _) => .plus nC mC
+  | .mult n m=> let nC := RNatToCNatSimplified n
+                let mC := RNatToCNatSimplified m
+                match (nC, mC) with
+                  | (.nat x, .nat y) => .nat (x*y)
+                  | (.nat x, _) => if x == 1 then mC
+                                 else .mult nC mC
+                  |  (_ , .nat y) => if y == 1 then nC
+                                     else .mult nC mC
+                  | (_, _) => .plus nC mC
+  | .div n m=>  let nC := RNatToCNatSimplified n
+                let mC := RNatToCNatSimplified m
+                match (nC, mC) with
+                  |  (_ , .nat y) => if y == 1 then nC
+                                   else .div nC mC
+                  | (_, _) => .plus nC mC
+  | .pow n m=> .pow (RNatToCNatSimplified n) (RNatToCNatSimplified m)
+  | .nat n => .nat n
+  | _ => panic! s!"there should not be any mvars any more"

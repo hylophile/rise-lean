@@ -54,7 +54,7 @@ def insertDeclToEnv (ps : List DPIAPhrase) (map : Std.HashMap Lean.Name CExpr) :
     match ps with
         | [] => panic! s!"there should be at least one element in the list!"
         | x :: [] => (x, map)
-        | ⟨.bvar i n, _⟩ :: ys => insertDeclToEnv ys (map.insert n (.declRef n))
+        | ⟨.bvar _ n, _⟩ :: ys => insertDeclToEnv ys (map.insert n (.declRef n))
         | _ => panic! s!"there should only be one phrase in the list that is not a identifier"
 
 partial def generateCode (ps : List DPIAPhrase) : CStmt :=
@@ -91,8 +91,3 @@ partial def makeCModule (cS : CStmt) (params : List DPIAPhrase) : Module :=
     let decls := []
     let function := CDecl.fn (mkName "foo") (.scalar (.void)) cParams cS
     {includes := includes, decls := decls, functions := [{code := function}]}
-
-
-
-
--- next make c module
