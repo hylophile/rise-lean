@@ -4,6 +4,7 @@ import DPIA.FromRise
 import DPIA.Compilation.TranslationToImperative
 import DPIA.Compilation.generator
 import DPIA.betaReduction
+import DPIA.ToC.CodeGenerator
 
 def add := [RiseC|
   fun m :  f32 =>
@@ -37,4 +38,18 @@ def fRAdd := fromRise add
 #pp inferAccess addAndApply
 #pp fromRise add
 
-#pp applyToImp fRAdd
+#pp reduction fRAdd
+def tIAdd := applyToImp fRAdd
+#pp tIAdd.getLast?
+
+def body := generateCode tIAdd
+#pp body
+
+#pp makeCModule body tIAdd.dropLast
+
+def fRAdd2 := fromRise add2
+def tIAdd2 := applyToImp fRAdd2
+def body2 := generateCode tIAdd2
+
+#pp body2
+#pp makeCModule body2 tIAdd2.dropLast

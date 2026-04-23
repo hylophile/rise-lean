@@ -23,6 +23,14 @@ def fRSimpleScal := fromRise simpleScal
 #pp uniqueRenaming fRSimpleScal
 #pp applyToImp fRSimpleScal
 
+def tISimpleScal := applyToImp fRSimpleScal
+def body := generateCode tISimpleScal
+
+#pp tISimpleScal
+#pp body
+#pp makeCModule body tISimpleScal.dropLast
+
+
 def complexScal := [RiseC|
    fun n : nat =>
    fun input : n·f32 =>

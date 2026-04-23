@@ -27,7 +27,8 @@ def simpleZip := [RiseC|
 def applyInferAccessToDot := inferAccess dot
 
 #pp dot
-#pp fromRise dot
+#pp inferAccess dot
+#pp reduction (fromRise dot)
 
 #pp simpleZip
 #pp fromRise simpleZip
@@ -54,3 +55,18 @@ def vals := match newVal.node with
               | _ => [newVal]
 
 #pp vals
+
+def tISimpleZip := applyToImp fRSimpleZip
+def body := generateCode tISimpleZip
+
+#pp tISimpleZip
+#pp body
+#pp makeCModule body tISimpleZip.dropLast
+
+def tIDot := applyToImp fRDot
+def bodyDot := generateCode tIDot
+
+#pp fRDot
+#pp tIDot
+#eval bodyDot
+#pp makeCModule bodyDot tIDot.dropLast
