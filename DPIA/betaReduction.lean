@@ -1,7 +1,7 @@
 import DPIA.Substitutions
 import DPIA.mkFunctions
 
-private abbrev HashSeen := Std.HashMap (Lean.Name × Nat) (Lean.Name × Nat)
+private abbrev HashSeen := Std.HashMap (Lean.Name × Nat) (Lean.Name × Nat) -- set or list would be sufficient, i do not use the value only check if key is in it
 
 
 partial def adjustIndex (p : DPIAPhrase) (seenFn : Nat) (ids : HashSeen) (depth : Nat): DPIAPhrase :=

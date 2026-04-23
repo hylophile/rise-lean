@@ -263,7 +263,7 @@ partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.
     | .proj1 p => let sP := substitutePhraseInPhraseHelper phrase p For depth
                   {node := .proj1 sP, type := In.type : DPIAPhrase}
     | .proj2 p => let sP := substitutePhraseInPhraseHelper phrase p For depth
-                  {node := .proj1 sP, type := In.type : DPIAPhrase}
+                  {node := .proj2 sP, type := In.type : DPIAPhrase}
     | .ifThenElse cond thenP elseP => let sCond := substitutePhraseInPhraseHelper phrase cond For depth
                                       let sThenP := substitutePhraseInPhraseHelper phrase thenP For depth
                                       let sElseP := substitutePhraseInPhraseHelper phrase elseP For depth
