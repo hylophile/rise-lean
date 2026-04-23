@@ -1,5 +1,8 @@
 import DPIA.Compilation.TranslationToImperative
 import DPIA.Compilation.Renaming
+import C.Basic
+import DPIA.ToC.CodeGenerator
+import C.CModule
 
 private abbrev mkName := Lean.Name.mkSimple
 
@@ -31,7 +34,7 @@ def matchOutputType (outType pType : RData) (outParam : DPIAPhrase) : DPIAPhrase
             | .array (.nat 1) lhsT, rhsT => if lhsT == rhsT
                                                 then atAcc  outParam
                                                             (mkFunctional (.expr (.index (.nat 1)) .read)
-                                                                          (.natAsIndex (.nat 1) {node := .lit (.int 1), type := .expr .natType .read}))
+                                                                          (.natAsIndex (.nat 1) {node := .natural (.nat 0), type := .expr .natType .read}))
                                                 else panic! s!"{lhsT} and {rhsT} should match"
             | _, _ => panic! s!"{outType} and {pType} should match"
 
@@ -40,9 +43,56 @@ partial def toImperative (outParam p : DPIAPhrase) : DPIAPhrase :=
     acc p output 0
 
 
-partial def applyToImp (p : DPIAPhrase ) : List DPIAPhrase:= --for testing the acc function
+partial def applyToImp (p : DPIAPhrase) : List DPIAPhrase:= --for testing the acc function
     --let renamed := uniqueRenaming p
     let (body, params) := splitBodyAndParams p [] 0
     let outParam := createOutputParam body.type
     let expr := toImperative outParam body
-    expr :: params
+    outParam :: params.append [expr]
+
+def insertDeclToEnv (ps : List DPIAPhrase) (map : Std.HashMap Lean.Name CExpr) : (DPIAPhrase × Std.HashMap Lean.Name CExpr) :=
+    match ps with
+        | [] => panic! s!"there should be at least one element in the list!"
+        | x :: [] => (x, map)
+        | ⟨.bvar i n, _⟩ :: ys => insertDeclToEnv ys (map.insert n (.declRef n))
+        | _ => panic! s!"there should only be one phrase in the list that is not a identifier"
+
+partial def generateCode (ps : List DPIAPhrase) : CStmt :=
+    let (phrase, indentEnv) := insertDeclToEnv ps {}
+    let env := mkEnv indentEnv {} {}
+    generateWithFunctions env phrase -- will i add declerations during the procedure?
+
+def makeParamTy (dt : RData) : CType :=
+    match dt with
+        | .array _ elemT => let baseDt := getBaseDataType elemT
+                            .pointer (typ baseDt)
+        |.pair _ _ => typ dt
+        | .scalar _ => typ dt
+        | .natType => typ dt
+        | .index _ => typ dt
+        | _ => panic! s!"did not expect {dt}"
+
+def getDt (pt : PhraseType) : RData :=
+    match pt with
+        | .expr dt _ => dt
+        | .acc dt => dt
+        | .phrasePair (.expr dt1 _) (.acc dt2) => if dt1 == dt2 then dt1
+                                                  else panic! s!"the data types {dt1} and {dt2} should match!"
+        | _ => panic! s!"this should not happen, only expr, acc and pairs are allowed"
+
+def makeParam (param : DPIAPhrase) : CDecl :=
+    match param with
+        | ⟨.bvar _ name, pt⟩ => .param name (makeParamTy (getDt pt))
+        | _ => panic! s!"for making declarations, only identifiers are accepted!"
+
+partial def makeCModule (cS : CStmt) (params : List DPIAPhrase) : Module :=
+    let cParams := params.map makeParam
+    let includes := [IncludeDirective.includeHeader "stdint.h"]
+    let decls := []
+    let function := CDecl.fn (mkName "foo") (.scalar (.void)) cParams cS
+    {includes := includes, decls := decls, functions := [{code := function}]}
+
+
+
+
+-- next make c module
