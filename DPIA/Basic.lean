@@ -331,6 +331,15 @@ def assertFunctionTypePt (exprT: PhraseType) : PhraseType :=
     | .fn _ _ => exprT
     | _ => panic! s!"THis should never happen"
 
+def getBaseDataType (dt : RData) : RData :=
+  match dt with
+    | .scalar _ | .index _ | .vector _ _ => dt
+    | .pair _ _=> dt
+    | .bvar _ _ => dt
+    | .array _ elemT =>  getBaseDataType elemT
+    | _ => panic! s!"there should not be any mvars anymore!"
+
+
 def getDataType (exprT: PhraseType) : RData :=
   match exprT with
     | .expr dt _ => dt
