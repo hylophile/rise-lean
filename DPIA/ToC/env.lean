@@ -1,41 +1,30 @@
 import C.Basic
 
 structure Environment where
-    identEnv: Std.HashMap (Lean.Name × Nat) CExpr
-    commEnv: Std.HashMap (Lean.Name × Nat) CStmt
-    contEnv: Std.HashMap (Lean.Name × Nat) (DPIAPhrase  → CStmt)
-    letNatEnv: Std.HashMap (Lean.Name × Nat) DPIAPhrase
+    identEnv: Std.HashMap Lean.Name CExpr
+    commEnv: Std.HashMap Lean.Name CStmt
+    letNatEnv: Std.HashMap Lean.Name DPIAPhrase -- no where used
+
+def mkEnv (identEnv: Std.HashMap Lean.Name CExpr) (commEnv: Std.HashMap Lean.Name CStmt) (letNatEnv: Std.HashMap Lean.Name DPIAPhrase) : Environment :=
+    {identEnv := identEnv, commEnv := commEnv, letNatEnv := letNatEnv : Environment}
 
 def updatedIdentEnv (e : Environment) (kv : Lean.Name) (n : Nat) (c : CExpr) : Environment :=
-    {identEnv := e.identEnv.insert (kv, n) c
+    {identEnv := e.identEnv.insert kv c
      commEnv := e.commEnv
-     contEnv := e.contEnv
      letNatEnv := e.letNatEnv}
 
 def lookUpIdentEnv (e: Environment) (kv : Lean.Name) (n : Nat) : CExpr :=
-    match e.identEnv.get? (kv, n) with
+    match e.identEnv.get? kv with
         | some y => y
         | none => panic! s!"expected to find {kv}@{n} in environment"
 
 def updatedCommEnv (e : Environment) (kv : Lean.Name) (n : Nat) (c : CStmt) : Environment :=
     {identEnv := e.identEnv
-     commEnv := e.commEnv.insert (kv, n) c
-     contEnv := e.contEnv
+     commEnv := e.commEnv.insert kv c
      letNatEnv := e.letNatEnv}
 
 def lookUpCommEnv  (e: Environment) (kv : Lean.Name) (n : Nat) : CStmt :=
-    match e.commEnv.get? (kv, n) with
-        | some y => y
-        | none => panic! s!"expected to find {kv}@{n} in environment"
-
-def updatedContEnv (e : Environment) (kv : Lean.Name) (n : Nat) (f : DPIAPhrase  → CStmt) : Environment :=
-    {identEnv := e.identEnv
-     commEnv := e.commEnv
-     contEnv := e.contEnv.insert (kv, n) f
-     letNatEnv := e.letNatEnv}
-
-def lookUpContEnv  (e: Environment) (kv : Lean.Name) (n : Nat) : DPIAPhrase  → CStmt :=
-    match e.contEnv.get? (kv, n) with
+    match e.commEnv.get? kv with
         | some y => y
         | none => panic! s!"expected to find {kv}@{n} in environment"
 
@@ -43,11 +32,10 @@ def lookUpContEnv  (e: Environment) (kv : Lean.Name) (n : Nat) : DPIAPhrase  →
 def updatedNatEnv (e : Environment) (kv : Lean.Name) (n : Nat) (p : DPIAPhrase) : Environment :=
     {identEnv := e.identEnv
      commEnv := e.commEnv
-     contEnv := e.contEnv
-     letNatEnv := e.letNatEnv.insert (kv, n) p}
+     letNatEnv := e.letNatEnv.insert kv p}
 
 def lookUpNatEnv  (e: Environment) (kv : Lean.Name) (n : Nat) : DPIAPhrase :=
-    match e.letNatEnv.get? (kv, n) with
+    match e.letNatEnv.get? kv with
         | some y => y
         | none => panic! s!"expected to find {kv}@{n} in environment"
 
