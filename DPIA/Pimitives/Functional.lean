@@ -36,12 +36,6 @@ def mkMod (t : RData) (lhs rhs : DPIAPhrase) : DPIAPhrase :=
   let type := PhraseType.expr t DAnnotation.read
   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
--- ternary ops
--- def mkSelect (t : RData) (cond : RData) : DPIAPhrase :=
---   let node := FunctionalPrimitives.select t cond
---   let type := PhraseType.expr t DAnnotation.read
---   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
-
 -- comparison ops
 def mkNot (not : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.not not
@@ -108,7 +102,6 @@ def mkIdx (n : RNat) (t : RData) (idx array : DPIAPhrase) : DPIAPhrase :=
 --   let type := PhraseType.expr (ft.apply idx) DAnnotation.read
 --   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
--- not in current Rise Implementation
 
 def mkIdxVec (n : RNat) (t : RData) (idx vec : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.idxVec n t idx vec
@@ -186,8 +179,6 @@ def mkTranspose (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase) 
 --   let node := FunctionalPrimitives.transposeDepArray n m ft array
 --   let type := PhraseType.expr (RData.array n ) DAnnotation.read --> noch nicht korrekt!
 --   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
---> needs dependent array
-
 
 
 def mkGather (n m : RNat) (t : RData) (idx array : DPIAPhrase) : DPIAPhrase :=
@@ -250,10 +241,8 @@ def mkUnzip (n : RNat) (s t : RData) (a : DAnnotation) (array : DPIAPhrase) : DP
 --   let node := FunctionalPrimitives.partition n m lenF t array
 --   let type := PhraseType.expr (RData.array m RData.natType) DAnnotation.read
 --   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
---> braucht dependent array length
 
-
-  -- pair ops
+-- pair ops
 
 def mkMakePair (s t : RData) (a : DAnnotation) (fst snd : DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.makePair s t a fst snd
@@ -299,11 +288,6 @@ def mkAsScalar (n m : RNat) (t : RData) (a : DAnnotation) (array : DPIAPhrase) :
   {node := DPIAPhraseNode.functional node, type := type : DPIAPhrase}
 
 -- map
-
--- def mkMap (n : RNat) (s t : RData) (a : DAnnotation) (f array: DPIAPhrase) : DPIAPhrase :=
---   let node := FunctionalPrimitives.map n s t a f array
---   let type := PhraseType.acc (RData.array n t)
---   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
 
 def mkMap (n : RNat) (s t : RData) (a : DAnnotation) (f array: DPIAPhrase) : DPIAPhrase :=
   let node := FunctionalPrimitives.map n s t a f array
@@ -376,6 +360,8 @@ def mkIterate (n m k : RNat) (t : RData) (f array : DPIAPhrase) : DPIAPhrase :=
 --   let node := FunctionalPrimitives.depTile n tileSize haloSize t1 t2 processTiles array
 --   let type :=
 --   {node := DPIAPhraseNode.functional node, type:= type : DPIAPhrase}
+
+-- not in current Rise Implementation
 
 -- def mkDMatch (x : RNat) (elemT outT : RData) (a : DAnnotation) (f array : DPIAPhrase) : DPIAPhrase := -- TODO (x : NatIdentifier)
 --   let node := FunctionalPrimitives.dMatch x elemT ouT a f array

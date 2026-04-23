@@ -1,10 +1,14 @@
 import DPIA.Basic
 
+--------------  DPIAPhrase construktors ----------------
 def mkLam (type : PhraseType) (name : Lean.Name) (binderType : PhraseType) (body : DPIAPhrase) : DPIAPhrase :=
   {node := .lam name binderType body, type := type : DPIAPhrase}
 
 def mkApp (type : PhraseType) (fn arg : DPIAPhrase) : DPIAPhrase :=
     {node := .app fn arg, type := type : DPIAPhrase}
+
+def mkDepApp (type : PhraseType) (fn : DPIAPhrase) (arg : DWrapper): DPIAPhrase :=
+    {node := .depapp fn arg, type := type : DPIAPhrase}
 
 def mkDeplam (type : PhraseType) (name : Lean.Name) (binderKind : DKind) (body : DPIAPhrase) : DPIAPhrase :=
   {node := .deplam name binderKind body, type := type : DPIAPhrase}
@@ -23,6 +27,8 @@ def mkIfThenElse (type : PhraseType) (cond thenP elseP : DPIAPhrase) : DPIAPhras
 
 def mkFunctional (type : PhraseType) (func : FunctionalPrimitives) : DPIAPhrase :=
   {node := .functional func, type := type}
+
+-------------- end of DPIAPhrase construktors ----------------
 
 def getFreshIdentifier (name : String := "tmp") (counter : Nat): Lean.Name :=
    Lean.Name.mkSimple s!"{name}{counter}"

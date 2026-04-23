@@ -4,6 +4,8 @@ import DPIA.mkFunctions
 private abbrev HashSeen := Std.HashMap (Lean.Name × Nat) (Lean.Name × Nat) -- set or list would be sufficient, i do not use the value only check if key is in it
 
 
+-- increments the index of a DPIAPhrase identifier of an
+-- outer function definition if a function was added
 partial def adjustIndex (p : DPIAPhrase) (seenFn : Nat) (ids : HashSeen) (depth : Nat): DPIAPhrase :=
     match p.node with
         | .bvar idx name => match ids.get? (name, (depth- idx-1)) with
@@ -63,6 +65,8 @@ def reduce (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
 
 -------------- dependent reduction -------------------------
 
+-- increments the index of a Nat identifier of an
+-- outer function definition if a function was eliminated
 def adjustIndexNat (num: RNat) (seenFn : Nat) (ids : HashSeen) (depth : Nat) : RNat :=
     match num with
         | .bvar idx name => match ids.get? (name, (depth- idx-1)) with
@@ -76,6 +80,8 @@ def adjustIndexNat (num: RNat) (seenFn : Nat) (ids : HashSeen) (depth : Nat) : R
         | .pow n m => .pow (adjustIndexNat n seenFn ids depth) (adjustIndexNat m seenFn ids depth)
         | _ => panic! s!"there should not be any mvars anymore"
 
+-- increments the index of a data identifier of an
+-- outer function definition if a function was eliminated
 def adjustIndexData (dt: RData) (seenFn : Nat) (ids : HashSeen) (depth : Nat) : RData :=
     match dt with
         | .bvar idx name =>  match ids.get? (name, (depth- idx-1)) with
@@ -241,6 +247,8 @@ def depReduce (arg : DWrapper) (In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :
    depReductionHelper arg In For 0 {}
 
 mutual
+
+-- handles a specific apply
 partial def betaReduction (In phrase : DPIAPhrase) : DPIAPhrase :=
     match In.node with
         | .lam name _ body => reduce phrase body name
@@ -254,6 +262,7 @@ partial def betaReduction (In phrase : DPIAPhrase) : DPIAPhrase :=
                                 | _ => panic! s!"the first argument of an dependent apply needs to be a function but is {sFn}"
         | _ => panic! s!"{In.node} is not valid function"
 
+-- handles a specific dependent apply
 partial def dependentBetaReduction (In : DPIAPhrase) (depArg : DWrapper): DPIAPhrase :=
     match In.node with
                 | .app fn arg => let sFn := betaReduction fn arg
@@ -267,7 +276,8 @@ partial def dependentBetaReduction (In : DPIAPhrase) (depArg : DWrapper): DPIAPh
                 | .deplam name _ body => depReduce depArg body name
                 | _ => panic! s!"{In.node} is not valid dependent function"
 
--- for effectivly testing
+
+-- reduces all apps and depapps in a DPIAPhrase
 partial def reduction (phrase : DPIAPhrase) : DPIAPhrase :=
     match phrase.node with
         | .bvar .. => phrase

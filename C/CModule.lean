@@ -1,5 +1,8 @@
 import C.Basic
 
+-------------- Module Structure ----------------
+
+-- includes
 inductive IncludeDirective where
     | includeHeader (name : String)
     | includeSource (path : String)
@@ -9,6 +12,7 @@ instance : ToString IncludeDirective where
     | .includeHeader n => s!"#include <{n}>"
     | .includeSource path => s!"#include \"{path}\""
 
+-- functions
 structure Function where
     code : CDecl
 
@@ -27,10 +31,11 @@ def Function.returnType (f : Function) : CType :=
         | .fn _ rt .. => rt
         | _ => panic! s!"code should be a function declaration"
 
+-- outputs C functions
 def Function.ToFormat (f : Function) : Std.Format :=
     CDecl.ToFormat f.code
 
-
+-------------- C Module ----------------
 
 structure Module where
     includes : List IncludeDirective
@@ -47,6 +52,7 @@ def functionsList (incl : List Function) : Std.Format :=
         | [] => ""
         | x :: ys => Function.ToFormat x ++ Std.Format.line ++ functionsList ys
 
+-- outputs a hole functional C programm
 def Module.ToFormat (m : Module) : Std.Format :=
     includesList m.includes ++ CDeclList.ToFormat m.decls ++ functionsList m.functions
 

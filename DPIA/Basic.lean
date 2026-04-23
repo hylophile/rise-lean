@@ -1,10 +1,10 @@
 import Rise.Basic
 
--- NatToNat
 inductive NatToNat where
   | natToNatIdentifier (userName : Lean.Name)
   | natToNatLambda (x : Nat) (body : RNat)
 deriving BEq, Repr
+
 
 inductive NatToData where
   | natToDataIdentifier (userName : Lean.Name)
@@ -18,11 +18,10 @@ deriving BEq, Repr
 inductive DKind
   | rise (k: RKind)
   | readWrite
-  | natToNat --(n : NatToNat)
-  | natToData --(n : NatToData)
 deriving BEq, Repr
 
-
+-- Annotation
+-- RW ::= Rd | Wr
 inductive DAnnotation
   | identifier (userName: Lean.Name) -- for now only a identifier
   | read
@@ -47,6 +46,7 @@ inductive DWrapper
   | readWrite (v: DAnnotation)
 deriving Repr, BEq
 
+-- Rise expression with Phrase type
 abbrev RExprPt := RExprWith PhraseType
 abbrev RExprNodePt := RExprNodeWith PhraseType
 
@@ -87,8 +87,6 @@ inductive FunctionalPrimitives where
   | div     (lhs rhs : DPIAPhrase)
   | mod     (lhs rhs : DPIAPhrase)
 
-  -- ternary ops
-  --| select  (t : RData) (cond : RData) -- TODO select : {t : data} → bool → t → t → t
 
   -- comparison ops
   | not     (v : DPIAPhrase)
@@ -140,13 +138,11 @@ inductive FunctionalPrimitives where
   | unzip     (n : RNat) (s t : RData) (a : DAnnotation) (array : DPIAPhrase)
   | depZip    (n : RNat) (ft1 ft2 : NatToData)(e1 e2 : DPIAPhrase)
 
-  -- | makeArray   (n : RNat) (t : RData) (elements : List DPIAPhrase) --- TODO (n : Int)
 
   | partition   (n m : RNat) (lenF : NatToNat) (t : RData) (array : DPIAPhrase)
 
   -- pair ops
   | makePair      (s t : RData) (a : DAnnotation) (fst snd : DPIAPhrase)
-  -- | makeDepPair   (fst : RNat) (sndT : RData) (a : DAnnotation) (snd : DPIAPhrase)  -- TODO (fst : NatIdentifier)
   | fst           (s t : RData) (pair : DPIAPhrase)
   | snd           (s t : RData) (pair : DPIAPhrase)
 
@@ -176,9 +172,7 @@ inductive FunctionalPrimitives where
   -- iterate
   | iterate (n m k : RNat) (t : RData) (f array : DPIAPhrase)
 
-  -- ? TODO
   | depTile       (n tileSize haloSize : RNat) (t1 t2 : RData) (processTiles array : DPIAPhrase)
-  -- | dMatch        (x : RNat) (elemT outT : RData) (a : DAnnotation) (f array : DPIAPhrase) -- TODO (x : NatIdentifier)
   | printType     (msg : String) (t : RData) (a : DAnnotation) (input : DPIAPhrase)
 deriving Repr, BEq
 
@@ -249,7 +243,9 @@ deriving Repr, BEq
 end
 
 
------------- inhabited ------------------------- for throwing errors
+------------ inhabited -------------------------
+-- needed to use panic!
+
 instance : Inhabited DPIAPhrase :=
   ⟨{node := DPIAPhraseNode.bvar 0 (Lean.Name.mkSimple "dummy"), type := PhraseType.comm : DPIAPhrase}⟩
 
@@ -276,28 +272,11 @@ instance : Inhabited (RExprWith PhraseType) :=
 
 ------------ Representations ----------------------
 
-def getNat : RNat → Nat
-  | .nat n => n
-  | .plus n m => getNat n + getNat m
-  | .minus n m => getNat n - getNat m
-  | .mult n m =>  getNat n * getNat m
-  | .div n m => getNat n / getNat m
-  | .pow n m => getNat n ^ getNat m
-  | _ => panic! s!"cannot calculate the nat from an identifier"
-
-def getTotalNumberOfElements : RData → RNat
-  | .scalar _ | .index _ | .natType | .vector _ _=> .nat 1
-  | .pair _ _ => .nat 1
-  | .array n dt => .mult (getTotalNumberOfElements dt) n
-  | _ => panic! s!"cannot specify the total number of elements for an identifier"
-
 -- modified from Nate
 instance : ToString DKind where
   toString
     | DKind.rise k => s!"{k}"
     | DKind.readWrite => "rw"
-    | DKind.natToData => "nat→data"
-    | DKind.natToNat => "nat→nat"
 
 
 instance : ToString DAnnotation where
@@ -305,48 +284,6 @@ instance : ToString DAnnotation where
     | .identifier name => s!"{name}"
     | .read => "rd"
     | .write => "wr"
-
-def NatToNat.apply (nat2nat : NatToNat) (n : RNat) : RNat :=
-  match nat2nat with
-    | NatToNat.natToNatIdentifier userName => RNat.bvar 0 userName --?
-    | NatToNat.natToNatLambda x body => RNat.substNat body x n
-
-def NatToData.apply (nat2nat : NatToData) (n : RNat) : RData :=
-  match nat2nat with
-    | NatToData.natToDataIdentifier userName => RData.bvar 0 userName --?
-    | NatToData.natToDataLambda x body => RData.substNat body x n
-
-def assertDataType (exprT: RType) : RData :=
-  match exprT with
-    | .data dt => dt
-    | _ => panic! s!"THis should never happen"
-
-def assertFunctionType (exprT: RType) : RType :=
-  match exprT with
-    | .fn inT _ => inT
-    | _ => panic! s!"THis should never happen"
-
-def assertFunctionTypePt (exprT: PhraseType) : PhraseType :=
-  match exprT with
-    | .fn _ _ => exprT
-    | _ => panic! s!"THis should never happen"
-
-def getBaseDataType (dt : RData) : RData :=
-  match dt with
-    | .scalar _ | .index _ | .vector _ _ => dt
-    | .pair _ _=> dt
-    | .bvar _ _ => dt
-    | .array _ elemT =>  getBaseDataType elemT
-    | _ => panic! s!"there should not be any mvars anymore!"
-
-
-def getDataType (exprT: PhraseType) : RData :=
-  match exprT with
-    | .expr dt _ => dt
-    | .acc dt => dt
-    | .pi _ _ body => getDataType body
-    | .fn _ body => getDataType body
-    | _ => panic! s!"this should not happen, cannot determine the datatype"
 
 -- modified from Nate
 def PhraseType.toString : PhraseType → String
@@ -370,6 +307,7 @@ def DWrapper.render : DWrapper -> Std.Format
   | .rise w => w.render
   | .readWrite v => toString v ++ " : readWrite"
 
+--- helper function for organizing Std.Format
 def setNestAndLine (indent : Int) (f : Std.Format) : Std.Format :=
   Std.Format.nest indent (Std.Format.line ++ f)
 
@@ -547,3 +485,11 @@ instance : ToString RExprNodePt where
 
 instance : ToString RExprPt where
   toString e := "expr:\n" ++ (indent <| toString e.node) ++ "\ntype:\n" ++ (indent <| toString e.type)
+
+----------------- additional basic function definitions -------------------------
+
+def getTotalNumberOfElements : RData → RNat
+  | .scalar _ | .index _ | .natType | .vector _ _=> .nat 1
+  | .pair _ _ => .nat 1
+  | .array n dt => .mult (getTotalNumberOfElements dt) n
+  | _ => panic! s!"cannot specify the total number of elements for an identifier"

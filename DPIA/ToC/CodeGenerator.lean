@@ -5,6 +5,7 @@ import DPIA.Pimitives.Functional
 import DPIA.Pimitives.Imperative
 import DPIA.betaReduction
 import DPIA.ToC.Lifting
+import DPIA.TypeCheck
 
 private abbrev mkName := Lean.Name.mkSimple
 private abbrev Path := List PathExpr

@@ -136,6 +136,7 @@ def mkMapSndAcc (t1 t2 t3 : RData) (f record : DPIAPhrase) : DPIAPhrase :=
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 
 
+-- mkPair not in current Rise implementation
 
 -- pair ops
 -- def mkMkDPairFstl (fst : RNat) (a : DPIAPhrase) : DPIAPhrase :=
@@ -189,19 +190,24 @@ def mkSkip : DPIAPhrase :=
   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 
 
-  -- ? TODO
-def mkDepIdxAcc (n idx : RNat) (ft : NatToData) (array : DPIAPhrase) : DPIAPhrase :=
-  let node := ImperativePrimitives.depIdxAcc n idx ft array
-  let type := PhraseType.acc (ft.apply idx)
-  {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
+-- has dependent data type
 
--- def mkDepJoinAcc (n : RNat) (lenF : NatToNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase := -- NatToNat? (lenF : natToNat)
+-- def mkDepIdxAcc (n idx : RNat) (ft : NatToData) (array : DPIAPhrase) : DPIAPhrase :=
+--   let node := ImperativePrimitives.depIdxAcc n idx ft array
+--   let type := PhraseType.acc (ft.apply idx)
+--   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
+
+-- has dependent data type
+
+-- def mkDepJoinAcc (n : RNat) (lenF : NatToNat) (t : RData) (array : DPIAPhrase) : DPIAPhrase :=
 --   let node := ImperativePrimitives.depJoinAcc n lenF t array
 --   let type := PhraseType.acc (RData.array n lenf.apply)
 --   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}
 --> dependent length
 
--- def mkDMatchI (x : RNat) (elemT outT : RData) (f input : DPIAPhrase) : DPIAPhrase := -- NatIdentifier? (x : natIdentifier)
+-- not in current Rise implementation
+
+-- def mkDMatchI (x : RNat) (elemT outT : RData) (f input : DPIAPhrase) : DPIAPhrase :=
 --   let node := ImperativePrimitives.dMatchI x elemT outT f input
 --   let type :=
 --   {node := DPIAPhraseNode.imperative node, type := type : DPIAPhrase}

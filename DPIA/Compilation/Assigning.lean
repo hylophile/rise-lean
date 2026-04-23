@@ -1,4 +1,3 @@
-import DPIA.Basic
 import DPIA.Pimitives.Imperative
 import DPIA.Pimitives.Functional
 
@@ -12,6 +11,7 @@ def snd (pair : DPIAPhrase) : DPIAPhrase :=
         | .expr (.pair dt1 dt2) _ => mkFst dt1 dt2 pair
         | _ => panic! s!"no valid pair type: {pair.type}"
 
+-- create an assign statement in the way that C accepts
 def assignByType (dt : RData) (lhs rhs : DPIAPhrase) : DPIAPhrase :=
     match dt with
         | .scalar _ | .natType | .index _ => mkAssign dt lhs rhs

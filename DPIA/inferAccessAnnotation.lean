@@ -421,7 +421,7 @@ partial def inferApp (fn arg : RExpr) (ctx : FunctionContext) (isKernelParamFun 
   let (fExpr, fSubst) ← inferPhraseTypes fn ctx isKernelParamFun
   let (argExpr, argSubst) ← inferPhraseTypes arg (Subst.applyMap ctx fSubst) isKernelParamFun
   let argSubstFExpr := Subst.applyR argSubst fExpr
-  match (assertFunctionTypePt argSubstFExpr.type) with
+  match argSubstFExpr.type with
     | .fn binderType body => let subst  ← match subUnifyPhraseType argExpr.type binderType with
                                 | some y => pure  y
                                 | none => throw s!"subUnifyPhraseType failed for the argument type: {argExpr.type} \n and the binder type {binderType}"

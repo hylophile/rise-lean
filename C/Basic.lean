@@ -332,6 +332,7 @@ instance : Inhabited CNat :=
 
 --------------- additional functions -------------
 
+-- convert a CNat to a RNat
 def CNatToRNat : CNat → RNat
   | .declRef ref => .bvar 0 ref
   | .plus n m => .plus (CNatToRNat n) (CNatToRNat m)
@@ -341,6 +342,7 @@ def CNatToRNat : CNat → RNat
   | .pow n m => .pow (CNatToRNat n) (CNatToRNat m)
   | .nat n => .nat n
 
+-- convert a RNat to a CNat
 def RNatToCNatSimplified : RNat → CNat
   | .bvar _ name => .declRef name
   | .plus n m => let nC := RNatToCNatSimplified n
