@@ -20,21 +20,15 @@ inductive CScalar
   | double
 deriving Repr, BEq
 
-mutual
-structure Field where
-  type : CType
-  userName : Lean.Name
+inductive CNat
+  | declRef (ref : Lean.Name)
+  | nat  (n : Nat)
+  | plus (n : CNat) (m : CNat)
+  | minus (n : CNat) (m : CNat)
+  | mult (n : CNat) (m : CNat)
+  | div (n : CNat) (m : CNat)
+  | pow (n : CNat) (m : CNat)
 deriving Repr, BEq
-
-inductive CType where
-  | scalar (s : CScalar) (const : Bool := false)
-  | pointer (valueType : CType) (const : Bool := false)
-  | array (elemType : CType) (size : Option Nat) (const : Bool := false)
-  | struct (userName : Lean.Name) (fields : List Field) (const : Bool := false)
-  | union (fields : List CType) (const : Bool := false)
-deriving Repr, BEq
-
-end
 
 inductive CUnaryOp where
   | ex
@@ -62,6 +56,22 @@ inductive CBinaryOp where
 deriving Repr, BEq
 
 mutual
+structure Field where
+  type : CType
+  userName : Lean.Name
+deriving Repr, BEq
+
+inductive CType where
+  | scalar (s : CScalar) (const : Bool := false)
+  | pointer (valueType : CType) (const : Bool := false)
+  | array (elemType : CType) (size : Option CNat) (const : Bool := false) -- should be RNat or own nat
+  | struct (userName : Lean.Name) (fields : List Field) (const : Bool := false)
+  | union (fields : List CType) (const : Bool := false)
+deriving Repr, BEq
+
+end
+
+mutual
 inductive CDecl where
   | fn (userName : Lean.Name) (rv : CType) (param : List CDecl) (body : CStmt)
   | var (userName : Lean.Name) (t : CType) (init : Option CExpr)
@@ -74,7 +84,7 @@ deriving Repr, BEq
 inductive CStmt where
   | block (body : List CStmt)
   | stmts (fst : CStmt) (snd : CStmt)
-  | forLoop (init : CDecl) (cond : CExpr) (increment : CExpr) (body : CStmt)
+  | forLoop (init : CStmt) (cond : CExpr) (increment : CExpr) (body : CStmt)
   | whileLoop (cond : CExpr) (body : CStmt)
   | ifThenElse (cond : CExpr) (trueBody : CStmt) (falseBody : Option CStmt)
   | goTo (label : Lean.Name)
@@ -100,7 +110,7 @@ inductive CExpr
   | literal (code : String)
   | arrayLiteral (t : CType) (inits : List CExpr)
   | recordLiteral (t : CType) (fst : CExpr) (snd : CExpr)
-  | arithmeticExpr (n : RNat) --- needs fixing
+  | arithmeticExpr (n : CNat) --- needs fixing
 deriving Repr, BEq
 
 end
@@ -111,7 +121,7 @@ inductive CNode where
   | expr (e : CExpr)
 deriving Repr, BEq
 
---- string representation
+---------------- string representations -----------------
 
 -- modified from Nate
 instance : ToString CScalar where
@@ -133,51 +143,59 @@ instance : ToString CScalar where
     | .isize => "isize"
     | .double => "double"
 
+instance : ToString CNat where
+  toString :=
+    let rec go : CNat → String
+      | .declRef ref => s!"{ref}"
+      | .nat n => s!"{n}"
+      | .plus n m => s!"({go n}+{go m})"
+      | .minus n m => s!"({go n}-{go m})"
+      | .mult n m => s!"({go n}*{go m})"
+      | .div n m => s!"({go n}/{go m})"
+      | .pow n m => s!"({go n}^{go m})"
+    go
+
+def setNest (indent : Int) (f : Std.Format) : Std.Format :=
+  Std.Format.nest indent f
+
 mutual
-partial def Field.toString (f : Field) : String :=
-  s!"\n{toString f.userName} : {CType.toString f.type}"
+partial def Field.ToFormat (f : Field) : Std.Format :=
+  s!"{toString f.userName} : {CType.ToFormat f.type}"
 
-partial def FieldList.ToString: List Field → String
+partial def FieldList.ToFormat: List Field → Std.Format
    | [] => s!""
-   | x :: ys => s!"{Field.toString x}; \n{FieldList.ToString ys}"
+   | x :: ys => Field.ToFormat x ++ ";" ++ Std.Format.line ++ FieldList.ToFormat ys
 
-partial def CTypeList.ToString: List CType → String
+partial def CTypeList.ToFormat: List CType → Std.Format
    | [] => s!""
-   | x :: ys => s!"{CType.toString x}; \n{CTypeList.ToString ys}"
+   | x :: ys => CType.ToFormat x ++ ";" ++ Std.Format.line ++ CTypeList.ToFormat ys
 
-partial def CType.toString : CType → String
+partial def CType.ToFormat : CType → Std.Format
   | CType.scalar s const                 => match const with
-                                          | false => s!"const {s}"
-                                          | true => s!"{s}"
+                                          | true => s!"const {s}"
+                                          | false => s!"{s}"
   | CType.pointer valueType const        => match const with
-                                          | false => s!"const {CType.toString valueType}*"
-                                          | true => s!"{CType.toString valueType}*"
-  | CType.array elemType size const      => match size with
-                                          | some  y => if const then s!"const {CType.toString elemType}[{y}]"
-                                                        else s!"{CType.toString elemType}[{y}]"
-                                          | none => if const then s!"const {CType.toString elemType}"
-                                                    else s!"{CType.toString elemType}"
-  | CType.struct userName fields const   => if const then "const struct " ++ toString userName ++ "{" ++FieldList.ToString fields ++ "}"
-                                            else "const struct" ++ toString userName ++ "{" ++ FieldList.ToString fields ++ "}"
-  | CType.union fields const             => if const then "const union " ++ CTypeList.ToString fields
-                                            else "union " ++ CTypeList.ToString fields
+                                          | true => s!"const {CType.ToFormat valueType}*"
+                                          | false => s!"{CType.ToFormat valueType}*"
+  | CType.array elemType size const      => match (size, const) with
+                                          | (some  y, true) => s!"const {CType.ToFormat elemType}[{y}]"
+                                          | (some y, false) => s!"{CType.ToFormat elemType}[{y}]"
+                                          | (none, true) => s!"const {CType.ToFormat elemType}"
+                                          | (none, false) => s!"{CType.ToFormat elemType}"
+  | CType.struct userName fields const   => match const with
+                                              | true => "const struct " ++ toString userName ++ "{" ++FieldList.ToFormat fields ++ "}"
+                                              | false => "const struct" ++ toString userName ++ "{" ++ FieldList.ToFormat fields ++ "}"
+  | CType.union fields const             => match const with
+                                              | true => "const union " ++ CTypeList.ToFormat fields
+                                              | false => "union " ++ CTypeList.ToFormat fields
 
 end
 
-instance : Inhabited CType :=
-  ⟨CType.scalar (.int)⟩
-
-instance : Inhabited CStmt :=
-  ⟨CStmt.breakStmt⟩
-
-instance : Inhabited CExpr :=
-  ⟨CExpr.literal "failed"⟩
-
 instance : ToString Field where
-  toString := Field.toString
+  toString e := Std.Format.pretty (Field.ToFormat e)
 
 instance : ToString CType where
-  toString := CType.toString
+  toString e := Std.Format.pretty (CType.ToFormat e)
 
 instance : ToString CUnaryOp where
   toString
@@ -205,76 +223,106 @@ instance : ToString CBinaryOp where
     | .shift => ">>"
 
 mutual
-def CDeclList.ToString: List CDecl → String
+def CDeclList.ToFormat: List CDecl →  Std.Format
   | [] => s!""
-  | x :: ys => s!"    {CDecl.toString x}, \n{CDeclList.ToString ys}"
+  | x :: ys => CDecl.ToFormat x ++ ";" ++ Std.Format.line ++ CDeclList.ToFormat ys
 
-def CStmtList.ToString: List CStmt → String
+def printFunParams : List CDecl →  Std.Format
   | [] => s!""
-  | x :: ys => s!"    {CStmt.toString x}; \n{CStmtList.ToString ys}"
+  | x :: [] => CDecl.ToFormat x
+  | x :: ys => CDecl.ToFormat x ++ ", " ++ printFunParams ys
 
-def CExprList.ToString: List CExpr → String
+def printFunArgs : List CStmt →  Std.Format
   | [] => s!""
-  | x :: ys => s!"    {CExpr.toString x}, \n{ CExprList.ToString ys}"
+  | x :: [] => CStmt.ToFormat x
+  | x :: ys => CStmt.ToFormat x ++ ", " ++ printFunArgs ys
 
-def CDecl.toString : CDecl → String
-    | .fn userName rv param body => s!"{rv} {userName.toString}({CDeclList.ToString param}) \n {CStmt.toString body}"
+def CStmtList.ToFormat: List CStmt → Std.Format
+  | [] => s!""
+  | x :: [] => CStmt.ToFormat x
+  | x :: ys => CStmt.ToFormat x ++ Std.Format.line ++ CStmtList.ToFormat ys
+
+def CExprList.ToFormat: List CExpr → Std.Format
+  | [] => s!""
+  | x :: ys => CExpr.ToFormat x ++ Std.Format.line ++ CExprList.ToFormat ys
+
+def CDecl.ToFormat : CDecl → Std.Format
+    | .fn userName rv param body => s!"{rv} {userName.toString}(" ++ printFunParams param ++ "){" ++ setNestAndLine 2 (CStmt.ToFormat body) ++ Std.Format.line ++ "}"
     | .var userName t init => match init with
-                                | some y => s!"{t} {userName} = {CExpr.toString y}"
+                                | some y => s!"{t} {userName} = {CExpr.ToFormat y}"
                                 | none => s!"{t} {userName}"
-    | .param userName t => s!"{userName} {t}"
-    | .label userName => s!"{userName}:"
-    | .typeDef userName t => s!"typedef {t} {userName}"
-    | .structType userName fields => s!"struct {userName} " ++ "{" ++ CDeclList.ToString fields ++ "}"
+    | .param userName t => s!"{t} {userName}"
+    | .label userName => s!"{userName}: ;"
+    | .typeDef userName t => s!"typedef {t} {userName};"
+    | .structType userName fields => s!"struct {userName} " ++ "{" ++ setNestAndLine 2 (CDeclList.ToFormat fields) ++ Std.Format.line ++ "};"
 
 
-def CStmt.toString : CStmt → String
-    | .block body => s!"{CStmtList.ToString body}"
-    | .stmts fst snd=> s!"{CStmt.toString fst};\n {CStmt.toString snd}"
-    | .forLoop init cond increment body => "for (" ++ CDecl.toString init ++ ", " ++ CExpr.toString cond ++ "," ++ CExpr.toString increment ++ "){\n" ++  CStmt.toString body ++ "\n}"
-    | .whileLoop cond body => "while(" ++ CExpr.toString cond ++ "){" ++ CStmt.toString body ++ "\n}"
-    | .ifThenElse cond trueBody falseBody =>  let ifPart := "if (" ++ CExpr.toString cond ++ "){\n" ++  CStmt.toString trueBody ++ "}"
+def CStmt.ToFormat : CStmt → Std.Format
+    | .block body => "{" ++ (setNestAndLine 2 (CStmtList.ToFormat body)) ++  Std.Format.line ++ "}" ++ Std.Format.line
+    | .stmts fst snd=> CStmt.ToFormat fst ++ Std.Format.line ++ CStmt.ToFormat snd
+    | .forLoop init cond increment body => "for (" ++ CStmt.ToFormat init ++ " " ++ CExpr.ToFormat cond ++ "; " ++ CExpr.ToFormat increment ++ ")"
+                                            ++ CStmt.ToFormat body
+    | .whileLoop cond body => "while(" ++ CExpr.ToFormat cond ++ "){"
+                                ++ setNestAndLine 2 (CStmt.ToFormat body)
+                                ++ Std.Format.line ++"}"
+    | .ifThenElse cond trueBody falseBody =>  let ifPart := "if (" ++ CExpr.ToFormat cond ++ "){" ++ setNestAndLine 2 (CStmt.ToFormat trueBody) ++ Std.Format.line ++ "}"
                                               match falseBody with
-                                                | some y => ifPart ++ " else {" ++  CStmt.toString y ++ "}\n"
+                                                | some y => ifPart ++ " else {" ++  setNestAndLine 2 (CStmt.ToFormat y) ++ Std.Format.line ++ "}"
                                                 | none => ifPart
-    | .goTo label => s!"goto {label}"
-    | .breakStmt => s!"break"
-    | .continueStmt => s!"continue"
+    | .goTo label => s!"goto {label};"
+    | .breakStmt => s!"break;"
+    | .continueStmt => s!"continue;"
     | .returnStmt x => match x with
-                        | some y => s!"return {CExpr.toString y}"
-                        | none => "return"
-    | .declStmt decl => CDecl.toString decl
-    | .comment string => s!"// {string}"
+                        | some y => s!"return {CExpr.ToFormat y};"
+                        | none => "return;"
+    | .declStmt decl => CDecl.ToFormat decl ++ ";"
+    | .comment string => s!"/* {string} */"
     | .code string => string -- what does this represent?
-    | .exprStmt expr => CExpr.toString expr
+    | .exprStmt expr => CExpr.ToFormat expr ++ ";"
 
-def CExpr.toString : CExpr → String
-    | .assignment lvalue rvalue => s!"{CExpr.toString lvalue} = {CExpr.toString rvalue}"
+def CExpr.ToFormat : CExpr → Std.Format
+    | .assignment lvalue rvalue => s!"{CExpr.ToFormat lvalue} = {CExpr.ToFormat rvalue}"
     | .declRef userName => s!"{userName}"
-    | .funCall fn args => CExpr.toString fn ++ "(" ++ CStmtList.ToString args ++ ")"
-    | .arraySubscript array index => CExpr.toString array ++ "[" ++ CExpr.toString index ++ "]"
-    | .structMemberAccess struct member => CExpr.toString struct ++ "." ++ CExpr.toString member
-    | .unaryExpr op expr => s!"{op}" ++ CExpr.toString expr
-    | .binaryExpr op lhs rhs => s!"{CExpr.toString lhs} {op} {CExpr.toString rhs}"
-    | .ternaryExpr cond thenE elseE => CExpr.toString cond ++ " ? " ++ CExpr.toString thenE ++ " : " ++ CExpr.toString elseE
-    | .cast type expr => s!"({type}){CExpr.toString expr}"
+    | .funCall fn args => CExpr.ToFormat fn ++ "(" ++ printFunArgs args ++ ")"
+    | .arraySubscript array index => CExpr.ToFormat array ++ "[" ++ CExpr.ToFormat index ++ "]"
+    | .structMemberAccess struct member => CExpr.ToFormat struct ++ "." ++ CExpr.ToFormat member
+    | .unaryExpr op expr => toString op ++ CExpr.ToFormat expr
+    | .binaryExpr op lhs rhs => Std.Format.paren s!"{CExpr.ToFormat lhs} {op} {CExpr.ToFormat rhs}"
+    | .ternaryExpr cond thenE elseE => CExpr.ToFormat cond ++ " ? " ++ CExpr.ToFormat thenE ++ " : " ++ CExpr.ToFormat elseE
+    | .cast type expr => s!"({type}){CExpr.ToFormat expr}"
     | .literal code => s!"{code}"
-    | .arrayLiteral t inits => "(" ++ toString t ++ "){" ++  CExprList.ToString inits ++"}"
-    | .recordLiteral t fst snd => "(" ++ toString t ++ "){" ++ CExpr.toString fst ++ ", " ++ CExpr.toString snd ++ "}"
+    | .arrayLiteral t inits => "(" ++ toString t ++ "){" ++  CExprList.ToFormat inits ++"}"
+    | .recordLiteral t fst snd => "(" ++ toString t ++ "){" ++ CExpr.ToFormat fst ++ ", " ++ CExpr.ToFormat snd ++ "}"
     | .arithmeticExpr n => s!"{n}"
 end
 
 instance : ToString CDecl where
-  toString := CDecl.toString
+  toString e := Std.Format.pretty (CDecl.ToFormat e)
 
 instance : ToString CStmt where
-  toString := CStmt.toString
+  toString e := Std.Format.pretty (CStmt.ToFormat e)
 
 instance : ToString CExpr where
-  toString := CExpr.toString
+  toString e := Std.Format.pretty (CExpr.ToFormat e)
 
 instance : ToString CNode where
   toString
     | .decl d => s!"{d}"
     | .stmt s => s!"{s}"
     | .expr e => s!"{e}"
+
+
+
+-------------------  inhabited instances ---------------
+
+instance : Inhabited CType :=
+  ⟨CType.scalar (.int)⟩
+
+instance : Inhabited CDecl :=
+  ⟨CDecl.label (Lean.Name.mkSimple "failed")⟩
+
+instance : Inhabited CStmt :=
+  ⟨CStmt.breakStmt⟩
+
+instance : Inhabited CExpr :=
+  ⟨CExpr.literal "failed"⟩
