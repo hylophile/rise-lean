@@ -4,12 +4,9 @@ import DPIA.Substitutions
 private abbrev IdentifierMap := Std.HashMap (Lean.Name × Nat) Lean.Name
 private abbrev TypeMap := Std.HashMap (Lean.Name × Nat) Lean.Name
 
-private def printMap : List ((Lean.Name × Nat) × Lean.Name) → String
-    | [] => ""
-    | ((name,idx), val) :: ys => s!"({name}×{idx}) → {val}\n" ++ printMap ys
-
+---------------- Monad for unique names ----------------
 structure InferStateR where
-  counter : Nat := 0                                      -- counter for unique names
+  counter : Nat := 0
   depth : Nat := 0
   depDepth : Nat := 0
   depArgs : TypeMap := {}
@@ -59,14 +56,15 @@ def getArgs (name : Name) (idx : Nat) : InferM DPIAPhraseNode := do
     let cstate ← get
     match cstate.args.get? (name, (cstate.depth - idx -1)) with
         | some y => pure (.bvar idx y)
-        | none => dbg_trace s!"{printMap cstate.args.toList}"
-                  throw s!"unbound identifier {name}@{idx} at depth {cstate.depth}"
+        | none => throw s!"unbound identifier {name}@{idx} at depth {cstate.depth}"
 
 def getDepArgs (name : Name) (idx : Nat) : InferM Lean.Name := do
     let cstate ← get
     match cstate.depArgs.get? (name, (cstate.depDepth - idx - 1)) with
         | some y => pure y
         | none => throw s!"unbound identifier {name}@{idx}"
+
+------------ Renaming Nats in DPIA Phrases --------------------
 
 def natRenaming (nat : RNat) : InferM RNat := do
     match nat with
@@ -79,22 +77,20 @@ def natRenaming (nat : RNat) : InferM RNat := do
         | .pow n m => return .pow (← natRenaming n) (← natRenaming m)
         | _ => panic! s!"there should be no mvars naymore"
 
+------------ Renaming Data in DPIA Phrases --------------------
+
 def dataRenaming (dt : RData): InferM RData := do
     match dt with
         | .bvar idx name => return .bvar idx (← getDepArgs name idx)
-        | .array n dt => let num ← natRenaming n
-                         let d ← dataRenaming dt
-                         return .array num d
-        | .pair   dt1 dt2 => let d1 ← dataRenaming dt1
-                             let d2 ← dataRenaming dt2
-                             return .pair d1 d2
+        | .array n dt => return .array (← natRenaming n) (← dataRenaming dt)
+        | .pair   dt1 dt2 => return .pair (← dataRenaming dt1) (← dataRenaming dt2)
         | .index _ => return dt
         | .scalar _ => return dt
         | .natType => return dt
-        | .vector n dt => let num ← natRenaming n
-                          let d ← dataRenaming dt
-                          return .vector num d
+        | .vector n dt => return .vector (← natRenaming n) (← dataRenaming dt)
         | _ => panic! s!"should not happen, mvars should be eliminated but got {dt}"
+
+------------ Renaming types in DPIA Phrases --------------------
 
 def typeRenaming (pt : PhraseType): InferM PhraseType := do
     match pt with
@@ -111,7 +107,7 @@ def matchDepLam (p : DPIAPhrase): InferM Lean.Name := do
         | _ => pure (Lean.Name.mkSimple "dummy")
 
 mutual
-partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM FunctionalPrimitives := do
+partial def uniqueRenamingfFunctional (In : FunctionalPrimitives): InferM FunctionalPrimitives := do
   match In with
     | .id val => return .id (← uniqueRenamingHelper val)
     | .neg val => return .neg (← uniqueRenamingHelper val)
@@ -141,7 +137,7 @@ partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM Functio
                                     (← natRenaming n)
                                     (← dataRenaming t)
                                     (← uniqueRenamingHelper idx) (← uniqueRenamingHelper array)
-    | .depIdx ..  => return In -- needs to be fixed at some point
+    | .depIdx ..  => return In
     | .idxVec n t idx vec  => return .idxVec
                                         (← natRenaming n)
                                         (← dataRenaming t)
@@ -166,7 +162,7 @@ partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM Functio
                                         (← natRenaming n) (← natRenaming m)
                                         (← dataRenaming t) a
                                         (← uniqueRenamingHelper array)
-    | .depJoin .. => return In  -- needs to be fixed at some point
+    | .depJoin .. => return In
     | .slide n sz sp t array => return .slide
                                             (← natRenaming n) (← natRenaming sz) (← natRenaming sp)
                                             (← dataRenaming t)
@@ -187,8 +183,8 @@ partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM Functio
                                         (← natRenaming n)
                                         (← natRenaming m) (← dataRenaming t)
                                         (← uniqueRenamingHelper array)
-    | .reorder .. =>  return In  -- needs to be fixed at some point
-    | .transposeDepArray .. =>  return In  -- needs to be fixed at some point
+    | .reorder .. =>  return In
+    | .transposeDepArray .. =>  return In
     | .gather n m t idx array => return .gather
                                             (← natRenaming n) (← natRenaming m)
                                             (← dataRenaming t)
@@ -218,8 +214,8 @@ partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM Functio
                                         (← natRenaming n)
                                         (← dataRenaming s) (← dataRenaming t) a
                                         (← uniqueRenamingHelper array)
-    | .depZip ..  =>  return In  -- needs to be fixed at some point
-    | .partition .. =>  return In  -- needs to be fixed at some point
+    | .depZip ..  =>  return In
+    | .partition .. =>  return In
     | .makePair s t a fst snd  => return .makePair
                                             (← dataRenaming s) (← dataRenaming t) a
                                             (← uniqueRenamingHelper fst) (← uniqueRenamingHelper snd)
@@ -261,7 +257,7 @@ partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM Functio
                                                 (← natRenaming n)
                                                 (← dataRenaming s) (← dataRenaming t)
                                                 (← uniqueRenamingHelper f) (← uniqueRenamingHelper array)
-    | .depMapSeq .. => return In  -- needs to be fixed at some point
+    | .depMapSeq .. => return In
     | .mapVec n t1 t2 f vec  => return .mapVec
                                             (← natRenaming n)
                                             (← dataRenaming t1) (← dataRenaming t2)
@@ -294,7 +290,7 @@ partial def uniqueRenaminfFunctional (In : FunctionalPrimitives): InferM Functio
                                                 (← dataRenaming t) a
                                                 (← uniqueRenamingHelper input)
 
-partial def uniqueRenaminfImperative (In : ImperativePrimitives): InferM ImperativePrimitives := do
+partial def uniqueRenamingfImperative (In : ImperativePrimitives): InferM ImperativePrimitives := do
   match In with
     | .asScalarAcc n m t array => return .asScalarAcc
                                             (← natRenaming n) (← natRenaming m)
@@ -362,7 +358,7 @@ partial def uniqueRenaminfImperative (In : ImperativePrimitives): InferM Imperat
                                             (← natRenaming n) (← natRenaming m)
                                             (← dataRenaming t)
                                             (← uniqueRenamingHelper input)
-    | .reorderAcc      .. => return In  -- needs to be fixed at some point
+    | .reorderAcc      .. => return In
     | .dropAcc n m t array => return .dropAcc
                                         (← natRenaming n) (← natRenaming m)
                                         (← dataRenaming t)
@@ -408,8 +404,8 @@ partial def uniqueRenaminfImperative (In : ImperativePrimitives): InferM Imperat
                                                             (← uniqueRenamingHelper input) (← uniqueRenamingHelper out) (← uniqueRenamingHelper f)
     | .comment _ => return In
     | .skip => return In
-    | .depIdxAcc .. => return In  -- needs to be fixed at some point
-    | .depJoinAcc .. => return In  -- needs to be fixed at some point
+    | .depIdxAcc .. => return In
+    | .depJoinAcc .. => return In
     | .dMatchI x elemT outT f input =>  return .dMatchI
                                                     (← natRenaming x)
                                                     (← dataRenaming elemT) (← dataRenaming outT)
@@ -417,12 +413,12 @@ partial def uniqueRenaminfImperative (In : ImperativePrimitives): InferM Imperat
     | .seq c1 c2 => return .seq (← uniqueRenamingHelper c1) (← uniqueRenamingHelper c2)
 
 partial def uniqueRenamingHelper (p : DPIAPhrase) : InferM DPIAPhrase := do
-    let idT ← matchDepLam p
+    let idT ← matchDepLam p                 --only used if the type is a dependent function
     let type ← typeRenaming p.type
     let node ← match p.node with
                     | .bvar idx name => getArgs name idx
-                    | .imperative imp => pure (.imperative (← uniqueRenaminfImperative imp))
-                    | .functional prim => pure (.functional (← uniqueRenaminfFunctional prim))
+                    | .imperative imp => pure (.imperative (← uniqueRenamingfImperative imp))
+                    | .functional prim => pure (.functional (← uniqueRenamingfFunctional prim))
                     | .lit _ => pure p.node
                     | .app fn arg => pure (.app (← uniqueRenamingHelper fn)
                                                 (← uniqueRenamingHelper arg))
@@ -447,6 +443,7 @@ partial def uniqueRenamingHelper (p : DPIAPhrase) : InferM DPIAPhrase := do
 
 end
 
+-------------- outer call --------------
 partial def uniqueRenaming (p : DPIAPhrase) : DPIAPhrase :=
     let result := (uniqueRenamingHelper p).run {}
     match result with
