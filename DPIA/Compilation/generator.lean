@@ -104,7 +104,7 @@ def makeParamTy (dt : RData) : CType :=
 
 def makeParam (param : DPIAPhrase) : CDecl :=
     match param with
-        | ⟨.bvar _ name, pt⟩ => .param name (makeParamTy (getDt pt))
+        | ⟨.bvar _ name, pt⟩ => .param name (makeParamTy (getDataType pt))
         | _ => panic! s!"for making declarations, only identifiers are accepted!"
 
 partial def makeCModule (cS : CStmt) (params : List DPIAPhrase) : Module :=
