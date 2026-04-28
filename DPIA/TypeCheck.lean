@@ -12,11 +12,11 @@ def notContainingArrayType (composed : RData) : Bool :=
 partial def subTypeCheck (subType superType: PhraseType) : Bool :=
     if subType == superType then true
     else match (subType, superType) with
-            | (PhraseType.expr bSub accessSub, PhraseType.expr bSuper _) =>
-                if bSub == bSuper then accessSub == DAnnotation.read && notContainingArrayType bSub
+            | (.expr bSub accessSub, .expr bSuper _) =>
+                if bSub == bSuper then accessSub == .read && notContainingArrayType bSub
                 else false
-            | (PhraseType.fn subInT subOutT, PhraseType.fn superInT superOutT) => subTypeCheck subInT superInT && subTypeCheck subOutT superOutT
-            | (PhraseType.pi kind1 _ subOutT, PhraseType.pi kind2 _ superOutT) => kind1 == kind2 && subTypeCheck subOutT superOutT
+            | (.fn subInT subOutT, .fn superInT superOutT) => subTypeCheck subInT superInT && subTypeCheck subOutT superOutT
+            | (.pi kind1 _ subOutT, .pi kind2 _ superOutT) => kind1 == kind2 && subTypeCheck subOutT superOutT
             | _ => false
 
 -- returns data and ensures that RType is data
