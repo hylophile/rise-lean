@@ -70,3 +70,9 @@ def bodyDot := generateCode tIDot
 #pp tIDot
 #eval bodyDot
 #pp makeCModule bodyDot tIDot.dropLast
+def xx := match (fromRise dot |> applyToImpWithRenaming |> uniqueRenamingWithParams).getLast? with
+            | some y => y
+            | none => {node := .lit (.bool false), type := .comm}
+#pp xx
+#pp fromRise dot |> applyToImp |> generateCode
+#pp CCodeFromRise dot

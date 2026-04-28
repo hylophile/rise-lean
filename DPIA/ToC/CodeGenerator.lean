@@ -359,7 +359,7 @@ partial def codeGenNew (dt : RData) (v p : DPIAPhrase) (env : Environment) : Inf
         | _ => panic! s!"type mismatch"
 
 partial def codeGenFor (n : RNat) (i : Lean.Name) (p : DPIAPhrase) (_ : Bool) (env : Environment) : InferM CStmt := do
-    let name := mkName (<- FreshIdentifier "i_")
+    let name := mkName (<- FreshIdentifier "i")
     let init := CDecl.var name (.scalar .int) (some (.arithmeticExpr (.nat 0)))
     let cond := CExpr.binaryExpr .less (.declRef name) (.arithmeticExpr (RNatToCNatSimplified n))
     let increment := CExpr.assignment (.declRef name) (.binaryExpr .plus (.declRef name) (.arithmeticExpr (.nat 1)))

@@ -84,7 +84,7 @@ def dataRenaming (dt : RData): InferM RData := do
         | .bvar idx name => return .bvar idx (← getDepArgs name idx)
         | .array n dt => return .array (← natRenaming n) (← dataRenaming dt)
         | .pair   dt1 dt2 => return .pair (← dataRenaming dt1) (← dataRenaming dt2)
-        | .index _ => return dt
+        | .index i => return .index (← natRenaming i)
         | .scalar _ => return dt
         | .natType => return dt
         | .vector n dt => return .vector (← natRenaming n) (← dataRenaming dt)
@@ -434,7 +434,7 @@ partial def uniqueRenamingHelper (p : DPIAPhrase) : InferM DPIAPhrase := do
                     | .pair fst snd => pure (.pair  (← uniqueRenamingHelper fst)
                                                     (← uniqueRenamingHelper snd))
                     | .proj1 p => pure (.proj1 (← uniqueRenamingHelper p))
-                    | .proj2 p => pure (.proj1 (← uniqueRenamingHelper p))
+                    | .proj2 p => pure (.proj2 (← uniqueRenamingHelper p))
                     | .ifThenElse cond thenP elseP => pure (.ifThenElse (← uniqueRenamingHelper cond)
                                                                         (← uniqueRenamingHelper thenP)
                                                                         (← uniqueRenamingHelper elseP))
@@ -450,10 +450,10 @@ def matchParams (ps : List (DPIAPhrase × String)) : InferM (List DPIAPhrase) :=
         | (⟨.bvar i n, pt⟩, name) :: ys => match name with
                                 | "fn" => let id ← updateArgs n
                                           updateDepth
-                                          return (mkBvar i id pt) :: (← matchParams ys)
+                                          return (mkBvar i id (← typeRenaming pt)) :: (← matchParams ys)
                                 | "pi" => let id ← updateDepArgs n
                                           updateDepDepth
-                                          return (mkBvar i id pt) :: (← matchParams ys)
+                                          return (mkBvar i id (← typeRenaming pt)) :: (← matchParams ys)
                                 | _ => throw s!"the flags should be one of fn, pi, body but is {name}"
         | _ => throw s!"there should only be bvars"
 
