@@ -21,16 +21,12 @@ private abbrev InferM := StateT InferState (Except String)
 private def FreshIdentifier (name : String := "tmp") : InferM String := do
   let cstate : InferState ← get
   set { cstate with counter := cstate.counter + 1}
-  return s!"{name}_{cstate.counter}"
+  return s!"{name}{cstate.counter}"
 
 
 ------------------------ helper functions --------------------------
-def mkNewName (name : Lean.Name) (s : String) : Lean.Name :=
+private def mkNewName (name : Lean.Name) (s : String) : Lean.Name :=
     Lean.Name.mkSimple (name.toString ++ s)
-
-def assertUnroll (unroll : Bool) : Bool :=
-    if !unroll then true
-    else panic! s!"there should not be any unrolls anymore"
 
 def typeToStructNameComponent (t : RData) : String :=
     match t with
@@ -60,7 +56,7 @@ def typ (dt : RData) : CType :=
         | .index _ => .scalar (.int)
         | .array n dt => .array (typ dt) (some (RNatToCNatSimplified n))
         | .pair p1 p2 => .struct (mkName ("Record_" ++ typeToStructNameComponent p1 ++ "_" ++ typeToStructNameComponent p2))
-                                 [{type := typ p1, userName := mkName "_fst"}, {type := typ p2, userName := mkName "_snd"}]
+                                 [{type := typ p1, userName := mkName "_fst" : Field}, {type := typ p2, userName := mkName "_snd" : Field}]
         | .bvar _ _ => panic! s!"did not expect {dt}"
         | _ => panic! s!"there should not be any mvars anymore"
 
@@ -83,8 +79,8 @@ def numberOfElementsUntil (arrayType : RData) (index : RNat) : RNat :=
 
 partial def flattenIndicies (dt : RData) (indices : List RNat) : RNat :=
     match (dt, indices) with
-        | (.array _ d, index :: rest) => .plus (numberOfElementsUntil d index)  (flattenIndicies d rest)
         | (_, []) => .nat 0
+        | (.array _ d, index :: rest) => .plus (numberOfElementsUntil d index)  (flattenIndicies d rest)
         | t => panic! s!"this pair combination should not happen {t}"
 
 
@@ -98,8 +94,6 @@ def flattenArrayIndicies (dt : RData) (path : Path) : (RData × RNat × Path) :=
                         (dt2, flattenIndicies dt indices, rest)
         | _ => panic! s!"the data type should be an arraytype"
 
--- def genPad (n l r : Nat) (left right : CExpr) (i : PathExpr) (ps : Path) (array : DPIAPhrase) (env : Environment) (cont : CExpr → CStmt) : CStmt :=
-
 def toNat (text : String) : RNat :=
     match text.toInt? with
         | some y => if y>= 0 then .nat y.toNat
@@ -108,15 +102,16 @@ def toNat (text : String) : RNat :=
 
 
 ---------------------- end of helper functions --------------------
+
 partial def generateAccess (dt : RData) (expr : CExpr) (path: Path) (env : Environment) (cont : CExpr → InferM CStmt) : InferM CStmt :=
     match path with
         | [] => cont expr
         | PathExpr.pairAccess x :: ps => match dt with
-                                | .pair p1 p2 => let (structMemeber, dt2) := match x with
-                                                                                | .fstMember => ("_fst", p1)
-                                                                                | .sndMember => ("_snd", p2)
-                                                 generateAccess dt2 (.structMemberAccess expr (.declRef (mkName structMemeber))) ps env cont
-                                | _ => panic! s!"expected tuple type"
+                                            | .pair p1 p2 => let (structMemeber, dt2) := match x with
+                                                                                            | .fstMember => ("_fst", p1)
+                                                                                            | .sndMember => ("_snd", p2)
+                                                            generateAccess dt2 (.structMemberAccess expr (.declRef (mkName structMemeber))) ps env cont
+                                            | _ => panic! s!"expected tuple type"
         | PathExpr.cIntExpr _ :: _ => match dt with
                                         | .array _ _ => let (dt2, k, ps) := flattenArrayIndicies dt path
                                                         generateAccess dt2 (.arraySubscript expr (.arithmeticExpr (RNatToCNatSimplified k))) ps env cont
@@ -141,8 +136,8 @@ mutual
 partial def cmd (env : Environment) (p : DPIAPhrase) : InferM CStmt :=
     match p with
         | ⟨.ifThenElse cond thenP elseP, _ ⟩ => cond |> exp env [] (fun c => do return .ifThenElse c (← cmd env thenP) (some (← cmd env elseP)))
-        | ⟨.bvar i n, .comm ⟩ => return lookUpCommEnv env n i
-        | ⟨.app ⟨.bvar _ _, _⟩ _, _ ⟩ => return .breakStmt -- needs fixing here comes contEnv into play
+        | ⟨.bvar _ n, .comm ⟩ => return lookUpCommEnv env n
+        | ⟨.app ⟨.bvar _ _, _⟩ _, _ ⟩ => return .breakStmt -- needs fixing here comes contEnv into play, not needed in my case
         | ⟨.imperative imp, _⟩ => cmdImp env imp
         | ⟨.proj1 p, _⟩ => (liftPair p).1 |> cmd env
         | ⟨.proj2 p, _⟩ => (liftPair p).1 |> cmd env
@@ -157,23 +152,20 @@ partial def cmdImp (env : Environment) (imp : ImperativePrimitives) : InferM CSt
         | .assign _ a e =>  e |> exp env [] (fun x => do
                                 a |> acc env [] (fun y => do
                                     return .exprStmt (.assignment y x)))
-        | .new dt ⟨.lam v t p, _⟩ => codeGenNew dt (mkBvar 0 v t) p env --- take a look at names again
---        | .newDoubleBuffer n _ _ dt inP outP ⟨.lam ps t p, _⟩ => codeGenNewDoubleBuffer (.array n dt) inP outP (mkBvar 0 ps t) p env  --- take a look at names again, not important for dot product
+        | .new dt ⟨.lam v t p, _⟩ => codeGenNew dt (mkBvar 0 v t) p env
         | .forLoop u n b => match b.node with
-                                | .lam i _ p => codeGenFor n i 0 p u env
+                                | .lam i _ p => codeGenFor n i p u env
                                 | _ => panic! s!"the for-body should be a function"
         | .forNat u n b => match b.node with
-                                | .deplam i (.rise .nat) p => codeGenFor n i 0 p u env
+                                | .deplam i (.rise .nat) p => codeGenFor n i p u env
                                 | _ => panic! s!"the for-body should be a function"
         | .comment msg => return .comment msg
---        | .dMatchI x inT _ f dPair => .breakStmt              -- not important for dot product
---        | .mkDPairFstl fst a => .breakStmt
         | _ => throw s!"don't know how to generate code for {imp}"
 
 private partial def acc (env : Environment) (path : Path) (cont : CExpr → InferM CStmt) (p : DPIAPhrase) : InferM CStmt :=
     match p with
-        | ⟨.bvar idx name, .acc dt⟩ =>  let expr := lookUpIdentEnv env name idx
-                                        generateAccess dt expr path env cont
+        | ⟨.bvar _ name, .acc dt⟩ =>  let expr := lookUpIdentEnv env name
+                                      generateAccess dt expr path env cont
         | ⟨.imperative imp, _⟩ => imp |> accImp env path cont
         | ⟨.proj1 p, _⟩ => (liftPair p).1 |> acc env path cont
         | ⟨.proj2 p, _⟩ => (liftPair p).2 |> acc env path cont
@@ -181,9 +173,6 @@ private partial def acc (env : Environment) (path : Path) (cont : CExpr → Infe
 
 private partial def accImp (env : Environment) (path : Path) (cont : CExpr → InferM CStmt) (imp : ImperativePrimitives) : InferM CStmt := do
     match imp with
-        -- | .splitAcc n _ _ a => match path with
-        --                         | (.cIntExpr i) :: ps => a |> acc env ((.cIntExpr (.div i n)) :: (.cIntExpr (.mod i n)) :: ps) cont
-        --                         | _ => panic! s!"expected a C-Integer-Expression on the path for splitAcc"
         | .joinAcc _ m _ a => match path with
                                 | (.cIntExpr i) :: (.cIntExpr j) :: ps => a |> acc env ((.cIntExpr (.plus (.mult i m) j)) :: ps) cont
                                 | _ => panic! s!"expected two C-Integer-Expression on the path for joinAcc"
@@ -216,13 +205,10 @@ private partial def accImp (env : Environment) (path : Path) (cont : CExpr → I
         | .dropAcc n _ _ a => match path with
                                 | (.cIntExpr i) :: ps => a |> acc env ((.cIntExpr (.plus i n)) :: ps) cont
                                 | _ => panic! s!"expected a C-Integer-Expression on the path for dropAcc"
-        -- | .cycleAcc _ m _ a => match path with
-        --                         | (.cIntExpr i) :: ps => a |> acc env ((.cIntExpr (.mod i n)) :: ps) cont
         | .scatterAcc n m _ y a =>  match path with
                                         | (.cIntExpr i) :: ps => let id := mkName (← FreshIdentifier "i")
                                                                  mkIdx n (.index m) (mkNatAsIndex n {node := .natural i, type := .expr .natType .read}) y |>
-                                                                    exp env [] (fun yic => do
-                                                                                            return .block [.declStmt (.var id (.scalar .int) (some yic)),
+                                                                    exp env [] (fun yic => do return .block [.declStmt (.var id (.scalar .int) (some yic)),
                                                                                                         (← a |> acc env ((.cIntExpr (.bvar 0 id)) :: ps) cont)])
                                         | _ => panic! s!"expected a C-Integer-Expression on the path for ScatterAcc"
         | .mapAcc n d _ f a => match path with
@@ -243,8 +229,8 @@ private partial def accImp (env : Environment) (path : Path) (cont : CExpr → I
 
 private partial def exp (env : Environment) (path : Path) (cont : CExpr → InferM CStmt) (p : DPIAPhrase) : InferM CStmt :=
     match p with
-        | ⟨.bvar idx name, .expr dt _⟩ => let expr := lookUpIdentEnv env name idx
-                                          generateAccess dt expr path env cont
+        | ⟨.bvar _ name, .expr dt _⟩ => let expr := lookUpIdentEnv env name
+                                        generateAccess dt expr path env cont
         | ⟨.lit v, dt⟩ => match path with
                             | [] => match getDataType dt with
                                         | .index _ => cont (codeGenLiteral v)
@@ -256,8 +242,8 @@ private partial def exp (env : Environment) (path : Path) (cont : CExpr → Infe
                                 | [] => cont (.arithmeticExpr  (RNatToCNatSimplified n))
                                 | _ => throw s!"exprected the path to be empty"
         | ⟨.functional func, dt⟩ => func |> expFunc env path cont (getDataType dt)
-        | ⟨.proj1 p, _⟩ => (liftPair p).1 |> exp env path cont -- left out simplifyNats as discussed
-        | ⟨.proj2 p, _⟩ => (liftPair p).2 |> exp env path cont -- left out simplifyNats as discussed
+        | ⟨.proj1 p, _⟩ => (liftPair p).1 |> exp env path cont
+        | ⟨.proj2 p, _⟩ => (liftPair p).2 |> exp env path cont
         | _ => panic! s!"don't know how to generate code for {p.node}"
 
 private partial def expFunc (env : Environment) (path : Path) (cont : CExpr → InferM CStmt) (dt : RData)  (func : FunctionalPrimitives) : InferM CStmt :=
@@ -318,9 +304,6 @@ private partial def expFunc (env : Environment) (path : Path) (cont : CExpr → 
         | .join _ m _ _ e => match path with
                                 | (.cIntExpr i) :: ps => e |> exp env ((.cIntExpr (.div m i)) :: (.cIntExpr (.div m i)) :: ps) cont
                                 | _ => panic! s!"expected a C-Integer-Expressions on the path"
-        -- | .partition _ _ _ _ e => match path with
-        --                             | (.cIntExpr i) :: (.cIntExpr j) :: ps =>
-        --                             | _ => panic! s!"expected two C-Integer-Expressions on the path for partitition".  ------ what is bigsum ?
         | .zip n dt1 dt2 _ e1 e2 => match path with
                                         | (.cIntExpr i) :: (.pairAccess xj) :: ps => match xj with
                                                                                         | .fstMember => e1 |> exp env ((.cIntExpr i) :: ps) cont
@@ -345,17 +328,9 @@ private partial def expFunc (env : Environment) (path : Path) (cont : CExpr → 
         | .drop n _ _ e => match path with
                             | (.cIntExpr i) :: ps => e |> exp env ((.cIntExpr (.plus n i)) :: ps) cont
                             | _ => panic! s!"expected a C-Integer-Expression on the path for drop"
-        -- | .cycle _ m _ e => match path with
-        --                         | (.cIntExpr i) :: ps => e |> exp env ((.cIntExpr (.mod m i)) :: ps) cont
-        --                         | _ => panic! s!"expected a C-Integer-Expression on the path for cycle"              --- no mod in RNat
         | .gather n m dt y e => match path with
                                     | (.cIntExpr i) :: ps => mkIdx n dt (mkIdx m (.index n) (mkNatAsIndex m {node := .natural i, type := .expr .natType .read}) y) e |> exp env ps cont
                                     | _ => panic! s!"unexpected path {path} for gather"
-        -- | .padClamp n l r _ e => match path with
-        --                             | (.cIntExpr i) :: ps => e |> exp env ((.cIntExpr 0) :: ps) (fun left =>
-        --                                                         e |> exp env ((.cIntExpr (.minus n 1)) :: ps) (fun right =>
-        --                                                             genPad))
-        -- | .padCst n l r _ pad array
         | .slide _ _ s2 _ e => match path with
                                 | (.cIntExpr i) :: (.cIntExpr j) :: ps => e |> exp env ((.cIntExpr (.plus (.mult i  s2) j)) :: ps) cont
                                 | _ => panic! s!"expected two C-Integer-Expression on the path for slide"
@@ -376,29 +351,20 @@ private partial def expFunc (env : Environment) (path : Path) (cont : CExpr → 
 partial def codeGenNew (dt : RData) (v p : DPIAPhrase) (env : Environment) : InferM CStmt :=
     match v with
         | ⟨.bvar i n, .phrasePair (.expr t1 rw) (.acc t2)⟩ => let ve := mkBvar i (mkNewName n "_e") (.expr t1 rw)
-                                                             let va := mkBvar i (mkNewName n "_a") (.acc t2)
-                                                             let vC := CExpr.declRef n
-                                                             let env := updatedIdentEnv (updatedIdentEnv env (mkNewName n "_e") i vC) (mkNewName n "_a") i vC
-                                                             let seq1 := CStmt.declStmt (.var n (typ dt) none)
-                                                             let seq2 := substitutePhraseInPhrase {node := .pair ve va, type := .phrasePair (.expr t1 rw) (.acc t2)} p n
-                                                             return .block [seq1, (← cmd env seq2)]
+                                                              let va := mkBvar i (mkNewName n "_a") (.acc t2)
+                                                              let vC := CExpr.declRef n
+                                                              let env := updatedIdentEnv (updatedIdentEnv env (mkNewName n "_e") vC) (mkNewName n "_a") vC
+                                                              let seq2 := substitutePhraseInPhrase {node := .pair ve va, type := .phrasePair (.expr t1 rw) (.acc t2)} p n
+                                                              return .block [.declStmt (.var n (typ dt) none) , (← cmd env seq2)]
         | _ => panic! s!"type mismatch"
 
--- partial def codeGenNewDoubleBuffer (dt : RData) (inP outP ps p : DPIAPhrase) (env : Environment) : CStmt :=         --- not important for dot product
---     .breakStmt
-
-partial def codeGenFor (n : RNat) (i : Lean.Name) (nt : Nat) (p : DPIAPhrase) (_ : Bool) (env : Environment) : InferM CStmt := do
-    --  let _ := assertUnroll unroll
-    --  let cI :=
-    -- ignore applySubstitutions for now
+partial def codeGenFor (n : RNat) (i : Lean.Name) (p : DPIAPhrase) (_ : Bool) (env : Environment) : InferM CStmt := do
     let name := mkName (<- FreshIdentifier "i_")
     let init := CDecl.var name (.scalar .int) (some (.arithmeticExpr (.nat 0)))
     let cond := CExpr.binaryExpr .less (.declRef name) (.arithmeticExpr (RNatToCNatSimplified n))
     let increment := CExpr.assignment (.declRef name) (.binaryExpr .plus (.declRef name) (.arithmeticExpr (.nat 1)))
-    return .forLoop (.declStmt init) cond increment (.block [(<- p |> cmd (updatedIdentEnv env i nt (.declRef name)))])
+    return .forLoop (.declStmt init) cond increment (.block [(<- p |> cmd (updatedIdentEnv env i (.declRef name)))])
 
---partial def codeGenForNat (n : RNat) (i : RNat) (p : DPIAPhrase) (unroll : Bool) (env : Environment) : InferM CStmt :=
---    return .breakStmt
 
 partial def codeGenIdx (i e : DPIAPhrase) (env : Environment) (ps : Path) (cont : CExpr → InferM CStmt) : InferM CStmt :=
     i |> exp env [] (fun x => do  match x with
