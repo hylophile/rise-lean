@@ -48,3 +48,11 @@ def getDataType (exprT: PhraseType) : RData :=
     | .pi _ _ body => getDataType body
     | .fn _ body => getDataType body
     | _ => panic! s!"this should not happen, cannot determine the datatype"
+
+def getDt (pt : PhraseType) : RData :=
+    match pt with
+        | .expr dt _ => dt
+        | .acc dt => dt
+        | .phrasePair (.expr dt1 _) (.acc dt2) => if dt1 == dt2 then dt1
+                                                  else panic! s!"the data types {dt1} and {dt2} should match!"
+        | _ => panic! s!"this should not happen, only expr, acc and pairs are allowed"

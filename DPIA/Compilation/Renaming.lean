@@ -443,9 +443,36 @@ partial def uniqueRenamingHelper (p : DPIAPhrase) : InferM DPIAPhrase := do
 
 end
 
+def matchParams (ps : List (DPIAPhrase × String)) : InferM (List DPIAPhrase) := do
+    match ps with
+        | [] => throw s!"there are no DPIA phrases to Rename"
+        | (x, _) :: [] => return [x]
+        | (⟨.bvar i n, pt⟩, name) :: ys => match name with
+                                | "fn" => let id ← updateArgs n
+                                          updateDepth
+                                          return (mkBvar i id pt) :: (← matchParams ys)
+                                | "pi" => let id ← updateDepArgs n
+                                          updateDepDepth
+                                          return (mkBvar i id pt) :: (← matchParams ys)
+                                | _ => throw s!"the flags should be one of fn, pi, body but is {name}"
+        | _ => throw s!"there should only be bvars"
+
+partial def uniqueRenamingWithParamsHelper (ps : List (DPIAPhrase × String)) : InferM (List DPIAPhrase) := do
+    let renamedPs ← matchParams ps
+    match renamedPs.getLast? with
+        | some y => return renamedPs.dropLast.concat (← uniqueRenamingHelper y)
+        | none => throw s!"there should be at least one DPIA Phrase in the List"
+
+
 -------------- outer call --------------
 partial def uniqueRenaming (p : DPIAPhrase) : DPIAPhrase :=
     let result := (uniqueRenamingHelper p).run {}
+    match result with
+        | .ok (ph, _) => ph
+        | .error msg => panic! s!"error ocurred during Renaming: \n {msg}"
+
+partial def uniqueRenamingWithParams (ps : List (DPIAPhrase × String)) : List DPIAPhrase :=
+    let result := (uniqueRenamingWithParamsHelper ps).run {}
     match result with
         | .ok (ph, _) => ph
         | .error msg => panic! s!"error ocurred during Renaming: \n {msg}"
