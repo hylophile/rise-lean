@@ -28,6 +28,12 @@ def mkIfThenElse (type : PhraseType) (cond thenP elseP : DPIAPhrase) : DPIAPhras
 def mkFunctional (type : PhraseType) (func : FunctionalPrimitives) : DPIAPhrase :=
   {node := .functional func, type := type}
 
+def mkImperative (type : PhraseType) (imp : ImperativePrimitives) : DPIAPhrase :=
+  {node := .imperative imp, type := type}
+
+def mkPair (type : PhraseType) (p1 p2 : DPIAPhrase) : DPIAPhrase :=
+  {node := .pair p1 p2, type := type}
+
 -------------- end of DPIAPhrase construktors ----------------
 
 def getFreshIdentifier (name : String := "tmp") (counter : Nat): Lean.Name :=

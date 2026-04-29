@@ -1,5 +1,6 @@
 import DPIA.Basic
 import Rise.Basic
+import DPIA.mkFunctions
 
 ------------------- substitute in functional and imperative ---------------------------
 
@@ -24,21 +25,21 @@ def substituteInFunctional (In : FunctionalPrimitives) (phraseFn : DPIAPhrase â†
     | .toMem t input => .toMem (dataFn t) (phraseFn input)
     | .generate n t f  => .generate (natFn n) (dataFn t) (phraseFn f)
     | .idx n t idx array => .idx (natFn n) (dataFn t) (phraseFn idx) (phraseFn array)
-    | .depIdx ..  => In -- needs to be fixed at some point
+    | .depIdx ..  => In
     | .idxVec n t idx vec  => .idxVec (natFn n) (dataFn t) (phraseFn idx) (phraseFn vec)
     | .take n m t array => .take (natFn n) (natFn m) (dataFn t) (phraseFn array)
     | .drop n m t array => .drop (natFn n) (natFn m) (dataFn t) (phraseFn array)
     | .concat n m t nArray mArray => .concat (natFn n) (natFn m) (dataFn t) (phraseFn nArray) (phraseFn mArray)
     | .split n m t a array => .split (natFn n) (natFn m) (dataFn t) a (phraseFn array)
     | .join n m t a array => .join (natFn n) (natFn m) (dataFn t) a (phraseFn array)
-    | .depJoin .. => In  -- needs to be fixed at some point
+    | .depJoin .. => In
     | .slide n sz sp t array => .slide (natFn n) (natFn sz) (natFn sp) (dataFn t) (phraseFn array)
     | .circularBuffer n alloc sz s t load array => .circularBuffer (natFn n) (natFn alloc) (natFn sz) (dataFn s) (dataFn t) (phraseFn load) (phraseFn array)
     | .rotateValues n sz t wrt array => .rotateValues (natFn n) (natFn sz) (dataFn t) wrt (phraseFn array)
     | .transpose n m t a array => .transpose (natFn n) (natFn m) (dataFn t) a (phraseFn array)
     | .cycle n m  t array  => .cycle (natFn n) (natFn m) (dataFn t) (phraseFn array)
-    | .reorder .. =>  In  -- needs to be fixed at some point
-    | .transposeDepArray .. =>  In  -- needs to be fixed at some point
+    | .reorder .. =>  In
+    | .transposeDepArray .. =>  In
     | .gather n m t idx array => .gather (natFn n) (natFn m) (dataFn t) (phraseFn idx) (phraseFn array)
     | .scatter n m t idx array => .scatter (natFn n) (natFn m) (dataFn t) (phraseFn idx) (phraseFn array)
     | .padCst n l r t padExpr array => .padCst (natFn n) (natFn l) (natFn r) (dataFn t) (phraseFn padExpr) (phraseFn array)
@@ -46,8 +47,8 @@ def substituteInFunctional (In : FunctionalPrimitives) (phraseFn : DPIAPhrase â†
     | .padEmpty n r t array => .padEmpty (natFn n) (natFn r) (dataFn t) (phraseFn array)
     | .zip n s t a sArray tArray => .zip (natFn n) (dataFn s) (dataFn t) a (phraseFn sArray) (phraseFn tArray)
     | .unzip n s t a array  => .unzip (natFn n) (dataFn s) (dataFn t) a (phraseFn array)
-    | .depZip ..  =>  In  -- needs to be fixed at some point
-    | .partition .. =>  In  -- needs to be fixed at some point
+    | .depZip ..  =>  In
+    | .partition .. =>  In
     | .makePair s t a fst snd  => .makePair (dataFn s) (dataFn t) a (phraseFn fst) (phraseFn snd)
     | .fst s t pair => .fst (dataFn s) (dataFn t) (phraseFn pair)
     | .snd s t pair => .snd (dataFn s) (dataFn t) (phraseFn pair)
@@ -59,7 +60,7 @@ def substituteInFunctional (In : FunctionalPrimitives) (phraseFn : DPIAPhrase â†
     | .mapSeq unroll n s t f array => .mapSeq unroll (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn array)
     | .mapStream n s t f array  => .mapStream (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn array)
     | .iterateStream n s t f array => .iterateStream (natFn n) (dataFn s) (dataFn t) (phraseFn f) (phraseFn array)
-    | .depMapSeq .. =>  In  -- needs to be fixed at some point
+    | .depMapSeq .. =>  In
     | .mapVec n t1 t2 f vec  => .mapVec (natFn n) (dataFn t1) (dataFn t2) (phraseFn f) (phraseFn vec)
     | .mapFst s1 t s2 a f pair => .mapFst (dataFn s1) (dataFn t) (dataFn s2) a (phraseFn f) (phraseFn pair)
     | .mapSnd s t1 t2 a f pair => .mapSnd (dataFn s) (dataFn t1) (dataFn t2) a (phraseFn f) (phraseFn pair)
@@ -90,7 +91,7 @@ def substituteInImperative (In : ImperativePrimitives) (phraseFn : DPIAPhrase â†
     | .zipAcc2     n t1 t2 array => .zipAcc2 (natFn n) (dataFn t1) (dataFn t2) (phraseFn array)
     | .transposeAcc n m t array  => .transposeAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
     | .cycleAcc n m t input => .cycleAcc (natFn n) (natFn m) (dataFn t) (phraseFn input)
-    | .reorderAcc      .. => In  -- needs to be fixed at some point
+    | .reorderAcc      .. => In
     | .dropAcc n m t array => .dropAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
     | .takeAcc n m t array => .takeAcc (natFn n) (natFn m) (dataFn t) (phraseFn array)
     | .mapAcc n t1 t2 f array => .mapAcc (natFn n) (dataFn t1) (dataFn t2) (phraseFn f) (phraseFn array)
@@ -106,8 +107,8 @@ def substituteInImperative (In : ImperativePrimitives) (phraseFn : DPIAPhrase â†
     | .newDoubleBuffer n t1 t2 t3 input out f => .newDoubleBuffer (natFn n) (dataFn t1) (dataFn t2) (dataFn t3) (phraseFn input) (phraseFn out) (phraseFn f)
     | .comment _ => In
     | .skip => In
-    | .depIdxAcc .. => In  -- needs to be fixed at some point
-    | .depJoinAcc .. => In  -- needs to be fixed at some point
+    | .depIdxAcc .. => In
+    | .depJoinAcc .. => In
     | .dMatchI x elemT outT f input => .dMatchI (natFn x) (dataFn elemT) (dataFn outT) (phraseFn f) (phraseFn input)
     | .seq c1 c2 => .seq (phraseFn c1) (phraseFn c2)
 
@@ -125,12 +126,12 @@ def substituteAnnotationA (a : DAnnotation) (name : Lean.Name) (key : DAnnotatio
 -- in PhraseTypes
 def substituteAnnotationPt (pt : PhraseType) (name : Lean.Name) (key : DAnnotation) : PhraseType :=
   match pt with
-    | .expr dt rw => PhraseType.expr dt (substituteAnnotationA rw name key)
+    | .expr dt rw => .expr dt (substituteAnnotationA rw name key)
     | .comm => pt
     | .acc _ => pt
-    | .pi binderKind userName body => PhraseType.pi binderKind userName (substituteAnnotationPt body name key)
-    | .fn binderType body => PhraseType.fn (substituteAnnotationPt binderType name key) (substituteAnnotationPt body name key)
-    | .phrasePair p1 p2 => PhraseType.phrasePair (substituteAnnotationPt p1 name key) (substituteAnnotationPt p2 name key)
+    | .pi binderKind userName body => .pi binderKind userName (substituteAnnotationPt body name key)
+    | .fn binderType body => .fn (substituteAnnotationPt binderType name key) (substituteAnnotationPt body name key)
+    | .phrasePair p1 p2 => .phrasePair (substituteAnnotationPt p1 name key) (substituteAnnotationPt p2 name key)
 
 
 
@@ -143,30 +144,25 @@ def substituteDataInData (dt : RData) (For : Lean.Name) (In : RData) (depth : Na
     | .bvar index userName => if userName.toString == For.toString && depth == index
                               then dt
                               else In
-    | .array n aDt => RData.array n (substituteDataInData dt For aDt depth)
-    | .pair p1 p2 => RData.pair (substituteDataInData dt For p1 depth) (substituteDataInData dt For p2 depth)
+    | .array n aDt => .array n (substituteDataInData dt For aDt depth)
+    | .pair p1 p2 => .pair (substituteDataInData dt For p1 depth) (substituteDataInData dt For p2 depth)
     | .index _ => In
     | .scalar _ => In
     | .natType => In
-    | .vector n vDt => RData.vector n (substituteDataInData dt For vDt depth)
+    | .vector n vDt => .vector n (substituteDataInData dt For vDt depth)
     | _ => panic! s!"that should never happen"
 
 -- in PhraseTypes
 def substituteDataInPtHelper (sN : RData) (For : Lean.Name) (In : PhraseType) (depth : Nat): PhraseType :=
   match In with
-    | .expr dt rw => let nDt := substituteDataInData sN For dt depth
-                    PhraseType.expr nDt rw
+    | .expr dt rw => .expr (substituteDataInData sN For dt depth) rw
     | .comm => In
-    | .acc dt => let nDt := substituteDataInData sN For dt depth
-                PhraseType.acc nDt
-    | .pi binderKind userName body => let nBody := substituteDataInPtHelper sN For body (depth +1)
-                                     PhraseType.pi binderKind userName nBody
-    | .fn binderType body => let nBinderType := substituteDataInPtHelper sN For binderType depth
-                            let nBody := substituteDataInPtHelper sN For body depth
-                            PhraseType.fn nBinderType nBody
-    | .phrasePair p1 p2 => let nP1 := substituteDataInPtHelper sN For p1 depth
-                          let nP2 := substituteDataInPtHelper sN For p2 depth
-                          PhraseType.phrasePair nP1 nP2
+    | .acc dt => .acc (substituteDataInData sN For dt depth)
+    | .pi binderKind userName body => .pi binderKind userName (substituteDataInPtHelper sN For body (depth +1))
+    | .fn binderType body => .fn (substituteDataInPtHelper sN For binderType depth)
+                                 (substituteDataInPtHelper sN For body depth)
+    | .phrasePair p1 p2 => .phrasePair (substituteDataInPtHelper sN For p1 depth)
+                                       (substituteDataInPtHelper sN For p2 depth)
 
 def substituteDataInPhraseType (sN : RData) (For : Lean.Name) (In : PhraseType) : PhraseType :=
   substituteDataInPtHelper sN For In 0
@@ -180,20 +176,18 @@ def substituteDataInRType (data : RData) (For : Lean.Name) (In : RType) (depth :
 
 
 
-
-
 -------------------------- substitute Nat ------------------------
 
 -- in Data
 def substituteNatInData (n : RNat) (For : Lean.Name) (In : RData) (depth : Nat): RData :=
   match In with
-    | .bvar index userName => if userName.toString == For.toString && depth == index then RData.natType else In
-    | .array n aDt => RData.array n (substituteNatInData n For aDt depth)
-    | .pair p1 p2 => RData.pair (substituteNatInData n For p1 depth) (substituteNatInData n For p2 depth)
+    | .bvar index userName => if userName.toString == For.toString && depth == index then .natType else In
+    | .array n aDt => .array n (substituteNatInData n For aDt depth)
+    | .pair p1 p2 => .pair (substituteNatInData n For p1 depth) (substituteNatInData n For p2 depth)
     | .index _ => In
     | .scalar _ => In
     | .natType => In
-    | .vector n vDt => RData.vector n (substituteNatInData n For vDt depth)
+    | .vector n vDt => .vector n (substituteNatInData n For vDt depth)
     | _ => panic! s!"that should never happen"
 
 -- in Nat
@@ -211,19 +205,14 @@ partial def substituteNatInNat (num: RNat) (For : Lean.Name) (In: RNat) (depth :
 -- in PhraseTypes
 def substituteNatInPtHelper (sN : RNat) (For : Lean.Name) (In : PhraseType) (depth : Nat) : PhraseType :=
   match In with
-    | .expr dt rw => let nDt := substituteNatInData sN For dt depth
-                    PhraseType.expr nDt rw
+    | .expr dt rw => .expr (substituteNatInData sN For dt depth) rw
     | .comm => In
-    | .acc dt => let nDt := substituteNatInData sN For dt depth
-                PhraseType.acc nDt
-    | .pi binderKind userName body => let nBody := substituteNatInPtHelper sN For body (depth +1)
-                                     PhraseType.pi binderKind userName nBody
-    | .fn binderType body => let nBinderType := substituteNatInPtHelper sN For binderType depth
-                            let nBody := substituteNatInPtHelper sN For body depth
-                            PhraseType.fn nBinderType nBody
-    | .phrasePair p1 p2 => let nP1 := substituteNatInPtHelper sN For p1 depth
-                          let nP2 := substituteNatInPtHelper sN For p2 depth
-                          PhraseType.phrasePair nP1 nP2
+    | .acc dt => .acc (substituteNatInData sN For dt depth)
+    | .pi binderKind userName body => .pi binderKind userName (substituteNatInPtHelper sN For body (depth +1))
+    | .fn binderType body => .fn (substituteNatInPtHelper sN For binderType depth)
+                                 (substituteNatInPtHelper sN For body depth)
+    | .phrasePair p1 p2 => .phrasePair (substituteNatInPtHelper sN For p1 depth)
+                                       (substituteNatInPtHelper sN For p2 depth)
 
 def substituteNatInPhraseType (sN : RNat) (For : Lean.Name) (In : PhraseType) : PhraseType :=
   substituteNatInPtHelper sN For In 0
@@ -245,29 +234,27 @@ partial def substitutePhraseInPhraseHelper (phrase In : DPIAPhrase) (For : Lean.
   match In.node with
     | .bvar deBruijnIndex userName => if userName == For && deBruijnIndex == depth then phrase
                                       else In
-    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => substitutePhraseInPhraseHelper phrase x For depth) (fun x => x) (fun x => x)), type := In.type}
-    | .functional func => {node := .functional (substituteInFunctional func (fun x => substitutePhraseInPhraseHelper phrase x For depth) (fun x => x) (fun x => x)), type := In.type}
+    | .imperative imp => mkImperative In.type (substituteInImperative imp
+                                                                      (fun x => substitutePhraseInPhraseHelper phrase x For depth)
+                                                                      (fun x => x)
+                                                                      (fun x => x))
+    | .functional func => mkFunctional In.type (substituteInFunctional func
+                                                                       (fun x => substitutePhraseInPhraseHelper phrase x For depth)
+                                                                       (fun x => x)
+                                                                       (fun x => x))
     | .lit _ => In
-    | .app fn arg => let sFn := substitutePhraseInPhraseHelper phrase fn For depth
-                     let sArg := substitutePhraseInPhraseHelper phrase arg For depth
-                     {node := .app sFn sArg, type := In.type : DPIAPhrase}
-    | .depapp fn arg => let sFn := substitutePhraseInPhraseHelper phrase fn For depth
-                        {node := .depapp sFn arg, type := In.type : DPIAPhrase}
-    | .lam binderName binderType body =>  let sBody := substitutePhraseInPhraseHelper phrase body For (depth+1)
-                                          {node := .lam binderName binderType sBody, type := In.type}
-    | .deplam binderName binderKind body => let sBody := substitutePhraseInPhraseHelper phrase body For depth
-                                            {node := .deplam binderName binderKind sBody, type := In.type : DPIAPhrase}
-    | .pair fst snd =>  let sFst := substitutePhraseInPhraseHelper phrase fst For depth
-                        let sSnd := substitutePhraseInPhraseHelper phrase snd For depth
-                        {node := .pair sFst sSnd, type := In.type : DPIAPhrase}
-    | .proj1 p => let sP := substitutePhraseInPhraseHelper phrase p For depth
-                  {node := .proj1 sP, type := In.type : DPIAPhrase}
-    | .proj2 p => let sP := substitutePhraseInPhraseHelper phrase p For depth
-                  {node := .proj2 sP, type := In.type : DPIAPhrase}
-    | .ifThenElse cond thenP elseP => let sCond := substitutePhraseInPhraseHelper phrase cond For depth
-                                      let sThenP := substitutePhraseInPhraseHelper phrase thenP For depth
-                                      let sElseP := substitutePhraseInPhraseHelper phrase elseP For depth
-                                      {node := .ifThenElse sCond sThenP sElseP, type := In.type : DPIAPhrase}
+    | .app fn arg => mkApp In.type (substitutePhraseInPhraseHelper phrase fn For depth)
+                                   (substitutePhraseInPhraseHelper phrase arg For depth)
+    | .depapp fn arg => mkDepApp In.type (substitutePhraseInPhraseHelper phrase fn For depth) arg
+    | .lam binderName binderType body =>  mkLam In.type binderName binderType (substitutePhraseInPhraseHelper phrase body For (depth+1))
+    | .deplam binderName binderKind body => mkDeplam In.type binderName binderKind (substitutePhraseInPhraseHelper phrase body For depth)
+    | .pair fst snd =>  mkPair In.type (substitutePhraseInPhraseHelper phrase fst For depth)
+                                       (substitutePhraseInPhraseHelper phrase snd For depth)
+    | .proj1 p => mkProj1 In.type (substitutePhraseInPhraseHelper phrase p For depth)
+    | .proj2 p => mkProj2 In.type (substitutePhraseInPhraseHelper phrase p For depth)
+    | .ifThenElse cond thenP elseP => mkIfThenElse In.type (substitutePhraseInPhraseHelper phrase cond For depth)
+                                                           (substitutePhraseInPhraseHelper phrase thenP For depth)
+                                                           (substitutePhraseInPhraseHelper phrase elseP For depth)
     | .natural _ => In
 
 def substitutePhraseInPhrase (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
@@ -305,36 +292,28 @@ partial def substituteDWrapperInPhraseHelper (depArg : DWrapper) (In : DPIAPhras
   let pt := substituteDWrapperPt depArg In.type For depth
   match In.node with
     | .bvar _ _ => {node := In.node, type := pt}
-    | .imperative imp => {node := .imperative (substituteInImperative imp
-                                                                      (fun x => substituteDWrapperInPhraseHelper depArg x For depth)
-                                                                      (fun x => substituteDWrapperD depArg x For depth)
-                                                                      (fun x => substituteDWrapperN depArg x For depth)), type := pt}
-    | .functional func => {node := .functional (substituteInFunctional func
-                                                                       (fun x => substituteDWrapperInPhraseHelper depArg x For depth)
-                                                                       (fun x => substituteDWrapperD depArg x For depth)
-                                                                       (fun x => substituteDWrapperN depArg x For depth)), type := pt}
+    | .imperative imp => mkImperative pt (substituteInImperative imp
+                                                                 (fun x => substituteDWrapperInPhraseHelper depArg x For depth)
+                                                                 (fun x => substituteDWrapperD depArg x For depth)
+                                                                 (fun x => substituteDWrapperN depArg x For depth))
+    | .functional func => mkFunctional pt (substituteInFunctional func
+                                                                  (fun x => substituteDWrapperInPhraseHelper depArg x For depth)
+                                                                  (fun x => substituteDWrapperD depArg x For depth)
+                                                                  (fun x => substituteDWrapperN depArg x For depth))
     | .lit _ => {node := In.node, type := pt}
-    | .app fn arg => let sFn := substituteDWrapperInPhraseHelper depArg fn For depth
-                     let sArg := substituteDWrapperInPhraseHelper depArg arg For depth
-                     {node := .app sFn sArg, type := pt : DPIAPhrase}
-    | .depapp fn arg => let sFn := substituteDWrapperInPhraseHelper depArg fn For depth
-                        {node := .depapp sFn arg, type := pt : DPIAPhrase}
-    | .lam binderName binderType body =>  let sBody := substituteDWrapperInPhraseHelper depArg body For depth
-                                          let sBinderType := substituteDWrapperPt depArg binderType For depth
-                                          {node := .lam binderName sBinderType sBody, type := pt}
-    | .deplam binderName binderKind body => let sBody := substituteDWrapperInPhraseHelper depArg body For (depth+1)
-                                            {node := .deplam binderName binderKind sBody, type := pt : DPIAPhrase}
-    | .pair fst snd =>  let sFst := substituteDWrapperInPhraseHelper depArg fst For depth
-                        let sSnd := substituteDWrapperInPhraseHelper depArg snd For depth
-                        {node := .pair sFst sSnd, type := pt : DPIAPhrase}
-    | .proj1 p => let sP := substituteDWrapperInPhraseHelper depArg p For depth
-                  {node := .proj1 sP, type := pt : DPIAPhrase}
-    | .proj2 p => let sP := substituteDWrapperInPhraseHelper depArg p For depth
-                  {node := .proj1 sP, type := pt : DPIAPhrase}
-    | .ifThenElse cond thenP elseP => let sCond := substituteDWrapperInPhraseHelper depArg cond For depth
-                                      let sThenP := substituteDWrapperInPhraseHelper depArg thenP For depth
-                                      let sElseP := substituteDWrapperInPhraseHelper depArg elseP For depth
-                                      {node := .ifThenElse sCond sThenP sElseP, type := pt : DPIAPhrase}
+    | .app fn arg => mkApp pt (substituteDWrapperInPhraseHelper depArg fn For depth)
+                              (substituteDWrapperInPhraseHelper depArg arg For depth)
+    | .depapp fn arg => mkDepApp pt (substituteDWrapperInPhraseHelper depArg fn For depth) arg
+    | .lam binderName binderType body =>  mkLam pt binderName (substituteDWrapperPt depArg binderType For depth)
+                                                              (substituteDWrapperInPhraseHelper depArg body For depth)
+    | .deplam binderName binderKind body => mkDeplam pt binderName binderKind (substituteDWrapperInPhraseHelper depArg body For (depth+1))
+    | .pair fst snd =>  mkPair pt (substituteDWrapperInPhraseHelper depArg fst For depth)
+                                  (substituteDWrapperInPhraseHelper depArg snd For depth)
+    | .proj1 p => mkProj1 pt (substituteDWrapperInPhraseHelper depArg p For depth)
+    | .proj2 p => mkProj2 pt (substituteDWrapperInPhraseHelper depArg p For depth)
+    | .ifThenElse cond thenP elseP => mkIfThenElse pt (substituteDWrapperInPhraseHelper depArg cond For depth)
+                                                      (substituteDWrapperInPhraseHelper depArg thenP For depth)
+                                                      (substituteDWrapperInPhraseHelper depArg elseP For depth)
     | .natural _ => {node := In.node, type := pt}
 
 def substituteDWrapperInPhrase (depArg : DWrapper) (In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=

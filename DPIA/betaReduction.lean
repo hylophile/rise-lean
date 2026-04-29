@@ -10,18 +10,21 @@ partial def adjustIndex (p : DPIAPhrase) (seenFn : Nat) (ids : HashSeen) (depth 
     match p.node with
         | .bvar idx name => match ids.get? (name, (depth- idx-1)) with
                                         | some _ => p
-                                        | none => {node := .bvar (idx + seenFn) name, type := p.type}
-        | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => adjustIndex x seenFn ids depth) (fun x => x) (fun x => x)), type := p.type}
-        | .functional func => {node := .functional (substituteInFunctional func (fun x => adjustIndex x seenFn ids depth) (fun x => x) (fun x => x)), type := p.type}
+                                        | none => mkBvar (idx + seenFn) name p.type
+        | .imperative imp => mkImperative p.type (substituteInImperative imp (fun x => adjustIndex x seenFn ids depth) (fun x => x) (fun x => x))
+        | .functional func => mkFunctional p.type (substituteInFunctional func (fun x => adjustIndex x seenFn ids depth) (fun x => x) (fun x => x))
         | .lit _ => p
-        | .app fn arg => {node := .app (adjustIndex fn seenFn ids depth) (adjustIndex arg seenFn ids depth), type := p.type}
-        | .depapp fn arg => {node := .depapp (adjustIndex fn seenFn ids depth) arg, type := p.type}
-        | .lam name type body => {node := .lam name type (adjustIndex body seenFn (ids.insert (name, depth) (name, depth)) (depth+1)), type := p.type}
-        | .deplam name kind body => {node := .deplam name kind (adjustIndex body seenFn ids depth), type := p.type}
-        | .pair fst snd => {node := .pair (adjustIndex fst seenFn ids depth) (adjustIndex snd seenFn ids depth), type := p.type}
-        | .proj1 p => {node := .proj1 (adjustIndex p seenFn ids depth), type := p.type}
-        | .proj2 p => {node := .proj2 (adjustIndex p seenFn ids depth), type := p.type}
-        | .ifThenElse cond thenP elseP => {node := .ifThenElse (adjustIndex cond seenFn ids depth) (adjustIndex thenP seenFn ids depth) (adjustIndex elseP seenFn ids depth), type := p.type}
+        | .app fn arg => mkApp p.type (adjustIndex fn seenFn ids depth)
+                                      (adjustIndex arg seenFn ids depth)
+        | .depapp fn arg => mkDepApp p.type (adjustIndex fn seenFn ids depth) arg
+        | .lam name type body => mkLam p.type name type (adjustIndex body seenFn (ids.insert (name, depth) (name, depth)) (depth+1))
+        | .deplam name kind body => mkDeplam p.type name kind (adjustIndex body seenFn ids depth)
+        | .pair fst snd => mkPair p.type (adjustIndex fst seenFn ids depth) (adjustIndex snd seenFn ids depth)
+        | .proj1 p => mkProj1 p.type (adjustIndex p seenFn ids depth)
+        | .proj2 p => mkProj2 p.type (adjustIndex p seenFn ids depth)
+        | .ifThenElse cond thenP elseP => mkIfThenElse p.type (adjustIndex cond seenFn ids depth)
+                                                              (adjustIndex thenP seenFn ids depth)
+                                                              (adjustIndex elseP seenFn ids depth)
         | .natural _ => p
 
 -------------------- simple reduction ------------------------
@@ -34,29 +37,21 @@ partial def reductionHelper (phrase In : DPIAPhrase) (For : Lean.Name) (depth : 
                                 else match ids.get? (userName, (depth- idx-1)) with
                                         | some _ => In
                                         | none => mkBvar (idx + depth-1) userName In.type
-    | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => reductionHelper phrase x For depth ids) (fun x => x) (fun x => x)), type := In.type}
-    | .functional func => {node := .functional (substituteInFunctional func (fun x => reductionHelper phrase x For depth ids) (fun x => x) (fun x => x)), type := In.type}
+    | .imperative imp => mkImperative In.type (substituteInImperative imp (fun x => reductionHelper phrase x For depth ids) (fun x => x) (fun x => x))
+    | .functional func => mkFunctional In.type (substituteInFunctional func (fun x => reductionHelper phrase x For depth ids) (fun x => x) (fun x => x))
     | .lit _ => In
-    | .app fn arg => let sFn := reductionHelper phrase fn For depth ids
-                     let sArg := reductionHelper phrase arg For depth ids
-                     {node := .app sFn sArg, type := In.type : DPIAPhrase}
-    | .depapp fn arg => let sFn := reductionHelper phrase fn For depth ids
-                        {node := .depapp sFn arg, type := In.type : DPIAPhrase}
-    | .lam binderName binderType body =>  let sBody := reductionHelper phrase body For (depth+1) (ids.insert (binderName, depth) (binderName, depth))
-                                          {node := .lam binderName binderType sBody, type := In.type}
-    | .deplam binderName binderKind body => let sBody := reductionHelper phrase body For depth ids
-                                            {node := .deplam binderName binderKind sBody, type := In.type : DPIAPhrase}
-    | .pair fst snd =>  let sFst := reductionHelper phrase fst For depth ids
-                        let sSnd := reductionHelper phrase snd For depth ids
-                        {node := .pair sFst sSnd, type := In.type : DPIAPhrase}
-    | .proj1 p => let sP := reductionHelper phrase p For depth ids
-                  {node := .proj1 sP, type := In.type : DPIAPhrase}
-    | .proj2 p => let sP := reductionHelper phrase p For depth ids
-                  {node := .proj1 sP, type := In.type : DPIAPhrase}
-    | .ifThenElse cond thenP elseP => let sCond := reductionHelper phrase cond For depth ids
-                                      let sThenP := reductionHelper phrase thenP For depth ids
-                                      let sElseP := reductionHelper phrase elseP For depth ids
-                                      {node := .ifThenElse sCond sThenP sElseP, type := In.type : DPIAPhrase}
+    | .app fn arg => mkApp In.type  (reductionHelper phrase fn For depth ids)
+                                    (reductionHelper phrase arg For depth ids)
+    | .depapp fn arg => mkDepApp In.type (reductionHelper phrase fn For depth ids) arg
+    | .lam binderName binderType body =>  mkLam In.type binderName binderType (reductionHelper phrase body For (depth+1) (ids.insert (binderName, depth) (binderName, depth)))
+    | .deplam binderName binderKind body => mkDeplam In.type binderName binderKind (reductionHelper phrase body For depth ids)
+    | .pair fst snd =>  mkPair In.type (reductionHelper phrase fst For depth ids)
+                                       (reductionHelper phrase snd For depth ids)
+    | .proj1 p => mkProj1 In.type (reductionHelper phrase p For depth ids)
+    | .proj2 p => mkProj2 In.type (reductionHelper phrase p For depth ids)
+    | .ifThenElse cond thenP elseP => mkIfThenElse In.type (reductionHelper phrase cond For depth ids)
+                                                           (reductionHelper phrase thenP For depth ids)
+                                                           (reductionHelper phrase elseP For depth ids)
     | .natural _ => In
 
 def reduce (phrase In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
@@ -107,46 +102,39 @@ def reduceDataInData (dt : RData) (For : Lean.Name) (In : RData) (depth : Nat) (
                                 else match ids.get? (name, (depth- idx)) with
                                         | some _ => In
                                         | none => .bvar (idx + depth -1) name
-        | .array n aDt => RData.array n (reduceDataInData dt For aDt depth ids)
-        | .pair p1 p2 => RData.pair (reduceDataInData dt For p1 depth ids) (reduceDataInData dt For p2 depth ids)
+        | .array n aDt => .array n (reduceDataInData dt For aDt depth ids)
+        | .pair p1 p2 => .pair (reduceDataInData dt For p1 depth ids) (reduceDataInData dt For p2 depth ids)
         | .index _ => In
         | .scalar _ => In
         | .natType => In
-        | .vector n vDt => RData.vector n (reduceDataInData dt For vDt depth ids)
+        | .vector n vDt => .vector n (reduceDataInData dt For vDt depth ids)
         | _ => panic! s!"that should never happen"
 
 -- in PhraseTypes
 def reduceDataInPt (sN : RData) (For : Lean.Name) (In : PhraseType) (depth : Nat) (ids : HashSeen): PhraseType :=
     match In with
-        | .expr dt rw => let nDt := reduceDataInData sN For dt depth ids
-                         .expr nDt rw
+        | .expr dt rw => .expr (reduceDataInData sN For dt depth ids) rw
         | .comm => In
-        | .acc dt => let nDt := reduceDataInData sN For dt depth ids
-                     .acc nDt
-        | .pi binderKind userName body => let nBody := reduceDataInPt sN For body (depth +1) ids
-                                          .pi binderKind userName nBody
-        | .fn binderType body => let nBinderType := reduceDataInPt sN For binderType depth ids
-                                 let nBody := reduceDataInPt sN For body depth ids
-                                 .fn nBinderType nBody
-        | .phrasePair p1 p2 => let nP1 := reduceDataInPt sN For p1 depth ids
-                               let nP2 := reduceDataInPt sN For p2 depth ids
-                               .phrasePair nP1 nP2
+        | .acc dt => .acc (reduceDataInData sN For dt depth ids)
+        | .pi binderKind userName body => .pi binderKind userName (reduceDataInPt sN For body (depth +1) ids)
+        | .fn binderType body => .fn (reduceDataInPt sN For binderType depth ids) (reduceDataInPt sN For body depth ids)
+        | .phrasePair p1 p2 => .phrasePair (reduceDataInPt sN For p1 depth ids) (reduceDataInPt sN For p2 depth ids)
 
 ----------------- reduce Nat -----------------
 
 -- in Data
 def reduceNatInData (n : RNat) (For : Lean.Name) (In : RData) (depth : Nat) (ids : HashSeen) : RData :=
   match In with
-    | .bvar idx name => if name.toString == For.toString && depth == idx then RData.natType
+    | .bvar idx name => if name.toString == For.toString && depth == idx then .natType
                             else match ids.get? (name, (depth- idx)) with
                                     | some _ => In
                                     | none => .bvar (idx-1) name
-    | .array n aDt => RData.array n (reduceNatInData n For aDt depth ids)
-    | .pair p1 p2 => RData.pair (reduceNatInData n For p1 depth ids) (reduceNatInData n For p2 depth ids)
+    | .array n aDt => .array n (reduceNatInData n For aDt depth ids)
+    | .pair p1 p2 => .pair (reduceNatInData n For p1 depth ids) (reduceNatInData n For p2 depth ids)
     | .index _ => In
     | .scalar _ => In
     | .natType => In
-    | .vector n vDt => RData.vector n (reduceNatInData n For vDt depth ids)
+    | .vector n vDt => .vector n (reduceNatInData n For vDt depth ids)
     | _ => panic! s!"that should never happen"
 
 -- in Nat
@@ -170,19 +158,13 @@ partial def reduceNatInNat (num: RNat) (For : Lean.Name) (In: RNat) (depth : Nat
 -- in PhraseTypes
 def reduceNatInPt (sN : RNat) (For : Lean.Name) (In : PhraseType) (depth : Nat) (ids : HashSeen) : PhraseType :=
   match In with
-    | .expr dt rw => let nDt := reduceNatInData sN For dt depth ids
-                    PhraseType.expr nDt rw
+    | .expr dt rw => .expr (reduceNatInData sN For dt depth ids) rw
     | .comm => In
-    | .acc dt => let nDt := reduceNatInData sN For dt depth ids
-                PhraseType.acc nDt
-    | .pi binderKind userName body => let nBody := reduceNatInPt sN For body (depth +1) ids
-                                     PhraseType.pi binderKind userName nBody
-    | .fn binderType body => let nBinderType := reduceNatInPt sN For binderType depth ids
-                            let nBody := reduceNatInPt sN For body depth ids
-                            PhraseType.fn nBinderType nBody
-    | .phrasePair p1 p2 => let nP1 := reduceNatInPt sN For p1 depth ids
-                          let nP2 := reduceNatInPt sN For p2 depth ids
-                          PhraseType.phrasePair nP1 nP2
+    | .acc dt => .acc (reduceNatInData sN For dt depth ids)
+    | .pi binderKind userName body => .pi binderKind userName (reduceNatInPt sN For body (depth +1) ids)
+    | .fn binderType body => .fn (reduceNatInPt sN For binderType depth ids)
+                                 (reduceNatInPt sN For body depth ids)
+    | .phrasePair p1 p2 => .phrasePair (reduceNatInPt sN For p1 depth ids) (reduceNatInPt sN For p2 depth ids)
 
 
 
@@ -207,41 +189,30 @@ def reduceDWrapperN (depArg : DWrapper) (In : RNat) (For : Lean.Name) (depth : N
     | .rise (.data _) =>  panic! s!"it is not possible to substitute data in nat"
     | _ => panic! s!"other wrapper types but nat data and readwrite are not implemented yet"
 
--- i used a hash map because i thought would be more efficient
+
 partial def depReductionHelper (w : DWrapper) (In : DPIAPhrase) (For : Lean.Name) (depth : Nat) (ids : HashSeen): DPIAPhrase :=
     let type := reduceDWrapperPt w In.type For depth ids
-    let node := match In.node with
-                | .bvar _ _ => In.node
-                | .imperative imp => .imperative (substituteInImperative imp (fun x => depReductionHelper w x For depth ids)
-                                                                             (fun x => reduceDWrapperD w x For depth ids)
-                                                                             (fun x => reduceDWrapperN w x For depth ids))
-                | .functional func => .functional (substituteInFunctional func (fun x => depReductionHelper w x For depth ids)
-                                                                               (fun x => reduceDWrapperD w x For depth ids)
-                                                                               (fun x => reduceDWrapperN w x For depth ids))
-                | .lit _ => In.node
-                | .app fn arg => let sFn := depReductionHelper w fn For depth ids
-                                let sArg := depReductionHelper w arg For depth ids
-                                .app sFn sArg
-                | .depapp fn arg => let sFn := depReductionHelper w fn For depth ids
-                                    .depapp sFn arg
-                | .lam binderName binderType body => let sBody := depReductionHelper w body For depth ids
-                                                     let sType := reduceDWrapperPt w binderType For depth ids
-                                                     .lam binderName sType sBody
-                | .deplam binderName binderKind body => let sBody := depReductionHelper w body For (depth+1) (ids.insert (binderName, depth) (binderName, depth))
-                                                        .deplam binderName binderKind sBody
-                | .pair fst snd =>  let sFst := depReductionHelper w fst For depth ids
-                                    let sSnd := depReductionHelper w snd For depth ids
-                                    .pair sFst sSnd
-                | .proj1 p => let sP := depReductionHelper w p For depth ids
-                              .proj1 sP
-                | .proj2 p => let sP := depReductionHelper w p For depth ids
-                              .proj1 sP
-                | .ifThenElse cond thenP elseP =>   let sCond := depReductionHelper w cond For depth ids
-                                                    let sThenP := depReductionHelper w thenP For depth ids
-                                                    let sElseP := depReductionHelper w elseP For depth ids
-                                                    .ifThenElse sCond sThenP sElseP
-                | .natural _ => In.node
-    {node := node, type := type}
+    match In.node with
+                | .bvar _ _ => {node := In.node, type := type}
+                | .imperative imp => mkImperative type (substituteInImperative imp (fun x => depReductionHelper w x For depth ids)
+                                                                                   (fun x => reduceDWrapperD w x For depth ids)
+                                                                                   (fun x => reduceDWrapperN w x For depth ids))
+                | .functional func => mkFunctional type (substituteInFunctional func (fun x => depReductionHelper w x For depth ids)
+                                                                                     (fun x => reduceDWrapperD w x For depth ids)
+                                                                                     (fun x => reduceDWrapperN w x For depth ids))
+                | .lit _ => {node := In.node, type := type}
+                | .app fn arg => mkApp type (depReductionHelper w fn For depth ids) (depReductionHelper w arg For depth ids)
+                | .depapp fn arg => mkDepApp type (depReductionHelper w fn For depth ids) arg
+                | .lam binderName binderType body => mkLam type binderName (reduceDWrapperPt w binderType For depth ids)
+                                                                           (depReductionHelper w body For depth ids)
+                | .deplam binderName binderKind body => mkDeplam type binderName binderKind (depReductionHelper w body For (depth+1) (ids.insert (binderName, depth) (binderName, depth)))
+                | .pair fst snd => mkPair type (depReductionHelper w fst For depth ids) (depReductionHelper w snd For depth ids)
+                | .proj1 p => mkProj1 type (depReductionHelper w p For depth ids)
+                | .proj2 p => mkProj2 type (depReductionHelper w p For depth ids)
+                | .ifThenElse cond thenP elseP => mkIfThenElse type (depReductionHelper w cond For depth ids)
+                                                                    (depReductionHelper w thenP For depth ids)
+                                                                    (depReductionHelper w elseP For depth ids)
+                | .natural _ => {node := In.node, type := type}
 
 def depReduce (arg : DWrapper) (In : DPIAPhrase) (For : Lean.Name): DPIAPhrase :=
    depReductionHelper arg In For 0 {}
@@ -281,16 +252,16 @@ partial def dependentBetaReduction (In : DPIAPhrase) (depArg : DWrapper): DPIAPh
 partial def reduction (phrase : DPIAPhrase) : DPIAPhrase :=
     match phrase.node with
         | .bvar .. => phrase
-        | .imperative imp => {node := .imperative (substituteInImperative imp (fun x => reduction x) (fun x => x) (fun x => x)), type := phrase.type}
-        | .functional prim => {node := .functional (substituteInFunctional prim (fun x => reduction x) (fun x => x) (fun x => x)), type := phrase.type}
+        | .imperative imp => mkImperative phrase.type (substituteInImperative imp (fun x => reduction x) (fun x => x) (fun x => x))
+        | .functional prim => mkFunctional phrase.type (substituteInFunctional prim (fun x => reduction x) (fun x => x) (fun x => x))
         | .lit _ => phrase
         | .app fn arg => reduction (betaReduction fn arg)
         | .depapp fn arg => reduction (dependentBetaReduction fn arg)
-        | .lam binderName binderType body => {node := .lam binderName binderType (reduction body), type := phrase.type}
-        | .deplam binderName binderKind body => {node := .deplam binderName binderKind (reduction body), type := phrase.type}
-        | .pair fst snd => {node := .pair (reduction fst) (reduction snd), type := phrase.type}
-        | .proj1 p => {node := .proj1 (reduction p), type := phrase.type}
-        | .proj2 p => {node := .proj1 (reduction p), type := phrase.type}
-        | .ifThenElse cond thenP elseP => {node := .ifThenElse (reduction cond) (reduction thenP) (reduction elseP), type := phrase.type}
+        | .lam binderName binderType body => mkLam phrase.type binderName binderType (reduction body)
+        | .deplam binderName binderKind body => mkDeplam phrase.type binderName binderKind (reduction body)
+        | .pair fst snd => mkPair phrase.type (reduction fst) (reduction snd)
+        | .proj1 p => mkProj1 phrase.type (reduction p)
+        | .proj2 p => mkProj2 phrase.type (reduction p)
+        | .ifThenElse cond thenP elseP => mkIfThenElse phrase.type (reduction cond) (reduction thenP) (reduction elseP)
         | .natural _ => phrase
 end
