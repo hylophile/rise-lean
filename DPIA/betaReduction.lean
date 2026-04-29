@@ -1,7 +1,7 @@
 import DPIA.Substitutions
 import DPIA.mkFunctions
 
-private abbrev HashSeen := Std.HashMap (Lean.Name × Nat) (Lean.Name × Nat) -- set or list would be sufficient, i do not use the value only check if key is in it
+private abbrev HashSeen := Std.HashSet (Lean.Name × Nat)
 
 
 -- increments the index of a DPIAPhrase identifier of an
@@ -17,7 +17,7 @@ partial def adjustIndex (p : DPIAPhrase) (seenFn : Nat) (ids : HashSeen) (depth 
         | .app fn arg => mkApp p.type (adjustIndex fn seenFn ids depth)
                                       (adjustIndex arg seenFn ids depth)
         | .depapp fn arg => mkDepApp p.type (adjustIndex fn seenFn ids depth) arg
-        | .lam name type body => mkLam p.type name type (adjustIndex body seenFn (ids.insert (name, depth) (name, depth)) (depth+1))
+        | .lam name type body => mkLam p.type name type (adjustIndex body seenFn (ids.insert (name, depth)) (depth+1))
         | .deplam name kind body => mkDeplam p.type name kind (adjustIndex body seenFn ids depth)
         | .pair fst snd => mkPair p.type (adjustIndex fst seenFn ids depth) (adjustIndex snd seenFn ids depth)
         | .proj1 p => mkProj1 p.type (adjustIndex p seenFn ids depth)
@@ -43,7 +43,7 @@ partial def reductionHelper (phrase In : DPIAPhrase) (For : Lean.Name) (depth : 
     | .app fn arg => mkApp In.type  (reductionHelper phrase fn For depth ids)
                                     (reductionHelper phrase arg For depth ids)
     | .depapp fn arg => mkDepApp In.type (reductionHelper phrase fn For depth ids) arg
-    | .lam binderName binderType body =>  mkLam In.type binderName binderType (reductionHelper phrase body For (depth+1) (ids.insert (binderName, depth) (binderName, depth)))
+    | .lam binderName binderType body =>  mkLam In.type binderName binderType (reductionHelper phrase body For (depth+1) (ids.insert (binderName, depth)))
     | .deplam binderName binderKind body => mkDeplam In.type binderName binderKind (reductionHelper phrase body For depth ids)
     | .pair fst snd =>  mkPair In.type (reductionHelper phrase fst For depth ids)
                                        (reductionHelper phrase snd For depth ids)
@@ -205,7 +205,7 @@ partial def depReductionHelper (w : DWrapper) (In : DPIAPhrase) (For : Lean.Name
                 | .depapp fn arg => mkDepApp type (depReductionHelper w fn For depth ids) arg
                 | .lam binderName binderType body => mkLam type binderName (reduceDWrapperPt w binderType For depth ids)
                                                                            (depReductionHelper w body For depth ids)
-                | .deplam binderName binderKind body => mkDeplam type binderName binderKind (depReductionHelper w body For (depth+1) (ids.insert (binderName, depth) (binderName, depth)))
+                | .deplam binderName binderKind body => mkDeplam type binderName binderKind (depReductionHelper w body For (depth+1) (ids.insert (binderName, depth)))
                 | .pair fst snd => mkPair type (depReductionHelper w fst For depth ids) (depReductionHelper w snd For depth ids)
                 | .proj1 p => mkProj1 type (depReductionHelper w p For depth ids)
                 | .proj2 p => mkProj2 type (depReductionHelper w p For depth ids)

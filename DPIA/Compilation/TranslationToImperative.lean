@@ -82,7 +82,7 @@ def mkVar (dt : RData) : PhraseType := .phrasePair (.expr dt .read) (.acc dt)
 
 -- adjusts the indexes of a identifier if DPIA phrase is wrapped by a new function
 private def mkLamIdx (type : PhraseType) (name : Lean.Name) (binderType : PhraseType) (body : DPIAPhrase) : DPIAPhrase :=
-  let indexedBody := adjustIndex body 1 (Std.HashMap.ofList [((name,0), (name,0)) ]) 1
+  let indexedBody := adjustIndex body 1 (Std.HashSet.ofList [(name,0)]) 1
   mkLam type name binderType indexedBody
 
 

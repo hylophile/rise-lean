@@ -354,7 +354,7 @@ partial def codeGenNew (dt : RData) (v p : DPIAPhrase) (env : Environment) : Inf
                                                               let va := mkBvar i (mkNewName n "_a") (.acc t2)
                                                               let vC := CExpr.declRef n
                                                               let env := updatedIdentEnv (updatedIdentEnv env (mkNewName n "_e") vC) (mkNewName n "_a") vC
-                                                              let seq2 := substitutePhraseInPhrase {node := .pair ve va, type := .phrasePair (.expr t1 rw) (.acc t2)} p n
+                                                              let seq2 := reduce {node := .pair ve va, type := .phrasePair (.expr t1 rw) (.acc t2)} p n
                                                               return .block [.declStmt (.var n (typ dt) none) , (← cmd env seq2)]
         | _ => panic! s!"type mismatch"
 
