@@ -58,6 +58,8 @@ inductive RData
   | vector : RNat → RData → RData -- NOTE: second param should be scalar, but then we'd also need mvars for scalar, which is annoying, so i'll leave it as is for now.
 deriving Repr, BEq, Hashable
 
+notation "(" p1 ", " p2 ")" => RData.pair p1 p2
+
 -- Im-/ex-plicity of parameters
 inductive RBinderInfo
   | explicit
@@ -72,6 +74,8 @@ inductive RType
   | fn (binderType : RType) (body : RType)
 deriving Repr, BEq, Hashable
 
+-- notation "[" start " ⇒' " stop "]" => between start stop
+notation binderType ">" body => RType.fn binderType body
 
 inductive RWrapper
   | nat (v: RNat)

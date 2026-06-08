@@ -26,7 +26,7 @@ def simpleZip := [RiseC|
 
 def applyInferAccessToDot := inferAccess dot
 
-#pp dot
+#eval dot
 #pp inferAccess dot
 #pp reduction (fromRise dot)
 
@@ -73,6 +73,8 @@ def bodyDot := generateCode tIDot
 def xx := match (fromRise dot |> applyToImpWithRenaming |> uniqueRenamingWithParams).getLast? with
             | some y => y
             | none => {node := .lit (.bool false), type := .comm}
+#pp fromRise dot |> applyToImp
 #pp xx
 #pp fromRise dot |> applyToImp |> generateCode
 #pp CCodeFromRise dot
+#pp fromRise dot |> applyToImpWithRenaming |> uniqueRenamingWithParams

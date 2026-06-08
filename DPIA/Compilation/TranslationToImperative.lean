@@ -105,7 +105,7 @@ partial def acc (E A : DPIAPhrase) (counter : Nat): DPIAPhrase :=
                         | .bvar _ _ =>  assignByType (getDataType E.type) A E
                         | .functional func => functionalAcc func E.type A counter
                         | .ifThenElse cond thenP elseP => con cond (fun cont => mkIfThenElse .comm cont (acc thenP A counter) (acc elseP A counter)) counter
-                        | _ => panic! s!"{E.node} is not valid in an acceptor\n"
+                        | _ => panic! s!"{E.node} is not valid as an expression\n"
 
 partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: DPIAPhrase) (counter : Nat): DPIAPhrase :=
     match func with
@@ -245,7 +245,6 @@ partial def con (E : DPIAPhrase) (C : DPIAPhrase → DPIAPhrase) (counter : Nat)
     match E.node with
         | .bvar _ _ =>C E -- C(x)
         | .lit _ => C E -- C(val)
---        | .imperative imp => imperativeCon imp E.type C
         | .functional func => functionalCon func E.type C counter
         | .app fn arg => let sub := betaReduction fn arg
                          con sub C counter
@@ -422,7 +421,7 @@ partial def functionalFed (env : Env) (func : FunctionalPrimitives) (C : DPIAPhr
                                                           (mkJoinAcc n m dt (apply C o))) counter
         | .map n dt1 dt2 a f array => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt1 a)
                                       let oType := PhraseType.acc dt2
-                                      let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
+                                      let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType
                                       let y := mkBvar 0 (mkName "y") (getType env)
                                       fedAcc env array
                                              (mkLamIdx (.fn (getType env) (.acc (.array n dt1))) (mkName "y") (getType env)
@@ -437,7 +436,7 @@ partial def functionalFed (env : Env) (func : FunctionalPrimitives) (C : DPIAPhr
                                                               (apply C y))) (counter +1)
         | .mapFst dt1 dt2 dt3 _ f record => let x := mkBvar 0 (getFreshIdentifier "fede_x" counter) (.expr dt2 .write)
                                             let oType := PhraseType.acc dt3
-                                            let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType -- there is a probelm with the debruijn identifier for o that needs to be solved
+                                            let o := mkBvar 0 (getFreshIdentifier "fede_o" counter) oType
                                             let y := mkBvar 0 (mkName "y") (getType env 2)
                                             fedAcc env record
                                                     (mkLamIdx (.fn (getType env 2) (.acc (.pair dt1 dt2))) (mkName "y") (getType env 2)

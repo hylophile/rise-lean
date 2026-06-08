@@ -174,91 +174,91 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
   match prim.toString with
     | "mapSeq" | "mapSeqUnroll" | "iterateStream" => match primType with
                                                       | .fn (.fn (.data s) (.data t)) (.fn (.data (.array n _)) (.data (.array _ _))) =>
-                                                            return (.fn (.fn  (.expr s .read) (.expr t .write))
-                                                                        (.fn  (.expr (.array n s) .read) (.expr (.array n t) .write)))
-                                                      | _ => throw s!"{primType} is no match for mapSeq / mapSeqUnroll / iterateStream" -- terminate
+                                                            return ((.expr s .read) -> (.expr t .write)) ->
+                                                                   ((.expr (.array n s) .read) -> (.expr (.array n t) .write))
+                                                      | _ => throw s!"{primType} is no match for mapSeq / mapSeqUnroll / iterateStream"
     | "map" => match primType with
                 | .fn (.fn (.data s) (.data t))  (.fn   (.data (.array n _)) (.data (.array _ _))) =>
                       let ai := .identifier (← getFreshAccessIdentifier)
-                      return .fn (.fn (.expr s ai) (.expr t ai))
-                                 (.fn (.expr (.array n s) ai) (.expr (.array n t) ai))
+                      return  ((.expr s ai) -> (.expr t ai)) ->
+                                 ((.expr (.array n s) ai) -> (.expr (.array n t) ai))
                 | _ => throw s!"{primType} is no match for map"
     | "mapFst" => match primType with
                   | .fn (.fn (.data dt1) (.data dt3)) (.fn (.data (.pair _ dt2)) (.data (.pair _ _))) =>
                         let ai := DAnnotation.identifier (← getFreshAccessIdentifier)
-                          return .fn (.fn (.expr dt1 ai) (.expr dt3 ai))
-                                     (.fn (.expr (.pair dt1 dt2) ai) (.expr (.pair dt3 dt2) ai))
+                        return ((.expr dt1 ai) -> (.expr dt3 ai)) ->
+                                     ((.expr (dt1, dt2) ai) -> (.expr (.pair dt3 dt2) ai))
                   | _ => throw s!"{primType} is no match for mapFst"
     | "mapSnd" => match primType with
                   | .fn (.fn (.data dt2) (.data dt3)) (.fn (.data (.pair dt1 _)) (.data (.pair _ _))) =>
                           let ai := (DAnnotation.identifier (← getFreshAccessIdentifier))
-                          return .fn (.fn (.expr dt2 ai) (.expr dt3 ai)) (.fn (.expr (.pair dt1 dt2) ai) (.expr (.pair dt1 dt3) ai))
+                          return ((.expr dt2 ai) -> (.expr dt3 ai)) -> ((.expr (.pair dt1 dt2) ai) -> (.expr (.pair dt1 dt3) ai))
                   | _ => throw s!"{primType} is no match for mapSnd"
     | "mapStream" => match primType with
                       | .fn (.fn (.data s) (.data t)) (.fn (.data (.array n _)) (.data (.array _ _))) =>
-                              return .fn (.fn (.expr s .read) (.expr t .write)) (.fn (.expr (.array n s) .read) (.expr (.array n t) .read))
+                              return ((.expr s .read) -> (.expr t .write)) -> ((.expr (.array n s) .read) -> (.expr (.array n t) .read))
                       | _ => throw s!"{primType} is no match for mapStream"
     | "toMem" => match primType with
-                  | .fn (.data t) (.data _) => return .fn (.expr t .write) (.expr t .read)
+                  | .fn (.data t) (.data _) => return (.expr t .write) -> (.expr t .read)
                   | _ => throw s!"{primType} is no match for toMem"
     | "join" | "transpose" | "asScalar" | "unzip" => match primType with
                                                       | .fn (.data dt1) (.data dt2) => let ai := (DAnnotation.identifier (← getFreshAccessIdentifier))
-                                                                                       return .fn (.expr dt1 ai) (.expr dt2 ai)
+                                                                                       return (.expr dt1 ai) -> (.expr dt2 ai)
                                                       |_ => throw s!"{primType} is no match for join / transpose / asScalar / unzip"
     | "vectorFromScalar" | "neg" | "not" | "indexAsNat" | "fst" | "snd" | "cast" => match primType with
                                                                                       | .fn (.data dt1) (.data dt2) =>
-                                                                                            return .fn (.expr dt1 .read) (.expr dt2 .read)
+                                                                                            return (.expr dt1 .read) -> (.expr dt2 .read)
                                                                                       | _ => throw s!"{primType} is no match for vectorFromScalar / neg / not / indexAsnat / fst / snd / cast"
     | "concat" => match primType with
-                    | .fn (.data dt1) (.fn (.data dt2) (.data dt3)) => return .fn (.expr dt1 .write) (.fn (.expr dt2 .write) (.expr dt3 .write))
+                    | .fn (.data dt1) (.fn (.data dt2) (.data dt3)) => return (.expr dt1 .write) -> ((.expr dt2 .write) -> (.expr dt3 .write))
                     | _ => throw s!"{primType} is no match for concat"
     | "rlet" => match primType with
                   | .fn (.data s) (.fn (.fn (.data _) (.data t)) (.data _)) =>
                         let ai := (DAnnotation.identifier (← getFreshAccessIdentifier))
-                        return .fn (.expr s .read) (.fn (.fn (.expr s .read) (.expr t ai)) (.expr t ai))
+                        return (.expr s .read) -> (((.expr s .read) -> (.expr t ai)) -> (.expr t ai))
                   | _ => throw s!"{primType} is no match for rlet"
     | "split" | "asVector" | "asVectorAligned" => match primType with
                                                     | .pi .nat _ userName (.fn (.data dt1) (.data dt2)) => let ai := (DAnnotation.identifier (← getFreshAccessIdentifier))
-                                                                                                           return .pi (.rise .nat) userName (.fn (.expr dt1 ai) (.expr dt2 ai))
+                                                                                                           return .pi (.rise .nat) userName ((.expr dt1 ai) -> (.expr dt2 ai))
                                                     | _ => throw s!"{primType} is no match for split / asVector / asVector Aligned"
     | "zip" | "makePair" => match primType with
                               | .fn (.data dt1) (.fn (.data dt2) (.data dt3)) =>  let ai := (DAnnotation.identifier (← getFreshAccessIdentifier))
-                                                                                  return .fn (.expr dt1 ai) (.fn (.expr dt2 ai) (.expr dt3 ai))
+                                                                                  return (.expr dt1 ai) -> (.fn (.expr dt2 ai) (.expr dt3 ai))
                               | _ => throw s!"{primType} is no match for zip / makPair"
     | "idx" | "add" | "sub" | "mul" | "div" | "gt" | "lt" | "equal" | "mod" | "gather" => match primType with
-                                                                                            | .fn (.data dt1) (.fn (.data dt2) (.data dt3)) => return .fn (.expr dt1 .read) (.fn  (.expr dt2 .read) (.expr dt3 .read))
+                                                                                            | .fn (.data dt1) (.fn (.data dt2) (.data dt3)) => return (.expr dt1 .read) -> ((.expr dt2 .read) -> (.expr dt3 .read))
                                                                                             | _ => throw s!"{primType} is no match for idx / add / sub / mult / div / gt / lt / equal / mod / gather"
     | "scatter" => match primType with
-                    | .fn (.data dt1) (.fn (.data dt2) (.data dt3)) => return .fn (.expr dt1 .read) (.fn (.expr dt2 .write) (.expr dt3 .write))
+                    | .fn (.data dt1) (.fn (.data dt2) (.data dt3)) => return (.expr dt1 .read) -> ((.expr dt2 .write) -> (.expr dt3 .write))
                     | _ => throw s!"{primType} is no match for scatter"
     | "natAsIndex" | "take" | "drop" => match primType with
-                                        | .pi .nat _ userName (.fn (.data dt1) (.data dt2)) => return .pi (.rise .nat) userName (.fn (.expr dt1 .read) (.expr dt2 .read))
+                                        | .pi .nat _ userName (.fn (.data dt1) (.data dt2)) => return .pi (.rise .nat) userName ((.expr dt1 .read) -> (.expr dt2 .read))
                                         | _ => throw s!"{primType} is no match for natAsIndex"
     | "reduceSeq" | "reduceSeqUnroll" => match primType with
                                           | .fn (.fn (.data t) (.fn (.data s) (.data _))) (.fn (.data _) (.fn (.data (.array n _)) (.data _))) =>
-                                                  return .fn (.fn (.expr t .read) (.fn (.expr s .read) (.expr t .write)))
-                                                             (.fn (.expr t .write) (.fn (.expr (.array n s) .read) (.expr t .read)))
+                                                  return ((.expr t .read) -> ((.expr s .read) -> (.expr t .write)))
+                                                            -> ((.expr t .write) -> ((.expr (.array n s) .read) -> (.expr t .read)))
                                           | _ => throw s!"{primType} is no match for reduceSeq / reduceSeqUnroll"
     | "scanSeq" => match primType with
                     | .fn (.fn (.data s) (.fn (.data t) (.data _))) (.fn (.data _) (.fn (.data (.array n _)) (.data _))) =>
-                          return .fn (.fn (.expr s .read) (.fn (.expr t .read) (.expr t .write)))
-                                     (.fn (.expr t .write) (.fn (.expr (.array n s) .read) (.expr (.array n t) .write)))
+                          return ((.expr s .read) -> ( (.expr t .read) -> (.expr t .write))) ->
+                                 ((.expr t .write) -> ((.expr (.array n s) .read) -> (.expr (.array n t) .write)))
                     | _ => throw s!"{primType} is no match for scanSeq"
     | "rotateValue" => match primType with
                         | .pi .nat _ sz (.fn (.fn (.data s) (.data _)) (.fn (.data (.array nIn dtIn)) (.data (.array nOut dtOut)))) =>
-                            return .pi (.rise .nat) sz (.fn (.fn (.expr s .read) (.expr s .write)) (.fn (.expr (.array nIn dtIn) .read) (.expr (.array nOut dtOut) .read)))
+                            return .pi (.rise .nat) sz (((.expr s .read) -> (.expr s .write)) -> ((.expr (.array nIn dtIn) .read) -> (.expr (.array nOut dtOut) .read)))
                         | _ => throw s!"{primType} is no match for rotateValue"
     | "circularBuffer" =>  match primType with
                             | .pi .nat _ alloc (.pi .nat _ sz
                                   (.fn (.fn (.data s) (.data _))
                                        (.fn (.data (.array nIn dtIn)) (.data (.array nOut dtOut))))) =>
                                return .pi (.rise .nat) alloc (.pi (.rise .nat) sz
-                                          (.fn (.fn (.expr s .read) (.expr s .write))
-                                               (.fn (.expr (.array nIn dtIn) .read) (.expr (.array nOut dtOut) .read))))
+                                          (((.expr s .read) -> (.expr s .write))
+                                              -> ((.expr (.array nIn dtIn) .read) -> (.expr (.array nOut dtOut) .read))))
                             | _ => throw s!"{primType} is no match for circularBuffer"
     | "slide" | "padClamp" =>  match primType with
                                 | .pi .nat _ sz (.pi .nat _ sp (.fn (.data dt1) (.data dt2))) =>
-                                      return .pi (.rise .nat) sz (.pi (.rise .nat) sp (.fn (.expr dt1 .read) (.expr dt2 .read)))
+                                      return .pi (.rise .nat) sz (.pi (.rise .nat) sp ((.expr dt1 .read) -> (.expr dt2 .read)))
                                 | _ => throw s!"{primType} is no match for slide / padClamp"
 
     | "iterate" =>  match primType with
@@ -266,29 +266,29 @@ private def matchPrimitiveType (prim : Lean.Name) (primType : RType) : InferM Ph
                             (.fn (.pi .nat _ l (.fn (.data (.array n1 at1)) (.data (.array n2 at2))))
                                  (.fn (.data (.array n3 at3)) (.data (.array n4 at4)))) =>
                           return .pi (.rise .nat) k
-                                     (.fn (.pi (.rise .nat) l (.fn (.expr (.array n1 at1) .read) (.expr (.array n2 at2) .write)))
-                                          (.fn (.expr (.array n3 at3) .read) (.expr (.array n4 at4) .write)))
+                                     ((.pi (.rise .nat) l ((.expr (.array n1 at1) .read) -> (.expr (.array n2 at2) .write)))
+                                         -> ((.expr (.array n3 at3) .read) -> (.expr (.array n4 at4) .write)))
                       | _ => throw s!"{primType} is no match for iterate"
     | "oclIterate" =>  match primType with
-                        | .fn _ _ => return PhraseType.comm --TODO look at it again -> no address
+                        | .fn _ _ => return PhraseType.comm --TODO: no address
                         | _ => throw s!"{primType} is no match for oclIterate"
     | "select" => match primType with
                     | .fn (.data (.scalar .bool)) (.fn (.data t) (.fn (.data _) (.data _))) =>
-                          return .fn (.expr (.scalar .bool) .read) (.fn (.expr t .read) (.fn (.expr t .read) (.expr t .read)))
+                          return (.expr (.scalar .bool) .read) -> ((.expr t .read) -> ((.expr t .read) -> (.expr t .read)))
                     | _ => throw s!"{primType} is no match for select"
     | "padEmpty" =>  match primType with
                       | .pi .nat _ r (.fn (.data (.array n t)) (.data (.array _ _))) =>
-                          return .pi (.rise .nat) r  (.fn (.expr (.array n t) .write) (.expr (.array (.plus n (.bvar 0 r)) t) .write))
+                          return .pi (.rise .nat) r  ((.expr (.array n t) .write) -> (.expr (.array (.plus n (.bvar 0 r)) t) .write))
                       | _ => throw s!"{primType} is no match for padEmpty"
     | "padCst" =>  match primType with
                     | .pi .nat _ l (.pi .nat _ q
                          (.fn (.data t) (.fn (.data (.array n _)) (.data (.array _ _))))) =>
                         return .pi (.rise .nat) l (.pi (.rise .nat) q
-                                   (.fn (.expr t .read) (.fn (.expr (.array n t) .read) (.expr (.array (.plus (.bvar 1 l) (.plus (.bvar 0 q) n)) t) .read))))
+                                   ((.expr t .read) -> ((.expr (.array n t) .read) -> (.expr (.array (.plus (.bvar 1 l) (.plus (.bvar 0 q) n)) t) .read))))
                     | _ => throw s!"{primType} is no match for padCast"
     | "generate" => match primType with
                       | .fn (.fn (.data (.index n)) (.data t)) (.data (.array _ _)) =>
-                            return .fn (.fn (.expr (.index n) .read) (.expr t .read)) (.expr (.array n t) .read)
+                            return ((.expr (.index n) .read) -> (.expr t .read)) -> (.expr (.array n t) .read)
                       | _ => throw "generate"
     | _ => throw s!"no match for {prim}"
 
@@ -366,7 +366,7 @@ partial def inferLambda (binderName : Lean.Name) (binderType : RType) (body : RE
                   else type binderType
   let ctxWithX ← insertInCtx ctx binderName xType
   let (bodyExpr, bodySubst) ← inferPhraseTypes body ctxWithX isKernelParamFun
-  let lambdaType := PhraseType.fn (applySubstToPt bodySubst xType) bodyExpr.type
+  let lambdaType := (applySubstToPt bodySubst xType) -> bodyExpr.type
 
   -- set depth like before
   let cstate ← get

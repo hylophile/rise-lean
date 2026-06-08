@@ -3,7 +3,7 @@ import DPIA.Basic
 -- copied from Nates RISE representation
 inductive CScalar
   | void
-  | char  -- how to handle const char?
+  | char
   | uchar
   | int
   | i8
@@ -64,7 +64,7 @@ deriving Repr, BEq
 inductive CType where
   | scalar (s : CScalar) (const : Bool := false)
   | pointer (valueType : CType) (const : Bool := false)
-  | array (elemType : CType) (size : Option CNat) (const : Bool := false) -- should be RNat or own nat
+  | array (elemType : CType) (size : Option CNat) (const : Bool := false)
   | struct (userName : Lean.Name) (fields : List Field) (const : Bool := false)
   | union (fields : List CType) (const : Bool := false)
 deriving Repr, BEq
@@ -110,7 +110,7 @@ inductive CExpr
   | literal (code : String)
   | arrayLiteral (t : CType) (inits : List CExpr)
   | recordLiteral (t : CType) (fst : CExpr) (snd : CExpr)
-  | arithmeticExpr (n : CNat) --- needs fixing
+  | arithmeticExpr (n : CNat)
 deriving Repr, BEq
 
 end
@@ -222,6 +222,15 @@ instance : ToString CBinaryOp where
     | .mod => "%"
     | .shift => ">>"
 
+def printArrayInit (type : CType) (name : Lean.Name) : Std.Format :=
+  match type with
+    | .array elemType size const  => match (size, const) with
+                                      | (some  y, true) => s!"const {CType.ToFormat elemType} {name}[{y}]"
+                                      | (some y, false) => s!"{CType.ToFormat elemType} {name}[{y}]"
+                                      | (none, true) => s!"const {CType.ToFormat elemType} {name}"
+                                      | (none, false) => s!"{CType.ToFormat elemType} {name}"
+    | _ => s!"{type} {name}"
+
 mutual
 def CDeclList.ToFormat: List CDecl →  Std.Format
   | [] => s!""
@@ -249,8 +258,8 @@ def CExprList.ToFormat: List CExpr → Std.Format
 def CDecl.ToFormat : CDecl → Std.Format
     | .fn userName rv param body => s!"{rv} {userName.toString}(" ++ printFunParams param ++ "){" ++ setNestAndLine 2 (CStmt.ToFormat body) ++ Std.Format.line ++ "}"
     | .var userName t init => match init with
-                                | some y => s!"{t} {userName} = {CExpr.ToFormat y}"
-                                | none => s!"{t} {userName}"
+                                | some y => s!"{printArrayInit t userName} = {CExpr.ToFormat y}"
+                                | none => printArrayInit t userName
     | .param userName t => s!"{t} {userName}"
     | .label userName => s!"{userName}: ;"
     | .typeDef userName t => s!"typedef {t} {userName};"

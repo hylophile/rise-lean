@@ -40,6 +40,8 @@ inductive PhraseType
   | phrasePair (p1 : PhraseType) (p2 : PhraseType)
 deriving Repr, BEq
 
+notation binderType "->" body => PhraseType.fn binderType body
+
 -- all rise RWrappers plus readWrite
 inductive DWrapper
   | rise (w: RWrapper)
@@ -56,8 +58,9 @@ structure DPIAPhrase where
   type: PhraseType
 deriving Repr, BEq
 
-inductive DPIAPhraseNode where
+inductive DPIAPhraseNode /- VarRep -/ where
   | bvar (deBruijnIndex : Nat) (userName: Lean.Name)
+  -- | var (rep: VarRep)
   | imperative (imp : ImperativePrimitives)
   | functional (prim : FunctionalPrimitives)
   | lit (val : RLit)
@@ -72,6 +75,8 @@ inductive DPIAPhraseNode where
   | natural (d : RNat)
 deriving Repr, BEq
 
+-- abbrev DeBDPIAPhrase := DPIAPhraseNode (Nat x Lean.Name)
+-- abbrev NamedBDPIAPhrase := DPIAPhraseNode Lean.Name
 
 --------- Functional primitives ---------------------
 

@@ -86,7 +86,7 @@ def insertDeclToEnv (ps : List DPIAPhrase) (map : Std.HashMap Lean.Name CExpr) :
         | ⟨.bvar _ n, _⟩ :: ys => insertDeclToEnv ys (map.insert n (.declRef n))
         | _ => panic! s!"there should only be one phrase in the list that is not a identifier"
 
-partial def generateCode (ps : List DPIAPhrase) : CStmt :=
+def generateCode (ps : List DPIAPhrase) : CStmt :=
     let (phrase, indentEnv) := insertDeclToEnv ps {}
     let env := mkEnv indentEnv {} {}
     generateWithFunctions env phrase
@@ -107,7 +107,7 @@ def makeParam (param : DPIAPhrase) : CDecl :=
         | ⟨.bvar _ name, pt⟩ => .param name (makeParamTy (getDataType pt))
         | _ => panic! s!"for making declarations, only identifiers are accepted!"
 
-partial def makeCModule (cS : CStmt) (params : List DPIAPhrase) : Module :=
+def makeCModule (cS : CStmt) (params : List DPIAPhrase) : Module :=
     let cParams := params.map makeParam
     let includes := [IncludeDirective.includeHeader "stdint.h"]
     let decls := []

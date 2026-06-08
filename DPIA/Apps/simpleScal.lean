@@ -1,6 +1,5 @@
 import DPIA.InferAccessAnnotation
 import Rise
-import DPIA.Printing
 import DPIA.FromRise
 import DPIA.Compilation.generator
 

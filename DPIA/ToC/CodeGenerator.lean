@@ -77,11 +77,13 @@ def numberOfElementsUntil (arrayType : RData) (index : RNat) : RNat :=
     .mult (getTotalNumberOfElements arrayType)  index
 
 
-partial def flattenIndicies (dt : RData) (indices : List RNat) : RNat :=
-    match (dt, indices) with
-        | (_, []) => .nat 0
-        | (.array _ d, index :: rest) => .plus (numberOfElementsUntil d index)  (flattenIndicies d rest)
-        | t => panic! s!"this pair combination should not happen {t}"
+def flattenIndicies (dt : RData) (indices : List RNat) : RNat :=
+    match indices with
+        | [] => .nat 0
+        | index :: rest => match dt with
+                | .array _ d => .plus (numberOfElementsUntil d index)  (flattenIndicies d rest)
+                | _ => panic! s!"this pair combination should not happen ({dt}, {indices})"
+
 
 
 def flattenArrayIndicies (dt : RData) (path : Path) : (RData × RNat × Path) :=
