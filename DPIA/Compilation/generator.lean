@@ -10,11 +10,11 @@ private abbrev mkName := Lean.Name.mkSimple
 
 -------- from functional DPIA to imperative DPIA ----------
 
-def createOutputParam (outT : PhraseType) : DPIAPhrase :=
+def createOutputParam (outT : PhraseType) : (DPIAPhrase × PhraseType) :=
     match outT with
         | .expr dt _ => match dt with
-                            | .scalar _ | .index _ | .natType | .vector _ _ => mkBvar 0 (mkName "output") (.acc (.array (.nat 1) dt))
-                            | .array _ _ => mkBvar 0 (mkName "output") (.acc dt)
+                            | .scalar _ | .index _ | .natType | .vector _ _ => (mkBvar 0 (mkName "output") (.acc (.array (.nat 1) dt)), (.acc (.array (.nat 1) dt)))
+                            | .array _ _ => (mkBvar 0 (mkName "output") (.acc dt), (.acc dt))
                             | .pair _ _ => panic! s!"pair types are not supported yet"
                             | _ => panic! s!"no other types supported. This should not have happened"
         | _ => panic! s!"the output parameter is supposed to be an expression type"
@@ -66,14 +66,20 @@ partial def toImperative (outParam p : DPIAPhrase) : DPIAPhrase :=
 --                out: list of DPIA Parameters and imperative DPIA body
 partial def applyToImp (p : DPIAPhrase) : List DPIAPhrase :=
     let (body, params) := splitBodyAndParams p [] 0
-    let outParam := createOutputParam body.type
-    let expr := toImperative outParam body
+    let (outParam, outType) := createOutputParam body.type
+    let b := match (mkLamIdx body.type (mkName "output") outType body) with -- necessary to have correclty shifted parameters
+                | ⟨.lam _ _ b, _⟩ => b
+                | _ => panic! s!"mkLamIdx is by construction a lambda!"
+    let expr := toImperative outParam b
     outParam :: params.concat expr
 
 partial def applyToImpWithRenaming (p : DPIAPhrase) : List (DPIAPhrase × String) :=
     let (body, params) := splitBodyAndParamsWithParams p [] 0
-    let outParam := createOutputParam body.type
-    let expr := toImperative outParam body
+    let (outParam, outType) := createOutputParam body.type
+    let b := match (mkLamIdx body.type (mkName "output") outType body) with
+                | ⟨.lam _ _ b, _⟩ => b
+                | _ => panic! s!"mkLamIdx is by construction a lambda!"
+    let expr := toImperative outParam b
     (outParam, "fn") :: params.concat (expr, "body")
 
 ----- from DPIA to CStmt

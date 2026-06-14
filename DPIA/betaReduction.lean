@@ -36,7 +36,7 @@ partial def reductionHelper (phrase In : DPIAPhrase) (For : Lean.Name) (depth : 
                                         | _ => adjustIndex phrase depth {} 0
                                 else match ids.get? (userName, (depth- idx-1)) with
                                         | some _ => In
-                                        | none => mkBvar (idx + depth-1) userName In.type
+                                        | none => mkBvar (idx-1) userName In.type --mkBvar (idx + depth-1) userName In.type
     | .imperative imp => mkImperative In.type (substituteInImperative imp (fun x => reductionHelper phrase x For depth ids) (fun x => x) (fun x => x))
     | .functional func => mkFunctional In.type (substituteInFunctional func (fun x => reductionHelper phrase x For depth ids) (fun x => x) (fun x => x))
     | .lit _ => In

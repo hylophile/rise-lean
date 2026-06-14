@@ -18,7 +18,7 @@ def applyInferAccess := inferAccess simpleScal
 #pp fromRise simpleScal
 
 def fRSimpleScal := fromRise simpleScal
-#pp fRSimpleScal
+#pp reduction fRSimpleScal
 #pp uniqueRenaming fRSimpleScal
 #pp applyToImp fRSimpleScal
 

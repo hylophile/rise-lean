@@ -81,7 +81,7 @@ def apply (Con phrase : DPIAPhrase) : DPIAPhrase :=
 def mkVar (dt : RData) : PhraseType := .phrasePair (.expr dt .read) (.acc dt)
 
 -- adjusts the indexes of a identifier if DPIA phrase is wrapped by a new function
-private def mkLamIdx (type : PhraseType) (name : Lean.Name) (binderType : PhraseType) (body : DPIAPhrase) : DPIAPhrase :=
+def mkLamIdx (type : PhraseType) (name : Lean.Name) (binderType : PhraseType) (body : DPIAPhrase) : DPIAPhrase :=
   let indexedBody := adjustIndex body 1 (Std.HashSet.ofList [(name,0)]) 1
   mkLam type name binderType indexedBody
 
@@ -185,6 +185,9 @@ partial def functionalAcc (func : FunctionalPrimitives) (type : PhraseType) (A: 
                                                             A) (counter +1)
         | .mapSeq unroll n _ _ f array =>  let iType := PhraseType.expr (.index n) .read
                                            let i := mkBvar 0 (mkName "i") iType
+                                           --dbg_trace s!"mapSeq = {func}"
+                                           --dbg_trace s!"array = {array}"
+                                           --dbg_trace s!"A = {A}"
                                            con  array (fun x =>
                                                  (mkSeq  (mkComment "mapSeq")
                                                                (mkForLoop unroll n (mkLamIdx (.fn iType .comm) (mkName "i") iType
